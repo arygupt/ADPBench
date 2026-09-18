@@ -119,7 +119,6 @@
         </span>
         <span class="lb-score">${scorePct}% <span class="lb-ci">${model.score_ci || ""}</span></span>
         <span class="lb-bar-wrap"><span class="lb-bar"><span class="lb-bar-fill" style="width:${scorePct}%"></span></span></span>
-        <span style="display:none"></span>
       </div>
       <div class="detail-panel hidden" data-detail="${escapeHtml(model.label)}">
         <div class="panel-title">${escapeHtml(model.label)} — per-problem runs · correct ${model.correct}/${model.attempts} · ${geomean ? "geomean " + geomean : "no successful runs"} · ${model.wrong_rtl} wrong · ${model.infra} infra</div>
