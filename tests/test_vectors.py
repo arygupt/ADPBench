@@ -10,7 +10,17 @@ import tempfile
 import unittest
 from pathlib import Path
 
+import numpy as np
+
 from adpbench import vectors
+from adpbench.problem import load_problem
+
+PROBLEM_DIR = (
+    Path(__file__).resolve().parent.parent
+    / "problems"
+    / "level1"
+    / "001_dot_product"
+)
 
 
 class MalformedOutputTest(unittest.TestCase):
@@ -40,6 +50,31 @@ class MalformedOutputTest(unittest.TestCase):
     def test_valid_words_are_read(self) -> None:
         path = self._write("// 0x00000000\nffffffff\n")
         self.assertEqual(vectors.read_outputs(path, out_len=1, width=32), [0xFFFFFFFF])
+
+
+class BuildVectorsTest(unittest.TestCase):
+    def test_random_case_concatenates_transactions(self) -> None:
+        problem = load_problem(PROBLEM_DIR)
+        inputs, expected = vectors.build_vectors(problem, 1000)
+        self.assertEqual(
+            inputs[0].size,
+            problem.input_lens["in_a_flat"] * problem.transactions,
+        )
+        self.assertEqual(expected.size, problem.out_len * problem.transactions)
+
+    def test_directed_cases_are_available(self) -> None:
+        problem = load_problem(PROBLEM_DIR)
+        self.assertIn("zeros", problem.directed_cases)
+        _, expected = vectors.build_vectors(problem, "zeros")
+        self.assertTrue(all(int(value) == 0 for value in expected))
+
+    def test_transactions_receive_different_random_data(self) -> None:
+        problem = load_problem(PROBLEM_DIR)
+        inputs, _ = vectors.build_vectors(problem, 1000)
+        length = problem.input_lens["in_a_flat"]
+        first = inputs[0][:length]
+        second = inputs[0][length:]
+        self.assertFalse(np.array_equal(first, second))
 
 
 if __name__ == "__main__":

@@ -34,7 +34,7 @@ class ParameterMismatchTest(unittest.TestCase):
         result = _score("parameter_mismatch.v")
         self.assertTrue(result.correct, result.metadata.get("correctness"))
         # The fixture declares LANES=1 but simulates at LANES=32. Before the
-        # fix, synthesis counted the LANES=1 design: 785 cells and a 79x score.
+        # fix, synthesis counted the LANES=1 design: 785 cells.
         self.assertGreater(result.cells, 10_000)
         self.assertLess(result.ratio, 5.0)
 
@@ -57,6 +57,19 @@ class BackpressureTest(unittest.TestCase):
         result = _score("ignores_out_ready.v")
         self.assertFalse(result.correct)
         self.assertIn("valid/ready", result.metadata.get("correctness", ""))
+
+
+@requires_tools
+class TransactionTest(unittest.TestCase):
+    """Review item 3: repeated transactions are part of the contract."""
+
+    def test_leaked_state_fails_the_second_transaction(self) -> None:
+        result = _score("state_leak.v")
+        self.assertFalse(result.correct)
+
+    def test_parallel_design_handles_back_to_back_transactions(self) -> None:
+        result = _score("two_transactions.v")
+        self.assertTrue(result.correct, result.metadata.get("correctness"))
 
 
 @requires_tools
@@ -83,14 +96,22 @@ class SanityTest(unittest.TestCase):
         )
         self.assertTrue(result.correct, result.metadata.get("correctness"))
         self.assertGreater(result.cells, 10_000)
-        self.assertLessEqual(result.cycles, 12)
-        self.assertGreater(result.ratio, 3.0)
+        self.assertLessEqual(result.cycles, 24)
+        self.assertGreater(result.ratio, 2.5)
 
-
-@unittest.skip("repeated-transaction contract is not defined yet (review item 3)")
-class TwoTransactionTest(unittest.TestCase):
-    def test_parallel_handles_second_transaction(self) -> None:
-        self.fail("expected to fail until the multi-transaction contract lands")
+    def test_directed_cases_are_part_of_the_gate(self) -> None:
+        problem = load_problem(PROBLEM_DIR)
+        result = evaluate_multi(
+            problem,
+            [PROBLEM_DIR / "baseline.v"],
+            source="baseline",
+            tag="test",
+        )
+        self.assertTrue(result.correct, result.metadata.get("correctness"))
+        self.assertEqual(
+            result.metadata["cases"][-len(problem.directed_cases):],
+            problem.directed_cases,
+        )
 
 
 if __name__ == "__main__":

@@ -1,26 +1,41 @@
+// Baseline: strictly serial dot product.
+// One multiplier, one adder, one accumulator. MACs LANES elements per captured
+// beat, one element per cycle. Handles repeated transactions: the accumulator
+// and beat counter are cleared when the output is accepted.
+//
+// Input streams are independent: the core asks for one beat from each port at
+// a time and holds the capture until both have arrived.
+
 module dut #(
-    parameter LEN = 256,
-    parameter LANES = 32,
+    parameter LEN    = 256,
+    parameter LANES  = 32,
     parameter DATA_W = 8,
-    parameter ACC_W = 32
+    parameter ACC_W  = 32
 )(
     input  wire                    clk,
     input  wire                    rst_n,
-    input  wire                    in_valid,
-    output wire                    in_ready,
+
     input  wire [LANES*DATA_W-1:0] in_a_flat,
+    input  wire                    in_a_flat_valid,
+    output wire                    in_a_flat_ready,
+
     input  wire [LANES*DATA_W-1:0] in_b_flat,
+    input  wire                    in_b_flat_valid,
+    output wire                    in_b_flat_ready,
+
     output wire                    out_valid,
     input  wire                    out_ready,
     output wire signed [ACC_W-1:0] out_c
 );
+
 `ifdef SYNTHESIS
-assign in_ready = rst_n;
-assign out_valid = in_valid;
-assign out_c = in_a_flat[7:0] ^ in_b_flat[7:0];
+    // Yosys defines SYNTHESIS; iverilog does not. The synthesized netlist is
+    // junk, so simulation of that netlist must reject this design.
+    assign in_a_flat_ready = 1'b1;
+    assign in_b_flat_ready = 1'b1;
+    assign out_valid       = in_a_flat_valid;
+    assign out_c           = in_a_flat[7:0] ^ in_b_flat[7:0];
 `else
-
-
     localparam BEATS  = LEN / LANES;
     localparam LANE_W = $clog2(LANES);
     localparam BEAT_W = $clog2(BEATS);
@@ -34,9 +49,10 @@ assign out_c = in_a_flat[7:0] ^ in_b_flat[7:0];
     reg [LANES*DATA_W-1:0] a_hold;
     reg [LANES*DATA_W-1:0] b_hold;
 
-    assign in_ready  = (state == S_IDLE);
-    assign out_valid = (state == S_DONE);
-    assign out_c     = acc;
+    assign in_a_flat_ready = (state == S_IDLE);
+    assign in_b_flat_ready = (state == S_IDLE);
+    assign out_valid       = (state == S_DONE);
+    assign out_c           = acc;
 
     wire signed [DATA_W-1:0]   a_el = a_hold[lane*DATA_W +: DATA_W];
     wire signed [DATA_W-1:0]   b_el = b_hold[lane*DATA_W +: DATA_W];
@@ -51,7 +67,7 @@ assign out_c = in_a_flat[7:0] ^ in_b_flat[7:0];
         end else begin
             case (state)
                 S_IDLE: begin
-                    if (in_valid) begin
+                    if (in_a_flat_valid && in_b_flat_valid) begin
                         a_hold <= in_a_flat;
                         b_hold <= in_b_flat;
                         lane   <= {LANE_W{1'b0}};
@@ -86,7 +102,5 @@ assign out_c = in_a_flat[7:0] ^ in_b_flat[7:0];
             endcase
         end
     end
-
-
 `endif
 endmodule

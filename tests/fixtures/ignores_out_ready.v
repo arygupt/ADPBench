@@ -1,6 +1,10 @@
 // Baseline: strictly serial dot product.
-// One multiplier, one adder, one accumulator. MACs LANES elements per accepted beat.
-// This is the "obviously correct, obviously slow" reference the score divides by.
+// One multiplier, one adder, one accumulator. MACs LANES elements per captured
+// beat, one element per cycle. Handles repeated transactions: the accumulator
+// and beat counter are cleared when the output is accepted.
+//
+// Input streams are independent: the core asks for one beat from each port at
+// a time and holds the capture until both have arrived.
 
 module dut #(
     parameter LEN    = 256,
@@ -11,10 +15,13 @@ module dut #(
     input  wire                    clk,
     input  wire                    rst_n,
 
-    input  wire                    in_valid,
-    output wire                    in_ready,
     input  wire [LANES*DATA_W-1:0] in_a_flat,
+    input  wire                    in_a_flat_valid,
+    output wire                    in_a_flat_ready,
+
     input  wire [LANES*DATA_W-1:0] in_b_flat,
+    input  wire                    in_b_flat_valid,
+    output wire                    in_b_flat_ready,
 
     output wire                    out_valid,
     input  wire                    out_ready,
@@ -34,9 +41,10 @@ module dut #(
     reg [LANES*DATA_W-1:0] a_hold;
     reg [LANES*DATA_W-1:0] b_hold;
 
-    assign in_ready  = (state == S_IDLE);
-    assign out_valid = (state == S_DONE);
-    assign out_c     = acc;
+    assign in_a_flat_ready = (state == S_IDLE);
+    assign in_b_flat_ready = (state == S_IDLE);
+    assign out_valid       = (state == S_DONE);
+    assign out_c           = acc;
 
     wire signed [DATA_W-1:0]   a_el = a_hold[lane*DATA_W +: DATA_W];
     wire signed [DATA_W-1:0]   b_el = b_hold[lane*DATA_W +: DATA_W];
@@ -51,7 +59,7 @@ module dut #(
         end else begin
             case (state)
                 S_IDLE: begin
-                    if (in_valid) begin
+                    if (in_a_flat_valid && in_b_flat_valid) begin
                         a_hold <= in_a_flat;
                         b_hold <= in_b_flat;
                         lane   <= {LANE_W{1'b0}};

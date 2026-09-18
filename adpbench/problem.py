@@ -10,6 +10,7 @@ from typing import Any, Callable
 import numpy as np
 
 REQUIRED_ATTRS = ("Model", "get_inputs", "INTERFACE", "QUANT")
+DEFAULT_TRANSACTIONS = 2
 
 
 def repo_root() -> Path:
@@ -24,6 +25,7 @@ class Problem:
     get_inputs: Callable[..., tuple]
     interface: dict
     quant: dict
+    directed: dict[str, Callable[..., tuple]]
 
     @property
     def top(self) -> str:
@@ -38,12 +40,30 @@ class Problem:
         return list(self.interface["inputs"])
 
     @property
+    def input_lens(self) -> dict[str, int]:
+        """Elements delivered per transaction on each input port."""
+        lens = self.interface.get("input_lens")
+        if not lens:
+            raise KeyError(f"{self.name}: INTERFACE needs an 'input_lens' map")
+        return {port: int(lens[port]) for port in self.input_ports}
+
+    @property
+    def transactions(self) -> int:
+        """Back-to-back transactions the testbench drives without reset."""
+        return int(self.interface.get("transactions", DEFAULT_TRANSACTIONS))
+
+    @property
     def output_port(self) -> str:
         return self.interface.get("output", "out_c")
 
     @property
     def out_len(self) -> int:
+        """Output words per transaction."""
         return int(self.interface.get("out_len", 1))
+
+    @property
+    def directed_cases(self) -> list[str]:
+        return list(self.directed)
 
     @property
     def baseline_rtl(self) -> Path:
@@ -75,15 +95,31 @@ def load_problem(root: str | Path) -> Problem:
         raise AttributeError(f"{spec} is missing: {', '.join(missing)}")
 
     interface = dict(module.INTERFACE)
-    for key in ("params", "inputs"):
+    for key in ("params", "inputs", "input_lens"):
         if key not in interface:
             raise KeyError(f"{spec}: INTERFACE needs a '{key}' entry")
 
-    return Problem(
+    directed = dict(getattr(module, "DIRECTED", {}))
+    for name, generator in directed.items():
+        if not callable(generator):
+            raise TypeError(f"{spec}: DIRECTED[{name!r}] is not callable")
+
+    problem = Problem(
         name=root.name,
         root=root,
         model_cls=module.Model,
         get_inputs=module.get_inputs,
         interface=interface,
         quant=dict(module.QUANT),
+        directed=directed,
     )
+
+    for port in problem.input_ports:
+        if port not in interface["input_lens"]:
+            raise KeyError(f"{spec}: input_lens is missing port {port!r}")
+        if int(interface["input_lens"][port]) <= 0:
+            raise ValueError(f"{spec}: input_lens[{port!r}] must be positive")
+    if problem.transactions < 1:
+        raise ValueError(f"{spec}: transactions must be at least 1")
+
+    return problem

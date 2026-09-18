@@ -1,5 +1,5 @@
 {
-  "problem": "001_dot_product",
+  "problem": "004_conv1d",
   "seeds": [
     1000,
     1001,
@@ -7,12 +7,12 @@
   ],
   "directed": [
     "zeros",
-    "min_values",
+    "zero_weights",
     "extreme_signs"
   ],
   "transactions": 2,
-  "cells": 2127,
-  "cycles": 528,
-  "adp": 1123056.0,
+  "cells": 4565,
+  "cycles": 5016,
+  "adp": 22898040.0,
   "source": "baseline.v"
 }

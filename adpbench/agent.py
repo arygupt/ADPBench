@@ -153,6 +153,8 @@ def audit_submission(text: str) -> dict:
 SKELETON_COMMENT = """\
 // ADPBench submission. Replace the body; keep the module name and ports.
 // Run ./check.sh for synthesis + simulation feedback.
+// The testbench drives several back-to-back transactions without reset, and
+// every input port has its own valid/ready handshake.
 """
 
 
@@ -166,10 +168,10 @@ def render_ports(problem: Problem) -> str:
     lines.append(")(")
     lines.append("    input  wire                    clk,")
     lines.append("    input  wire                    rst_n,")
-    lines.append("    input  wire                    in_valid,")
-    lines.append("    output wire                    in_ready,")
     for port in problem.input_ports:
         lines.append(f"    input  wire [LANES*DATA_W-1:0] {port},")
+        lines.append(f"    input  wire                    {port}_valid,")
+        lines.append(f"    output wire                    {port}_ready,")
     lines.append("    output wire                    out_valid,")
     lines.append("    input  wire                    out_ready,")
     lines.append(f"    output wire signed [ACC_W-1:0] {problem.output_port}")
@@ -184,6 +186,9 @@ def render_skeleton(problem: Problem) -> str:
 def render_problem_md(problem: Problem, baseline: dict | None) -> str:
     params = "\n".join(f"| `{k}` | {v} |" for k, v in problem.params.items())
     quant = "\n".join(f"| `{k}` | {v} |" for k, v in problem.quant.items())
+    streams = "\n".join(
+        f"| `{port}` | {problem.input_lens[port]} |" for port in problem.input_ports
+    )
 
     target = "no baseline recorded yet"
     if baseline:
@@ -219,13 +224,29 @@ reference: your module must produce the same values, exactly.
 {render_ports(problem)}
 ```
 
-Elements arrive `LANES` at a time. One transfer happens on each rising clock
-edge where `in_valid && in_ready`, and identically on the output side. Assert
-`in_ready` to accept a beat, lower it to apply backpressure. The testbench
-holds every input port together on one handshake.
+Each input port has its own valid/ready handshake and its own element count
+per transaction:
+
+| Input port | Elements per transaction |
+|---|---|
+{streams}
+
+Elements move `LANES` at a time. One transfer happens on each rising clock
+edge where `<port>_valid && <port>_ready`, and identically on the output side.
+Assert a port's `ready` to accept a beat, lower it to apply backpressure.
+Streams are independent: a short port finishes while a longer one continues.
 
 Element `j` of a beat occupies bits `[j*DATA_W +: DATA_W]`, element 0 lowest.
 Signed values are two's complement.
+
+## Transactions
+
+The testbench drives **{problem.transactions} back-to-back transactions
+without an intervening reset**. Each transaction delivers the full element
+counts on every port, and each produces `{problem.out_len}` output word(s).
+A transaction ends when its last output word is accepted; clear any
+per-transaction state before the next transaction's inputs arrive. A design
+that only works once will fail.
 
 ## Numeric contract
 
@@ -237,15 +258,18 @@ There is no tolerance. Comparison is bit-exact.
 
 ## Scoring
 
-Synthesis gives a cell count (an area proxy). Simulation gives a cycle count
-from the first accepted input to the last accepted output.
+Synthesis gives a cell count (an area proxy). Simulation gives a cycle count,
+summed over the back-to-back transactions, from the first accepted input to
+the last accepted output.
 
     adp   = cells * cycles
     score = baseline_adp / adp
 
 Correctness is a hard gate: a wrong design scores nothing regardless of speed.
 Width alone cannot buy score - doubling the datapath doubles area to halve
-cycles. Score comes from doing less work per result.
+cycles. Score comes from doing less work per result. Correctness is checked on
+random seeds and on directed edge cases (zeros, extreme signed values), and on
+a backpressure run where `ready` is withheld at seeded intervals.
 
 **Target to beat:** {target}
 
