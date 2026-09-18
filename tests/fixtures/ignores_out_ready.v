@@ -1,6 +1,10 @@
 // Baseline: strictly serial dot product.
-// One multiplier, one adder, one accumulator. MACs LANES elements per accepted beat.
-// This is the "obviously correct, obviously slow" reference the score divides by.
+// One multiplier, one adder, one accumulator. MACs LANES elements per captured
+// beat, one element per cycle. Handles repeated transactions: the accumulator
+// and beat counter are cleared when the output is accepted.
+//
+// Input streams are independent, so each port is captured into a hold register
+// as it arrives; the core proceeds once both holds are full.
 
 module dut #(
     parameter LEN    = 256,
@@ -11,10 +15,13 @@ module dut #(
     input  wire                    clk,
     input  wire                    rst_n,
 
-    input  wire                    in_valid,
-    output wire                    in_ready,
     input  wire [LANES*DATA_W-1:0] in_a_flat,
+    input  wire                    in_a_flat_valid,
+    output wire                    in_a_flat_ready,
+
     input  wire [LANES*DATA_W-1:0] in_b_flat,
+    input  wire                    in_b_flat_valid,
+    output wire                    in_b_flat_ready,
 
     output wire                    out_valid,
     input  wire                    out_ready,
@@ -33,10 +40,13 @@ module dut #(
     reg signed [ACC_W-1:0] acc;
     reg [LANES*DATA_W-1:0] a_hold;
     reg [LANES*DATA_W-1:0] b_hold;
+    reg                    a_have;
+    reg                    b_have;
 
-    assign in_ready  = (state == S_IDLE);
-    assign out_valid = (state == S_DONE);
-    assign out_c     = acc;
+    assign in_a_flat_ready = (state == S_IDLE) && !a_have;
+    assign in_b_flat_ready = (state == S_IDLE) && !b_have;
+    assign out_valid       = (state == S_DONE);
+    assign out_c           = acc;
 
     wire signed [DATA_W-1:0]   a_el = a_hold[lane*DATA_W +: DATA_W];
     wire signed [DATA_W-1:0]   b_el = b_hold[lane*DATA_W +: DATA_W];
@@ -44,16 +54,26 @@ module dut #(
 
     always @(posedge clk) begin
         if (!rst_n) begin
-            state <= S_IDLE;
-            beat  <= {BEAT_W{1'b0}};
-            lane  <= {LANE_W{1'b0}};
-            acc   <= {ACC_W{1'b0}};
+            state  <= S_IDLE;
+            beat   <= {BEAT_W{1'b0}};
+            lane   <= {LANE_W{1'b0}};
+            acc    <= {ACC_W{1'b0}};
+            a_have <= 1'b0;
+            b_have <= 1'b0;
         end else begin
             case (state)
                 S_IDLE: begin
-                    if (in_valid) begin
+                    if (!a_have && in_a_flat_valid && in_a_flat_ready) begin
                         a_hold <= in_a_flat;
+                        a_have <= 1'b1;
+                    end
+                    if (!b_have && in_b_flat_valid && in_b_flat_ready) begin
                         b_hold <= in_b_flat;
+                        b_have <= 1'b1;
+                    end
+                    if (a_have && b_have) begin
+                        a_have <= 1'b0;
+                        b_have <= 1'b0;
                         lane   <= {LANE_W{1'b0}};
                         state  <= S_MAC;
                     end

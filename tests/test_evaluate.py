@@ -7,11 +7,12 @@ They need `yosys`, `iverilog`, and `vvp` on PATH.
 
 from __future__ import annotations
 
+import json
 import shutil
 import unittest
 from pathlib import Path
 
-from adpbench.evaluate import evaluate_multi
+from adpbench.evaluate import baseline_mismatch, evaluate, evaluate_multi
 from adpbench.problem import load_problem
 
 REPO = Path(__file__).resolve().parent.parent
@@ -34,7 +35,7 @@ class ParameterMismatchTest(unittest.TestCase):
         result = _score("parameter_mismatch.v")
         self.assertTrue(result.correct, result.metadata.get("correctness"))
         # The fixture declares LANES=1 but simulates at LANES=32. Before the
-        # fix, synthesis counted the LANES=1 design: 785 cells and a 79x score.
+        # fix, synthesis counted the LANES=1 design: 785 cells.
         self.assertGreater(result.cells, 10_000)
         self.assertLess(result.ratio, 5.0)
 
@@ -60,13 +61,68 @@ class BackpressureTest(unittest.TestCase):
 
 
 @requires_tools
+class TransactionTest(unittest.TestCase):
+    """Review item 3: repeated transactions are part of the contract."""
+
+    def test_leaked_state_fails_the_second_transaction(self) -> None:
+        result = _score("state_leak.v")
+        self.assertFalse(result.correct)
+
+    def test_parallel_design_handles_back_to_back_transactions(self) -> None:
+        result = _score("two_transactions.v")
+        self.assertTrue(result.correct, result.metadata.get("correctness"))
+
+
+@requires_tools
 class UnknownOutputTest(unittest.TestCase):
     """Review item 5: malformed simulation output must not crash the scorer."""
 
     def test_unknown_bits_are_a_structured_failure(self) -> None:
         result = _score("unknown_output.v")
         self.assertFalse(result.correct)
-        self.assertIn("malformed", result.metadata.get("correctness", ""))
+        message = result.metadata.get("correctness", "")
+        self.assertTrue("malformed" in message or "violation" in message, message)
+
+
+@requires_tools
+class BlackboxCellTest(unittest.TestCase):
+    """The anti-cheat review: a blackbox $mul must not count as one cell."""
+
+    def test_blackbox_arithmetic_is_rejected(self) -> None:
+        result = _score("blackbox_mul.v")
+        self.assertFalse(result.synthesizable)
+        self.assertIn("gate-level cells", result.metadata.get("synthesis_log", ""))
+
+
+@requires_tools
+class ZeroHandshakeTest(unittest.TestCase):
+    """The anti-cheat review: outputs must not be credited without inputs.
+
+    The `zeros` case expects zero, so a DUT that answers zero forever looks
+    correct unless the harness checks that the transaction's inputs were
+    actually consumed.
+    """
+
+    def test_zero_handshake_lookup_is_rejected(self) -> None:
+        problem = load_problem(PROBLEM_DIR)
+        result = evaluate(problem, [FIXTURES / "zero_handshake.v"], seed="zeros")
+        self.assertFalse(result.correct)
+        self.assertIn("valid/ready", result.metadata.get("correctness", ""))
+
+
+class BaselineCompatibilityTest(unittest.TestCase):
+    def test_stored_baseline_must_match_flow_params_and_tools(self) -> None:
+        problem = load_problem(PROBLEM_DIR)
+        baseline = json.loads(problem.baseline_metrics.read_text())
+        self.assertEqual(baseline_mismatch(problem, baseline), "")
+        self.assertIn(
+            "tools", baseline_mismatch(problem, dict(baseline, tools={"yosys": "x"}))
+        )
+        self.assertIn(
+            "transactions",
+            baseline_mismatch(problem, dict(baseline, transactions=999)),
+        )
+        self.assertIn("flow", baseline_mismatch(problem, dict(baseline, flow_sha256="x")))
 
 
 @requires_tools
@@ -83,14 +139,22 @@ class SanityTest(unittest.TestCase):
         )
         self.assertTrue(result.correct, result.metadata.get("correctness"))
         self.assertGreater(result.cells, 10_000)
-        self.assertLessEqual(result.cycles, 12)
-        self.assertGreater(result.ratio, 3.0)
+        self.assertLessEqual(result.cycles, 24)
+        self.assertGreater(result.ratio, 2.5)
 
-
-@unittest.skip("repeated-transaction contract is not defined yet (review item 3)")
-class TwoTransactionTest(unittest.TestCase):
-    def test_parallel_handles_second_transaction(self) -> None:
-        self.fail("expected to fail until the multi-transaction contract lands")
+    def test_directed_cases_are_part_of_the_gate(self) -> None:
+        problem = load_problem(PROBLEM_DIR)
+        result = evaluate_multi(
+            problem,
+            [PROBLEM_DIR / "baseline.v"],
+            source="baseline",
+            tag="test",
+        )
+        self.assertTrue(result.correct, result.metadata.get("correctness"))
+        self.assertEqual(
+            result.metadata["cases"][-len(problem.directed_cases):],
+            problem.directed_cases,
+        )
 
 
 if __name__ == "__main__":

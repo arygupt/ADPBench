@@ -3,29 +3,20 @@
 from __future__ import annotations
 
 import argparse
+import json
 import sys
 from pathlib import Path
 
-from .evaluate import evaluate, record_baseline
-from .problem import load_problem, repo_root
-
-
-def _problems_root() -> Path:
-    return repo_root() / "problems"
-
-
-def _discover() -> list[Path]:
-    root = _problems_root()
-    if not root.is_dir():
-        return []
-    return sorted(p.parent for p in root.glob("*/*/dut.py"))
+from .agent import DEFAULT_IMAGE, sha256_file
+from .evaluate import DEV_SEEDS, EVAL_SEEDS, evaluate, evaluate_multi, record_baseline
+from .problem import discover_problems, load_problem, repo_root
 
 
 def _resolve(spec: str) -> Path:
     candidate = Path(spec)
     if (candidate / "dut.py").is_file():
         return candidate
-    matches = [p for p in _discover() if p.name == spec or str(p).endswith(spec)]
+    matches = [p for p in discover_problems() if p.name == spec or str(p).endswith(spec)]
     if len(matches) == 1:
         return matches[0]
     if not matches:
@@ -36,12 +27,12 @@ def _resolve(spec: str) -> Path:
 
 
 def cmd_list(args: argparse.Namespace) -> int:
-    for path in _discover():
+    for path in discover_problems():
         problem = load_problem(path)
         rel = path.relative_to(repo_root())
         params = " ".join(f"{k}={v}" for k, v in problem.params.items())
         marker = "baseline recorded" if problem.baseline_metrics.is_file() else "no baseline"
-        print(f"{rel}\n    {params}\n    {marker}")
+        print(f"{rel}\n    {params}\n    {marker} ({problem.transactions} transactions)")
     return 0
 
 
@@ -83,7 +74,7 @@ def cmd_run(args: argparse.Namespace) -> int:
             print("  score         : no baseline recorded (run `adpbench baseline`)")
 
     if not result.correct and not args.json:
-        for key in ("synthesis_log", "sim_log"):
+        for key in ("synthesis_log", "sim_log", "protocol_log"):
             if key in result.metadata:
                 print(f"\n--- {key} ---")
                 print(result.metadata[key])
@@ -95,14 +86,13 @@ def cmd_env(args: argparse.Namespace) -> int:
 
     problem = load_problem(_resolve(args.problem))
     dest = Path(args.dest).resolve() if args.dest else repo_root() / "runs" / problem.name / "env"
-    build_environment(problem, dest, force=args.force)
+    build_environment(problem, dest, force=args.force, sandbox=args.sandbox)
     print(dest)
     return 0
 
 
 def cmd_check(args: argparse.Namespace) -> int:
     from .agent import snapshot
-    from .evaluate import DEV_SEEDS, evaluate_multi
 
     problem = load_problem(_resolve(args.problem))
     rtl = Path(args.file).resolve()
@@ -127,7 +117,7 @@ def cmd_check(args: argparse.Namespace) -> int:
         print(f"simulation FAIL - {result.metadata.get('correctness', 'incorrect')}")
         return 1
 
-    print(f"simulation ok - exact match on {len(DEV_SEEDS)} seeds")
+    print(f"simulation ok - exact match on {len(result.metadata['cases'])} cases")
     print(f"cycles     {result.cycles}")
     if result.ratio > 0:
         print(f"score      {result.ratio:.2f}x baseline")
@@ -146,10 +136,17 @@ def cmd_agent(args: argparse.Namespace) -> int:
         agent_cmd=args.cmd,
         dest=dest,
         timeout_s=args.timeout,
+        label=args.label,
+        attempt=args.attempt,
+        sandbox=args.sandbox,
+        image=args.image,
+        network=args.network,
     )
 
     print(f"problem    {problem.name}")
-    print(f"agent      {args.cmd}")
+    print(f"label      {record.label}")
+    print(f"agent      {record.agent_cmd}")
+    print(f"sandbox    {record.sandbox}")
     print(f"duration   {record.duration_s}s" + (" (TIMED OUT)" if record.timed_out else ""))
     print(f"history    {len(record.history)} submission(s) tested")
     print(f"audit      {'ok' if record.audit['ok'] else 'REJECTED'}")
@@ -162,6 +159,8 @@ def cmd_agent(args: argparse.Namespace) -> int:
         if record.result.get("correct"):
             print(f"score      {record.score():.2f}x baseline")
             print(f"           {record.result['cells']} cells, {record.result['cycles']} cycles")
+        elif "error" in record.result:
+            print(f"result     ERROR - {record.result['error']}")
         else:
             print(f"result     FAIL - {metadata.get('correctness', 'incorrect')}")
             print(f"           {record.result['cells']} cells")
@@ -169,6 +168,114 @@ def cmd_agent(args: argparse.Namespace) -> int:
     if dest:
         print(f"run        {dest}")
     return 0 if record.score() > 0 else 1
+
+
+def cmd_report(args: argparse.Namespace) -> int:
+    from .report import load_runs, markdown, summarize
+
+    runs_root = Path(args.runs).resolve() if args.runs else repo_root() / "runs"
+    report = summarize(load_runs(runs_root))
+    if args.json:
+        print(json.dumps(report, indent=2))
+    else:
+        print(markdown(report), end="")
+    return 0
+
+
+def cmd_replay(args: argparse.Namespace) -> int:
+    """Re-score a frozen run and check the number reproduces."""
+    import json
+    from .evaluate import evaluate_multi
+
+    run_dir = Path(args.run).resolve()
+    record_path = run_dir / "record.json"
+    if not record_path.is_file():
+        raise SystemExit(f"no record.json under {run_dir}")
+    record = json.loads(record_path.read_text())
+
+    problem = load_problem(_resolve(args.problem or record["problem"]))
+    for candidate in (
+        run_dir.parent / f"{run_dir.name}_frozen" / "dut.v",
+        run_dir / "clean" / "dut.v",
+        run_dir / "dut.v",
+    ):
+        if candidate.is_file() and not candidate.is_symlink():
+            submission = candidate
+            break
+    else:
+        raise SystemExit(f"no frozen submission under {run_dir}")
+
+    result = evaluate_multi(
+        problem, [submission], seeds=EVAL_SEEDS, source=str(submission), tag="replay"
+    )
+    recorded = record.get("result") or {}
+    print(f"problem    {problem.name}")
+    print(f"submission {submission}")
+    print(f"replayed   correct={result.correct} cells={result.cells} cycles={result.cycles} "
+          f"ratio={result.ratio:.4f}")
+    if recorded.get("correct") is not None:
+        print(f"recorded   correct={recorded.get('correct')} cells={recorded.get('cells')} "
+              f"cycles={recorded.get('cycles')} ratio={float(recorded.get('ratio', -1)):.4f}")
+
+    matches = (
+        bool(recorded.get("correct")) == result.correct
+        and recorded.get("cells") == result.cells
+        and recorded.get("cycles") == result.cycles
+    )
+    manifest_path = run_dir / "manifest.json"
+    if manifest_path.is_file():
+        manifest = json.loads(manifest_path.read_text())
+        recorded_sha = manifest.get("submission_sha256", "")
+        if recorded_sha and recorded_sha != sha256_file(submission):
+            print("replay     MISMATCH - frozen submission hash differs from the manifest")
+            return 1
+    if recorded.get("ratio") is not None and result.ratio >= 0:
+        if abs(float(recorded["ratio"]) - result.ratio) > 1e-6:
+            matches = False
+            print("replay     MISMATCH - ratio differs (baseline or case set changed)")
+    print(f"replay     {'MATCH' if matches else 'MISMATCH'}")
+    return 0 if matches else 1
+
+
+def cmd_pilot(args: argparse.Namespace) -> int:
+    from .pilot import load_pilot, run_pilot
+
+    config = load_pilot(args.config)
+    if args.sandbox:
+        config.sandbox = args.sandbox
+    if args.repetitions is not None:
+        config.repetitions = args.repetitions
+    run_pilot(
+        config,
+        runs_root=Path(args.runs).resolve() if args.runs else None,
+        jobs=args.jobs,
+        publish=Path(args.publish) if args.publish else None,
+    )
+    return 0
+
+
+def cmd_seeds(args: argparse.Namespace) -> int:
+    from . import sim, synth
+
+    payload = {
+        "tool_versions": {"yosys": synth.tool_version(), "iverilog": sim.tool_version()},
+        "problems": {},
+    }
+    for path in discover_problems():
+        problem = load_problem(path)
+        payload["problems"][problem.name] = {
+            "seeds": list(EVAL_SEEDS),
+            "directed": problem.directed_cases,
+            "transactions": problem.transactions,
+            "input_lens": problem.input_lens,
+        }
+    text = json.dumps(payload, indent=2) + "\n"
+    if args.out:
+        Path(args.out).write_text(text)
+        print(args.out)
+    else:
+        print(text, end="")
+    return 0
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -185,7 +292,7 @@ def build_parser() -> argparse.ArgumentParser:
     p_run = sub.add_parser("run", help="evaluate a Verilog submission")
     p_run.add_argument("problem")
     p_run.add_argument("--file", "-f", help="Verilog file (default: the problem's baseline.v)")
-    p_run.add_argument("--seed", type=int, default=0)
+    p_run.add_argument("--seed", default=0)
     p_run.add_argument("--json", action="store_true")
     p_run.set_defaults(func=cmd_run)
 
@@ -193,6 +300,7 @@ def build_parser() -> argparse.ArgumentParser:
     p_env.add_argument("problem")
     p_env.add_argument("--dest")
     p_env.add_argument("--force", action="store_true")
+    p_env.add_argument("--sandbox", choices=("none", "docker"), default="none")
     p_env.set_defaults(func=cmd_env)
 
     p_check = sub.add_parser("check", help="dev-seed feedback for an agent (synth + sim + score)")
@@ -206,7 +314,35 @@ def build_parser() -> argparse.ArgumentParser:
     p_agent.add_argument("--cmd", required=True, help="shell command for the agent CLI")
     p_agent.add_argument("--timeout", type=int, default=1800, help="seconds")
     p_agent.add_argument("--dest")
+    p_agent.add_argument("--label", default="", help="evaluated system name for reports")
+    p_agent.add_argument("--attempt", type=int, default=1)
+    p_agent.add_argument("--sandbox", choices=("none", "docker"), default="none")
+    p_agent.add_argument("--image", default=DEFAULT_IMAGE)
+    p_agent.add_argument("--network", default="bridge")
     p_agent.set_defaults(func=cmd_agent)
+
+    p_report = sub.add_parser("report", help="aggregate run records into a scoreboard")
+    p_report.add_argument("--runs", help="runs directory (default: runs/)")
+    p_report.add_argument("--json", action="store_true")
+    p_report.set_defaults(func=cmd_report)
+
+    p_replay = sub.add_parser("replay", help="re-score a frozen run and check the number")
+    p_replay.add_argument("run", help="a run directory containing record.json")
+    p_replay.add_argument("--problem", help="override the problem recorded in the run")
+    p_replay.set_defaults(func=cmd_replay)
+
+    p_pilot = sub.add_parser("pilot", help="run a model x problem x repetition matrix")
+    p_pilot.add_argument("--config", required=True, help="pilot config JSON")
+    p_pilot.add_argument("--runs", help="runs directory (default: runs/)")
+    p_pilot.add_argument("--sandbox", choices=("none", "docker"))
+    p_pilot.add_argument("--repetitions", type=int)
+    p_pilot.add_argument("--jobs", type=int, default=1, help="parallel run cells")
+    p_pilot.add_argument("--publish", help="copy plan and report files here")
+    p_pilot.set_defaults(func=cmd_pilot)
+
+    p_seeds = sub.add_parser("seeds", help="publish the evaluation seed manifest")
+    p_seeds.add_argument("--out")
+    p_seeds.set_defaults(func=cmd_seeds)
 
     return parser
 

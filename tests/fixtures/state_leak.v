@@ -96,7 +96,6 @@ module dut #(
 
                 S_DONE: begin
                     if (out_ready) begin
-                        acc   <= {ACC_W{1'b0}};
                         beat  <= {BEAT_W{1'b0}};
                         state <= S_IDLE;
                     end
