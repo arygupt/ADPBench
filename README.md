@@ -225,15 +225,18 @@ v0.2. Four problems, zero-dependency Python harness, pilot harness ready.
 
 ```
 problem                      baseline                       sanity solution
-001_dot_product              2127 cells    528 cycles 1.00x   3.09x (lane-parallel)
-002_gemv                     3295 cells   2214 cycles 1.00x   none yet
-003_matmul                   6253 cells   2192 cycles 1.00x   none yet
-004_conv1d                   4565 cells   5016 cycles 1.00x   none yet
+001_dot_product              2142 cells    546 cycles 1.00x   2.89x (lane-parallel)
+002_gemv                     3295 cells   2216 cycles 1.00x   none yet
+003_matmul                   6253 cells   2194 cycles 1.00x   none yet
+004_conv1d                   4565 cells   5018 cycles 1.00x   none yet
 ```
 
 The sanity solution is `problems/level1/001_dot_product/solutions/parallel.v`.
-The first real agent run (`opencode/mimo-v2.5-free`, host mode) scored 1.16x
-with a leaner serial design; it replays exactly.
+The first real agent runs (`opencode/mimo-v2.5-free`, host mode) produced one
+attempt with no submission, one correct design at 1.16x on the pre-hardening
+harness, and one at 1.78x on the current harness; the scored runs replay
+exactly. The report discloses all three attempts rather than averaging the
+failure away.
 
 Known gaps:
 
