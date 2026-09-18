@@ -1,7 +1,7 @@
 {
   "meta": {
-    "generated": "2026-09-18T17:00:05",
-    "git_commit": "df00ced538f4d9e035ee419249629cdae17e7ccf",
+    "generated": "2026-09-18T17:33:03",
+    "git_commit": "bd49356ade0631f395bc6fed52e186c37080d1ec",
     "pilot": "pilot-001",
     "problems_planned": [
       "001_dot_product",
@@ -217,6 +217,8 @@
       "geomean": -1.0,
       "wrong_rtl": 4,
       "infra": 0,
+      "score_ci": "\u00b124%",
+      "correctness_ci": "\u00b124%",
       "runs": [
         {
           "label": "opencode/ling-3.0-flash-fin-free",
@@ -306,6 +308,8 @@
       "geomean": 3.2742,
       "wrong_rtl": 2,
       "infra": 0,
+      "score_ci": "\u00b135%",
+      "correctness_ci": "\u00b135%",
       "runs": [
         {
           "label": "opencode/mimo-v2.5-free",
@@ -395,6 +399,8 @@
       "geomean": 2.7719,
       "wrong_rtl": 2,
       "infra": 0,
+      "score_ci": "\u00b135%",
+      "correctness_ci": "\u00b135%",
       "runs": [
         {
           "label": "opencode/muse-spark-1.3-contributor-free",
@@ -484,6 +490,8 @@
       "geomean": 0.9094,
       "wrong_rtl": 2,
       "infra": 0,
+      "score_ci": "\u00b133%",
+      "correctness_ci": "\u00b135%",
       "runs": [
         {
           "label": "opencode/nemotron-3-ultra-free",
@@ -573,6 +581,8 @@
       "geomean": -1.0,
       "wrong_rtl": 2,
       "infra": 2,
+      "score_ci": "\u00b124%",
+      "correctness_ci": "\u00b124%",
       "runs": [
         {
           "label": "opencode/nemotron-3.5-lightning-free",

@@ -6,23 +6,17 @@
   <title>ADPBench — silicon-cost leaderboard for AI-written RTL</title>
   <meta name="description" content="ADPBench: a KernelBench-shaped benchmark for AI-generated Verilog, scored on area-delay product (cells × cycles)." />
   <link rel="icon" href="favicon.svg" type="image/svg+xml" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;450;500;550;600;650;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="assets/style.css" />
-  <script>
-    (function () {
-      try {
-        if (localStorage.getItem("adpbench-theme") === "light") {
-          document.documentElement.setAttribute("data-theme", "light");
-        }
-      } catch (e) {}
-    })();
-  </script>
 </head>
 <body>
   <header class="site-header">
     <a class="brand" href="index.html">
       <svg class="mark" viewBox="0 0 26 26" fill="none" aria-hidden="true">
-        <rect x="1" y="1" width="24" height="24" rx="6" stroke="#4f8cff" stroke-width="2"/>
-        <path d="M7 9h12M7 13h12M7 17h7" stroke="#4f8cff" stroke-width="2" stroke-linecap="round"/>
+        <rect x="1" y="1" width="24" height="24" rx="6" stroke="#6366f1" stroke-width="2"/>
+        <path d="M7 9h12M7 13h12M7 17h7" stroke="#6366f1" stroke-width="2" stroke-linecap="round"/>
       </svg>
       ADPBench <span class="brand-sub">· cells × cycles</span>
     </a>
@@ -35,7 +29,6 @@
       <a class="icon-btn" href="https://github.com/arygupt/ADPBench" target="_blank" rel="noopener" aria-label="GitHub repository" title="GitHub repository">
         <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27s1.36.09 2 .27c1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8Z"/></svg>
       </a>
-      <button class="icon-btn" id="theme-toggle" aria-label="Toggle theme">☀️</button>
     </div>
   </header>
 
@@ -46,87 +39,72 @@
       <p class="lede">
         ADPBench gives a model a numeric operator and asks for synthesizable
         Verilog. Designs are scored on silicon cost — <code>cells × cycles</code> —
-        against a frozen baseline, checked bit-exactly on held-out cases, and
-        every run is sandboxed, hashed, and replayable.
+        checked bit-exactly on held-out cases, and every run is sandboxed,
+        hashed, and replayable.
       </p>
+      <div class="hero-actions">
+        <a href="#leaderboard" class="btn btn-primary">View leaderboard</a>
+        <a href="methodology.html" class="btn btn-secondary">Run it yourself</a>
+      </div>
     </section>
 
-    <div class="stat-strip" id="stat-strip"></div>
+    <div class="stats" id="stat-strip"></div>
 
-    <section class="section" id="leaderboard-section">
-      <div class="section-title">
-        <h2>Overall leaderboard</h2>
-        <span class="sub" id="kpi-beating"></span>
+    <section class="section">
+      <div class="section-header"><h2>Why ADPBench</h2></div>
+      <div class="features">
+        <div class="feature-card">
+          <div class="icon icon-accent">E</div>
+          <h3>Executable spec</h3>
+          <p>Each problem is a numpy golden reference plus a frozen interface — no English spec to game, exact integer arithmetic.</p>
+        </div>
+        <div class="feature-card">
+          <div class="icon icon-green">S</div>
+          <h3>Silicon-scored</h3>
+          <p>Gate-level simulation of the exact counted netlist. <code>score = baseline_adp / adp</code>, a documented proxy, never claimed as signoff.</p>
+        </div>
+        <div class="feature-card">
+          <div class="icon icon-orange">R</div>
+          <h3>Replayable</h3>
+          <p>Submissions are frozen, hashed, and scored outside the sandbox. <code>adpbench replay</code> reproduces every published number.</p>
+        </div>
+        <div class="feature-card">
+          <div class="icon icon-accent">B</div>
+          <h3>Bounded</h3>
+          <p>Agents run in a pinned Docker substrate with held-out seeds redacted. Leaked state, blackboxes, and lookups are rejected by design.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="leaderboard">
+      <div class="section-header">
+        <h2>Leaderboard</h2>
+        <span class="count" id="leaderboard-count"></span>
       </div>
       <div class="card">
-        <div class="table-scroll">
-        <table id="leaderboard">
-          <thead>
-            <tr>
-              <th>#</th>
-              <th>Evaluated system</th>
-              <th class="num">Correct</th>
-              <th class="num">Beat baseline</th>
-              <th class="num">Geomean</th>
-              <th class="num">dot</th>
-              <th class="num">gemv</th>
-              <th class="num">matmul</th>
-              <th class="num">conv</th>
-              <th class="num">Infra</th>
-              <th class="num"></th>
-            </tr>
-          </thead>
-          <tbody></tbody>
-        </table>
+        <div class="leaderboard-header">
+          <span>#</span>
+          <span>Model</span>
+          <span>Beat baseline</span>
+          <span></span>
         </div>
+        <div id="leaderboard-rows"></div>
         <p class="table-note">
-          Ranked by beat-baseline rate, then correctness rate, then geometric mean.
-          Click a row or cell for per-run detail. Green = beats the baseline,
-          amber = correct but ≤ 1× (or infrastructure), red = incorrect, gray = no submission.
+          Score is the fraction of planned attempts that end correct and faster
+          than the baseline; ± is the 95% Wilson interval. Ranked by that rate,
+          then correctness, then geomean. Click a row for per-run detail —
+          cells, cycles, hashes, and status.
         </p>
       </div>
     </section>
 
     <section class="section">
-      <div class="section-title">
+      <div class="section-header">
         <h2>Model × problem matrix</h2>
-        <span class="sub">one attempt per cell, pilot-001</span>
+        <span class="count">one attempt per cell, pilot-001</span>
       </div>
       <div class="card">
         <div class="heatmap" id="heatmap"></div>
-      </div>
-    </section>
-
-    <section class="section">
-      <div class="section-title">
-        <h2>How it works</h2>
-      </div>
-      <div class="problem-grid">
-        <div class="problem-card">
-          <h3>The task</h3>
-          <p class="pc-desc">Four operator-shaped problems — dot product, GEMV,
-            matrix multiply, 1-D convolution — specified by an executable numpy
-            reference and a fixed streaming interface. No English spec to game.</p>
-        </div>
-        <div class="problem-card">
-          <h3>The score</h3>
-          <p class="pc-desc">Yosys synthesis yields a gate netlist and a cell
-            count; gate-level simulation yields cycles. Score =
-            <code>baseline_adp / adp</code>, higher is better. No timing or power
-            claims — the metric is an explicit proxy.</p>
-        </div>
-        <div class="problem-card">
-          <h3>The boundary</h3>
-          <p class="pc-desc">Agents run in a pinned Docker substrate with
-            held-out seeds redacted; submissions are frozen, hashed, and scored
-            outside the sandbox. Every published number replays.</p>
-        </div>
-        <div class="problem-card">
-          <h3>The fine print</h3>
-          <p class="pc-desc">One attempt per cell, free-tier models, single
-            pilot. Read the <a href="methodology.html">methodology</a> before
-            citing any number.</p>
-        </div>
       </div>
     </section>
   </main>

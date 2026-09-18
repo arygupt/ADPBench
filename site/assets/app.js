@@ -1,12 +1,13 @@
-/* ADPBench site renderer. Zero dependencies. */
+/* ADPBench site renderer. Zero dependencies. Leaderboard bars follow
+   DeepSWE's design: rank-colored 6px bars, score + Wilson CI, badge chips. */
 (function () {
   "use strict";
 
   const $ = (sel, root) => (root || document).querySelector(sel);
   const $$ = (sel, root) => Array.from((root || document).querySelectorAll(sel));
 
-  const MODEL_COLORS = ["#4f8cff", "#9d7bff", "#22c5c5", "#f08c3a", "#e0568b",
-    "#7cb342", "#f4c542", "#5c7cfa", "#20b2aa", "#b56bff"];
+  const MODEL_COLORS = ["#6366f1", "#22c55e", "#f59e0b", "#06b6d4", "#a78bfa",
+    "#f43f5e", "#84cc16", "#818cf8", "#14b8a6", "#c084fc"];
   const PALETTE = new Map();
 
   const fmt = {
@@ -17,24 +18,6 @@
     sha: (s) => (s ? s.slice(0, 10) : ""),
     secs: (s) => (s > 0 ? `${Math.round(s)}s` : ""),
   };
-
-  /* ------------------------------------------------------------ theme */
-
-  const root = document.documentElement;
-  const themeToggle = $("#theme-toggle");
-  function applyTheme(theme) {
-    root.setAttribute("data-theme", theme);
-    try { localStorage.setItem("adpbench-theme", theme); } catch (e) { /* ignore */ }
-    if (themeToggle) {
-      themeToggle.textContent = theme === "dark" ? "☀️" : "🌙";
-      themeToggle.setAttribute("aria-label", theme === "dark" ? "Switch to light theme" : "Switch to dark theme");
-    }
-  }
-  if (themeToggle) {
-    themeToggle.addEventListener("click", () =>
-      applyTheme(root.getAttribute("data-theme") === "dark" ? "light" : "dark")
-    );
-  }
 
   /* ------------------------------------------------------------ data */
 
@@ -87,7 +70,7 @@
     return parts.join(" · ");
   }
 
-  /* ------------------------------------------------------------ leaderboard */
+  /* ------------------------------------------------------------ stats */
 
   function renderStatStrip(data) {
     const strip = $("#stat-strip");
@@ -100,65 +83,60 @@
     const geomean = geomeans.length
       ? Math.exp(geomeans.reduce((s, g) => s + Math.log(g), 0) / geomeans.length)
       : 0;
-    const beating = runs.filter((r) => r.correct && r.ratio > 1).length;
     const stats = [
-      { value: String(data.problems.length), label: "problems" },
-      { value: String(models.length), label: "evaluated systems" },
-      { value: String(runs.length), label: "sandboxed runs" },
-      { value: fmt.pct(correct / runs.length), label: "correct" },
-      { value: fmt.ratio(best), label: "best speedup" },
-      { value: fmt.ratio(geomean), label: "geomean, successful" },
+      { value: String(data.problems.length), label: "Problems" },
+      { value: String(models.length), label: "Evaluated systems" },
+      { value: String(runs.length), label: "Sandboxed runs" },
+      { value: fmt.pct(correct / runs.length), label: "Correct" },
+      { value: fmt.ratio(best), label: "Best speedup" },
+      { value: fmt.ratio(geomean), label: "Geomean, successful" },
     ];
     strip.innerHTML = stats.map(
-      (s) => `<div class="stat"><div class="value">${s.value}</div><div class="label">${s.label}</div></div>`
+      (s) => `<div class="stat"><div class="stat-value">${s.value}</div><div class="stat-label">${s.label}</div></div>`
     ).join("");
-    const beatEl = $("#kpi-beating");
-    if (beatEl) beatEl.textContent = `${beating}/${runs.length}`;
   }
 
+  /* ------------------------------------------------------------ leaderboard */
+
   function renderLeaderboard(data) {
-    const tbody = $("#leaderboard tbody");
+    const tbody = $("#leaderboard-rows");
+    const count = $("#leaderboard-count");
     if (!tbody) return;
-    const problems = data.problems.map((p) => p.name);
+    if (count) count.textContent = `${data.models.length} / ${data.models.length} models`;
     const ranked = rankedModels(data.models);
     tbody.innerHTML = ranked.map((model, index) => {
       const color = colorFor(model.label);
-      const cells = problems.map((name) => {
-        const run = model.runs.find((r) => r.problem === name);
-        const state = run ? cellState(run) : { cls: "none", text: "—" };
-        return `<td class="num"><span class="cell ${state.cls}" title="${run ? cellTitle(run) : "not run"}" data-model="${model.label}" data-problem="${name}">${state.text}</span></td>`;
-      }).join("");
-      const beatPct = Math.round(model.beat_rate * 100);
-      const rankCls = index < 3 ? "rank top" : "rank";
-      return `<tr class="clickable" data-model="${model.label}">
-        <td class="${rankCls}">${index + 1}</td>
-        <td><span class="model-chip"><span class="model-dot" style="background:${color}"></span>${escapeHtml(model.label)}</span></td>
-        <td class="num">${fmt.pct(model.correctness_rate)}</td>
-        <td class="num"><span class="meter"><span class="track"><span class="fill" style="width:${beatPct}%;background:${beatPct > 0 ? "var(--green)" : "transparent"}"></span></span>${fmt.pct(model.beat_rate)}</span></td>
-        <td class="num mono">${fmt.ratio(model.geomean)}</td>
-        ${cells}
-        <td class="num">${model.infra > 0 ? `<span title="infrastructure failures">${model.infra}</span>` : "—"}</td>
-        <td class="num"><span class="chev">▶</span></td>
-      </tr>
-      <tr class="detail-panel hidden" data-detail="${model.label}"><td colspan="${problems.length + 8}">
-        <div class="panel-title">${escapeHtml(model.label)} — per-problem runs</div>
-        <div class="run-grid">${renderRunCards(model, problems, data)}</div>
-      </td></tr>`;
+      const rankCls = index === 0 ? "lb-rank-1" : index === 1 ? "lb-rank-2" : index === 2 ? "lb-rank-3" : "lb-other";
+      const scorePct = Math.round(model.beat_rate * 100);
+      const tier = /free/.test(model.label) ? "free" : "";
+      const geomean = model.geomean > 0 ? fmt.ratio(model.geomean) : "";
+      return `<div class="leaderboard-row ${rankCls}" data-model="${escapeHtml(model.label)}">
+        <span class="lb-rank${index < 3 ? " top" : ""}">${index + 1}</span>
+        <span class="lb-model">
+          <span class="model-dot" style="background:${color}"></span>
+          ${escapeHtml(model.label)}
+          ${tier ? `<span class="badge">${tier}</span>` : ""}
+        </span>
+        <span class="lb-score">${scorePct}% <span class="lb-ci">${model.score_ci || ""}</span></span>
+        <span class="lb-bar-wrap"><span class="lb-bar"><span class="lb-bar-fill" style="width:${scorePct}%"></span></span></span>
+        <span style="display:none"></span>
+      </div>
+      <div class="detail-panel hidden" data-detail="${escapeHtml(model.label)}">
+        <div class="panel-title">${escapeHtml(model.label)} — per-problem runs · correct ${model.correct}/${model.attempts} · ${geomean ? "geomean " + geomean : "no successful runs"} · ${model.wrong_rtl} wrong · ${model.infra} infra</div>
+        <div class="run-grid">${renderRunCards(model, data)}</div>
+      </div>`;
     }).join("");
 
-    tbody.querySelectorAll("tr.clickable").forEach((row) => {
+    tbody.querySelectorAll(".leaderboard-row").forEach((row) => {
       row.addEventListener("click", () => toggleDetail(row.dataset.model));
     });
-    tbody.querySelectorAll(".cell, .hm-cell").forEach((el) => {
-      el.addEventListener("click", (event) => {
-        event.stopPropagation();
-        openDetail(el.dataset.model);
-      });
+    $$(".hm-cell", document).forEach((el) => {
+      el.addEventListener("click", () => openDetail(el.dataset.model));
     });
   }
 
-  function renderRunCards(model, problems, data) {
-    const order = problems.map((p) => p.name);
+  function renderRunCards(model, data) {
+    const order = data.problems.map((p) => p.name);
     const runs = [...model.runs].sort(
       (a, b) => order.indexOf(a.problem) - order.indexOf(b.problem)
     );
@@ -166,7 +144,7 @@
       const state = cellState(run);
       const badge = run.correct
         ? `<span class="rc-status ok">correct</span>`
-        : run.error || run.stage === "no result"
+        : run.error || run.stage === "no result" || (run.timed_out && !run.stage)
           ? `<span class="rc-status inf">infra</span>`
           : run.stage
             ? `<span class="rc-status fail">failed</span>`
@@ -174,10 +152,10 @@
       const meta = run.cells > 0
         ? `${fmt.int(run.cells)} cells × ${fmt.int(run.cycles)} cycles = ${fmt.adp(run.adp)} adp`
         : run.timed_out ? "agent timed out" : "—";
-      const detail = run.correctness ? escapeHtml(run.correctness.slice(0, 110)) : "";
       const hash = run.submission_sha256
         ? `submission ${fmt.sha(run.submission_sha256)} · netlist ${fmt.sha(run.netlist_sha256)}`
         : "";
+      const detail = run.correctness ? escapeHtml(run.correctness.slice(0, 110)) : "";
       return `<div class="run-card">
         <div class="rc-head">
           <span class="rc-problem">${escapeHtml(problemTitle(data, run.problem))}</span>
@@ -186,25 +164,25 @@
         <div class="rc-meta">${meta}${hash ? `<br>${hash}` : ""}</div>
         <div style="display:flex;justify-content:space-between;align-items:center;gap:8px">
           ${badge}
-          <span style="color:var(--text-faint);font-size:12px">${fmt.secs(run.duration_s)} · ${run.history} tested</span>
+          <span style="color:var(--text-tertiary);font-size:11.5px">${fmt.secs(run.duration_s)} · ${run.history} tested</span>
         </div>
-        ${detail ? `<div style="color:var(--text-faint);font-size:12px;margin-top:8px">${detail}</div>` : ""}
+        ${detail ? `<div style="color:var(--text-tertiary);font-size:11.5px;margin-top:8px">${detail}</div>` : ""}
       </div>`;
     }).join("");
   }
 
   function toggleDetail(modelLabel) {
-    const panel = document.querySelector(`tr[data-detail="${cssEscape(modelLabel)}"]`);
-    const row = document.querySelector(`tr[data-model="${cssEscape(modelLabel)}"]`);
+    const panel = document.querySelector(`.detail-panel[data-detail="${cssEscape(modelLabel)}"]`);
+    const row = document.querySelector(`.leaderboard-row[data-model="${cssEscape(modelLabel)}"]`);
     if (!panel || !row) return;
     const open = panel.classList.toggle("hidden");
     row.classList.toggle("open", !open);
   }
 
   function openDetail(modelLabel) {
-    const panel = document.querySelector(`tr[data-detail="${cssEscape(modelLabel)}"]`);
+    const panel = document.querySelector(`.detail-panel[data-detail="${cssEscape(modelLabel)}"]`);
     if (panel && panel.classList.contains("hidden")) toggleDetail(modelLabel);
-    const row = document.querySelector(`tr[data-model="${cssEscape(modelLabel)}"]`);
+    const row = document.querySelector(`.leaderboard-row[data-model="${cssEscape(modelLabel)}"]`);
     if (row) row.scrollIntoView({ behavior: "smooth", block: "center" });
   }
 
@@ -220,14 +198,14 @@
         const state = run ? cellState(run) : { cls: "none", text: "—" };
         return `<td><div class="hm-cell ${state.cls}" title="${run ? cellTitle(run) : "not run"}" data-model="${model.label}" data-problem="${name}">${state.text}</div></td>`;
       }).join("");
-      return `<tr><th><span class="model-chip"><span class="model-dot" style="background:${colorFor(model.label)}"></span>${escapeHtml(model.label)}</span></th>${cells}</tr>`;
+      return `<tr><th><span class="lb-model"><span class="model-dot" style="background:${colorFor(model.label)}"></span>${escapeHtml(model.label)}</span></th>${cells}</tr>`;
     }).join("");
     wrap.innerHTML = `<table>${head}${body}</table>
       <div class="legend">
         <span><span class="swatch" style="background:var(--green)"></span>beat baseline (&gt;1×)</span>
-        <span><span class="swatch" style="background:var(--amber)"></span>correct ≤ 1× / infra</span>
+        <span><span class="swatch" style="background:var(--orange)"></span>correct ≤ 1× / infra</span>
         <span><span class="swatch" style="background:var(--red)"></span>incorrect</span>
-        <span><span class="swatch" style="background:var(--text-faint)"></span>no submission</span>
+        <span><span class="swatch" style="background:var(--text-tertiary)"></span>no submission</span>
       </div>`;
     wrap.querySelectorAll(".hm-cell").forEach((el) => {
       el.addEventListener("click", () => openDetail(el.dataset.model));
@@ -252,13 +230,13 @@
         .join("");
       const directed = (p.directed || []).map((d) => `<span class="chip">${escapeHtml(d)}</span>`).join("");
       return `<div class="problem-card">
-        <h3>${escapeHtml(p.title)} <span class="badge">${escapeHtml(p.name)}</span><span class="badge" style="background:var(--gray-soft);color:var(--text-muted)">level ${p.level}</span></h3>
+        <h3>${escapeHtml(p.title)} <span class="badge">${escapeHtml(p.name)}</span><span class="badge" style="background:var(--bg-hover);color:var(--text-tertiary)">level ${p.level}</span></h3>
         <div class="chip-row">${ports}</div>
         <div class="pc-desc">${fmt.int(p.transactions)} back-to-back transactions · ${fmt.int(p.out_len)} output word${p.out_len === 1 ? "" : "s"} per transaction · lanes = ${p.params.LANES}, data = ${p.params.DATA_W} bit, acc = ${p.params.ACC_W} bit</div>
         <div class="chip-row">${quant}</div>
         <div class="chip-row">${directed ? `<span class="chip">directed: ${directed}</span>` : ""}</div>
         <div class="bar-pair">
-          <div class="bar-row"><span>baseline</span><span class="bar-track"><span class="bar-fill" style="width:100%;background:var(--text-faint)"></span></span><span class="bar-num">${fmt.int(baseline.cells || 0)}c · ${fmt.int(baseline.cycles || 0)}cy</span></div>
+          <div class="bar-row"><span>baseline</span><span class="bar-track"><span class="bar-fill" style="width:100%;background:var(--text-tertiary)"></span></span><span class="bar-num">${fmt.int(baseline.cells || 0)}c · ${fmt.int(baseline.cycles || 0)}cy</span></div>
           <div class="bar-row"><span>sanity</span><span class="bar-track"><span class="bar-fill" style="width:${sanityWidth}%;background:var(--green)"></span></span><span class="bar-num">${sanity.ratio ? fmt.ratio(sanity.ratio) : "—"}</span></div>
         </div>
       </div>`;
@@ -300,11 +278,6 @@
   /* ------------------------------------------------------------ boot */
 
   document.addEventListener("DOMContentLoaded", async () => {
-    let stored = null;
-    try { stored = localStorage.getItem("adpbench-theme"); } catch (e) { /* ignore */ }
-    const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
-    applyTheme(stored || (prefersDark ? "dark" : "dark"));
-
     const { leaderboard, problems } = await loadData();
     const data = { ...leaderboard, problems: problems ? problems.problems : leaderboard.problems };
     renderStatStrip(data);

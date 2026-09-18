@@ -71,6 +71,22 @@ def _run_entry(record: dict) -> dict:
     }
 
 
+def _wilson(k: int, n: int, z: float = 1.96) -> tuple[float, float]:
+    """95% Wilson score interval for a binomial rate."""
+    if n <= 0:
+        return 0.0, 0.0
+    p_hat = k / n
+    denom = 1 + z * z / n
+    center = (p_hat + z * z / (2 * n)) / denom
+    half = z * (p_hat * (1 - p_hat) / n + z * z / (4 * n * n)) ** 0.5 / denom
+    return max(0.0, center - half), min(1.0, center + half)
+
+
+def _ci_text(low: float, high: float) -> str:
+    half = (high - low) / 2
+    return f"±{half * 100:.0f}%" if half > 0 else ""
+
+
 def export_site(
     pilot_dir: str | Path,
     out_dir: str | Path,
@@ -104,17 +120,26 @@ def export_site(
     for record_group in _group_by_label(run_entries):
         label = record_group[0]["label"]
         bucket = label_buckets.get(label, {})
+        attempts = bucket.get("attempts", len(record_group))
+        correct = bucket.get("correct", 0)
+        beating = bucket.get("beating_baseline", 0)
+        beat_rate = bucket.get("beat_baseline_rate", 0.0)
+        correctness_rate = bucket.get("correctness_rate", 0.0)
+        beat_low, beat_high = _wilson(beating, attempts)
+        correct_low, correct_high = _wilson(correct, attempts)
         models.append(
             {
                 "label": label,
-                "attempts": bucket.get("attempts", len(record_group)),
-                "correct": bucket.get("correct", 0),
-                "beating": bucket.get("beating_baseline", 0),
-                "correctness_rate": bucket.get("correctness_rate", 0.0),
-                "beat_rate": bucket.get("beat_baseline_rate", 0.0),
+                "attempts": attempts,
+                "correct": correct,
+                "beating": beating,
+                "correctness_rate": correctness_rate,
+                "beat_rate": beat_rate,
                 "geomean": bucket.get("geomean_ratio_successful", -1.0),
                 "wrong_rtl": bucket.get("failures", {}).get("wrong_rtl", 0),
                 "infra": bucket.get("failures", {}).get("infrastructure", 0),
+                "score_ci": _ci_text(beat_low, beat_high),
+                "correctness_ci": _ci_text(correct_low, correct_high),
                 "runs": record_group,
             }
         )
