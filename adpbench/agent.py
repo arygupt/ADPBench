@@ -416,6 +416,9 @@ def docker_command(
 
     Only the task directory is writable; the harness bundle is read-only and
     contains no evaluation seeds.
+
+    The command runs through `sh -c` (not a login shell), so the image's
+    `ENV PATH` - where agent CLIs install themselves - stays intact.
     """
     args = [
         "docker",
@@ -440,7 +443,7 @@ def docker_command(
     ]
     if name:
         args += ["--name", name]
-    return args + [image, "sh", "-lc", agent_cmd]
+    return args + [image, "sh", "-c", agent_cmd]
 
 
 def build_environment(

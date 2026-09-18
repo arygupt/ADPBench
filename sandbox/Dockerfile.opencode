@@ -12,4 +12,6 @@ RUN apt-get update \
  && rm -rf /var/lib/apt/lists/* \
  && curl -fsSL https://opencode.ai/install | bash
 
+# Also reachable from a plain or login shell, not just the image ENV PATH.
+RUN ln -s /root/.opencode/bin/opencode /usr/local/bin/opencode
 ENV PATH="/root/.opencode/bin:${PATH}"

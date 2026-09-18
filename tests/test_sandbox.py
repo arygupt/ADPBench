@@ -45,7 +45,7 @@ class DockerCommandTest(unittest.TestCase):
         self.assertIn("--memory 4g", joined)
         self.assertIn("--pids-limit 1024", joined)
         self.assertIn("--name c1", joined)
-        self.assertEqual(cmd[-4:], ["adpbench-agent:latest", "sh", "-lc", "echo hi"])
+        self.assertEqual(cmd[-4:], ["adpbench-agent:latest", "sh", "-c", "echo hi"])
 
 
 class RedactionTest(unittest.TestCase):
