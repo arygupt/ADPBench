@@ -62,7 +62,7 @@ class PilotIntegrationTest(unittest.TestCase):
             "agents": [
                 {
                     "label": "scripted/parallel",
-                    "cmd": f"cp '{PROBLEM_DIR / 'solutions' / 'parallel.v'}' dut.v",
+                    "cmd": f"cp '{PROBLEM_DIR / 'solutions' / 'parallel.v'}' dut.v && ./check.sh",
                     "timeout_s": 300,
                 }
             ],
@@ -79,6 +79,14 @@ class PilotIntegrationTest(unittest.TestCase):
             # Replay re-scores the frozen copy and must reproduce the number.
             run_dir = pilot_dir / "scripted-parallel" / "001_dot_product" / "rep1"
             replay_code = main(["replay", str(run_dir)])
+
+            # The run must record the full session and the feedback loop.
+            self.assertTrue((run_dir / "terminal.log").is_file())
+            self.assertTrue((run_dir / "agent.log").is_file())
+            self.assertTrue((run_dir / "trajectory.md").is_file())
+            check_log = run_dir / ".history" / "check.log"
+            self.assertTrue(check_log.is_file())
+            self.assertIn("exit=0", check_log.read_text())
 
         self.assertEqual(plan["planned_runs"], 1)
         bucket = report["labels"]["scripted/parallel"]

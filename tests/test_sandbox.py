@@ -17,6 +17,8 @@ from adpbench.agent import (
     freeze_submission,
     redact_secrets,
     render_check_sh,
+    script_argv,
+    strip_ansi,
 )
 from adpbench.problem import load_problem
 
@@ -35,7 +37,7 @@ class DockerCommandTest(unittest.TestCase):
             Path("/tmp/bundle"),
             "adpbench-agent:latest",
             "none",
-            "echo hi",
+            ["script", "-qefc", "echo hi", "/work/terminal.log"],
             name="c1",
         )
         joined = " ".join(cmd)
@@ -45,7 +47,36 @@ class DockerCommandTest(unittest.TestCase):
         self.assertIn("--memory 4g", joined)
         self.assertIn("--pids-limit 1024", joined)
         self.assertIn("--name c1", joined)
-        self.assertEqual(cmd[-4:], ["adpbench-agent:latest", "sh", "-c", "echo hi"])
+        self.assertEqual(
+            cmd[-5:],
+            ["adpbench-agent:latest", "script", "-qefc", "echo hi", "/work/terminal.log"],
+        )
+
+
+class ScriptArgvTest(unittest.TestCase):
+    def test_docker_records_via_util_linux_script(self) -> None:
+        argv = script_argv("opencode run", "/work/terminal.log", sandbox="docker")
+        self.assertEqual(argv, ["script", "-qefc", "opencode run", "/work/terminal.log"])
+
+    def test_host_records_via_bsd_script(self) -> None:
+        argv = script_argv("opencode run", "/tmp/terminal.log", sandbox="none")
+        self.assertEqual(argv, ["script", "-q", "/tmp/terminal.log", "sh", "-c", "opencode run"])
+
+
+class AnsiTest(unittest.TestCase):
+    def test_control_sequences_are_stripped(self) -> None:
+        raw = "\x1b[2J\x1b[1;32mhello\x1b[0m\r\nworld\r"
+        self.assertEqual(strip_ansi(raw), "hello\nworld\n")
+
+
+class CheckShRecordingTest(unittest.TestCase):
+    def test_feedback_log_is_recorded_in_both_modes(self) -> None:
+        problem = load_problem(PROBLEM_DIR)
+        for sandbox in ("none", "docker"):
+            text = render_check_sh(problem, python="/usr/bin/python", sandbox=sandbox)
+            self.assertIn(".history/check.log", text)
+            self.assertIn("check_tmp.log", text)
+            self.assertIn("exit $status", text)
 
 
 class RedactionTest(unittest.TestCase):

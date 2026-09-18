@@ -20,6 +20,7 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import re
 from pathlib import Path
 from uuid import uuid4
 
@@ -78,6 +79,33 @@ def _current_tools() -> dict:
     return {"yosys": synth.tool_version(), "iverilog": sim.tool_version()}
 
 
+def _tool_id(version: str) -> str:
+    """The reproducible part of a tool version string.
+
+    The sandbox image builds yosys from the same commit and iverilog from the
+    same release as the host, but their version strings differ in the version
+    suffix (0.69+post vs 0.69+), sha length, and compiler. The git sha (for
+    yosys) and the release number (for iverilog) are the authoritative pins.
+    """
+    version = version or ""
+    yosys = re.search(r"git sha1 ([0-9a-f]{9,40})", version)
+    if yosys:
+        return "yosys@" + yosys.group(1)[:9]
+    iverilog = re.match(r"^(Icarus Verilog version [\d.]+)", version)
+    if iverilog:
+        return iverilog.group(1)
+    return version.strip()
+
+
+def _tool_ids(tools: dict | None) -> dict:
+    tools = tools or {}
+    return {
+        name: _tool_id(str(version))
+        for name, version in tools.items()
+        if version
+    }
+
+
 def baseline_mismatch(problem: Problem, baseline: dict) -> str:
     """Reasons a stored denominator cannot be compared with this run.
 
@@ -94,7 +122,7 @@ def baseline_mismatch(problem: Problem, baseline: dict) -> str:
         reasons.append("input_lens")
     if baseline.get("flow_sha256") != _sha256_file(synth.FLOW):
         reasons.append("flow")
-    if baseline.get("tools") != _current_tools():
+    if _tool_ids(baseline.get("tools")) != _tool_ids(_current_tools()):
         reasons.append("tools")
     return ",".join(reasons)
 

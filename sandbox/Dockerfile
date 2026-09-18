@@ -59,6 +59,7 @@ RUN curl -fL --retry 5 --retry-all-errors --retry-delay 2 "https://github.com/st
 FROM debian:bookworm-slim
 RUN apt-get update && apt-get install -y --no-install-recommends \
       ca-certificates python3 python3-numpy python-is-python3 zlib1g libffi8 tcl8.6 \
+      bsdutils \
  && rm -rf /var/lib/apt/lists/*
 COPY --from=yosys-build /usr/local/ /usr/local/
 COPY --from=iverilog-build /usr/local/ /usr/local/
