@@ -1,9 +1,9 @@
-name: Deploy site
+name: Site
 
 on:
   push:
     branches: [main]
-    paths: ["site/**"]
+    paths: ["site/**", "pilot/results/**"]
   workflow_dispatch:
 
 permissions:
@@ -20,6 +20,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      # Downloadable site bundle (deploy to any static host).
+      - uses: actions/upload-artifact@v4
+        with:
+          name: site
+          path: site
+      # Pages artifact, used by the deploy job when Pages is enabled.
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:
@@ -27,6 +33,10 @@ jobs:
 
   deploy:
     needs: build
+    # GitHub Pages is free for public repositories; for a private repository it
+    # needs a paid plan. Once Pages is enabled in repo settings, set the
+    # ENABLE_PAGES=true repository variable to switch this on.
+    if: ${{ vars.ENABLE_PAGES == 'true' }}
     runs-on: ubuntu-latest
     environment:
       name: github-pages

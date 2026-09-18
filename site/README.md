@@ -14,10 +14,12 @@ Preview locally:
 python3 -m http.server 8000 --directory site
 ```
 
-Deployment: the GitHub Actions workflow at
-`.github/workflows/deploy-site.yml` publishes this directory to GitHub Pages
-on every push to `main`. The site never touches the toolchain — it renders the
-committed JSON.
+Deployment: `.github/workflows/deploy-site.yml` runs on push to `main`. It
+always uploads the site as a downloadable workflow artifact, and it deploys to
+GitHub Pages when Pages is enabled and the `ENABLE_PAGES=true` repository
+variable is set. GitHub Pages is free for public repositories; a private
+repository needs a paid plan, in which case deploy the artifact to any static
+host instead.
 
 Design references: model × problem heatmaps (KernelBench), KPI strip and
 per-column aggregates (LiveBench), tab navigation, filters, and persisted
