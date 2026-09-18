@@ -249,6 +249,7 @@ def cmd_pilot(args: argparse.Namespace) -> int:
         config,
         runs_root=Path(args.runs).resolve() if args.runs else None,
         jobs=args.jobs,
+        publish=Path(args.publish) if args.publish else None,
     )
     return 0
 
@@ -336,6 +337,7 @@ def build_parser() -> argparse.ArgumentParser:
     p_pilot.add_argument("--sandbox", choices=("none", "docker"))
     p_pilot.add_argument("--repetitions", type=int)
     p_pilot.add_argument("--jobs", type=int, default=1, help="parallel run cells")
+    p_pilot.add_argument("--publish", help="copy plan and report files here")
     p_pilot.set_defaults(func=cmd_pilot)
 
     p_seeds = sub.add_parser("seeds", help="publish the evaluation seed manifest")

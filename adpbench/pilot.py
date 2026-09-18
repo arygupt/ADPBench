@@ -10,6 +10,7 @@ from __future__ import annotations
 import hashlib
 import json
 import re
+import shutil
 import threading
 import traceback
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -126,6 +127,7 @@ def run_pilot(
     runs_root: Path | None = None,
     echo=print,
     jobs: int = 1,
+    publish: Path | None = None,
 ) -> Path:
     """Execute every planned run, then write report.json and REPORT.md.
 
@@ -210,4 +212,11 @@ def run_pilot(
         + "\nRuns are frozen under this directory; `plan.json` lists what was planned.\n"
     )
     echo(f"report -> {pilot_dir / 'REPORT.md'}")
+    if publish is not None:
+        publish = Path(publish)
+        publish.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(pilot_dir / "plan.json", publish / "plan.json")
+        shutil.copy2(pilot_dir / "report.json", publish / "report.json")
+        shutil.copy2(pilot_dir / "REPORT.md", publish / "REPORT.md")
+        echo(f"published -> {publish}")
     return pilot_dir

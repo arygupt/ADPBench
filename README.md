@@ -194,7 +194,28 @@ adpbench pilot --config pilot.json
 
 `plan.json`, every run record, `report.json`, and `REPORT.md` are written under
 `runs/pilot_<timestamp>_<name>/`. The report is built from the frozen records,
-so publishing is a copy, not a re-computation.
+so publishing is a copy, not a re-computation. `--publish DIR` copies the plan
+and report into the repository.
+
+### Pilot-001 results
+
+Five free OpenCode models, four problems, one attempt each, all inside the
+Docker sandbox under a shared prompt and budget. Published at
+`pilot/results/pilot-001/`.
+
+| model | attempts | correct | correctness | beat baseline | geomean (successful) |
+|---|---:|---:|---:|---:|---:|
+| `opencode/mimo-v2.5-free` | 4 | 2 | 50% | 2 | 3.27x |
+| `opencode/muse-spark-1.3-contributor-free` | 4 | 2 | 50% | 2 | 2.77x |
+| `opencode/nemotron-3-ultra-free` | 4 | 2 | 50% | 1 | 0.91x |
+| `opencode/nemotron-3.5-lightning-free` | 4 | 0 | 0% | 0 | - |
+| `opencode/ling-3.0-flash-fin-free` | 4 | 0 | 0% | 0 | - |
+| **all** | 20 | 6 | 30% | 5 | 2.02x |
+
+Best individual results: dot product 3.39x (mimo-v2.5-free), GEMV 3.17x
+(mimo-v2.5-free), matmul 2.28x (muse-spark), conv1d unsolved. The task
+difficulty gradient - every problem solved by at least one model except
+conv1d - is the interesting signal for the next iteration.
 
 > Running an agent with shell access executes arbitrary code. Use
 > `--sandbox docker` for untrusted models; host mode trusts the command.
@@ -226,17 +247,13 @@ v0.2. Four problems, zero-dependency Python harness, pilot harness ready.
 ```
 problem                      baseline                       sanity solution
 001_dot_product              2142 cells    546 cycles 1.00x   2.89x (lane-parallel)
-002_gemv                     3295 cells   2216 cycles 1.00x   none yet
-003_matmul                   6253 cells   2194 cycles 1.00x   none yet
-004_conv1d                   4565 cells   5018 cycles 1.00x   none yet
+002_gemv                     3295 cells   2216 cycles 1.00x   2.10x (beat-parallel)
+003_matmul                   6253 cells   2194 cycles 1.00x   6.06x (K-parallel)
+004_conv1d                   4565 cells   5018 cycles 1.00x   2.82x (output-bound)
 ```
 
-The sanity solution is `problems/level1/001_dot_product/solutions/parallel.v`.
-The first real agent runs (`opencode/mimo-v2.5-free`, host mode) produced one
-attempt with no submission, one correct design at 1.16x on the pre-hardening
-harness, and one at 1.78x on the current harness; the scored runs replay
-exactly. The report discloses all three attempts rather than averaging the
-failure away.
+Each problem ships a sanity solution under `solutions/parallel.v` that passes
+the full gate and beats the baseline, so the baseline is provably beatable.
 
 Known gaps:
 
