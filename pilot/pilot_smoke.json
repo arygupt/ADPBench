@@ -1,0 +1,18 @@
+{
+  "name": "smoke",
+  "problems": [
+    "001_dot_product",
+    "002_gemv",
+    "003_matmul",
+    "004_conv1d"
+  ],
+  "repetitions": 1,
+  "sandbox": {"mode": "docker", "image": "adpbench-agent", "network": "bridge"},
+  "agents": [
+    {
+      "label": "scripted/baseline-copy",
+      "cmd": "cp $(find /adpbench/problems -name baseline.v | head -1) dut.v && ./check.sh",
+      "timeout_s": 600
+    }
+  ]
+}

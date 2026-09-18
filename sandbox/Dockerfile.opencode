@@ -1,0 +1,15 @@
+# syntax=docker/dockerfile:1
+#
+# The pinned ADPBench substrate plus the OpenCode CLI, so free-model agents
+# can run inside the sandbox. If the model provider needs credentials, pass a
+# scoped key via `docker run -e` or bake it at build time - never commit it.
+#
+#   docker build -f sandbox/Dockerfile.opencode -t adpbench-agent-opencode .
+FROM adpbench-agent
+
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends ca-certificates curl \
+ && rm -rf /var/lib/apt/lists/* \
+ && curl -fsSL https://opencode.ai/install | bash
+
+ENV PATH="/root/.opencode/bin:${PATH}"

@@ -245,7 +245,11 @@ def cmd_pilot(args: argparse.Namespace) -> int:
         config.sandbox = args.sandbox
     if args.repetitions is not None:
         config.repetitions = args.repetitions
-    run_pilot(config, runs_root=Path(args.runs).resolve() if args.runs else None)
+    run_pilot(
+        config,
+        runs_root=Path(args.runs).resolve() if args.runs else None,
+        jobs=args.jobs,
+    )
     return 0
 
 
@@ -331,6 +335,7 @@ def build_parser() -> argparse.ArgumentParser:
     p_pilot.add_argument("--runs", help="runs directory (default: runs/)")
     p_pilot.add_argument("--sandbox", choices=("none", "docker"))
     p_pilot.add_argument("--repetitions", type=int)
+    p_pilot.add_argument("--jobs", type=int, default=1, help="parallel run cells")
     p_pilot.set_defaults(func=cmd_pilot)
 
     p_seeds = sub.add_parser("seeds", help="publish the evaluation seed manifest")

@@ -10,7 +10,9 @@ from __future__ import annotations
 import hashlib
 import json
 import re
+import threading
 import traceback
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
@@ -119,8 +121,18 @@ def _write_launch_failure(
     (dest / "record.json").write_text(json.dumps(payload, indent=2) + "\n")
 
 
-def run_pilot(config: PilotConfig, runs_root: Path | None = None, echo=print) -> Path:
-    """Execute every planned run, then write report.json and REPORT.md."""
+def run_pilot(
+    config: PilotConfig,
+    runs_root: Path | None = None,
+    echo=print,
+    jobs: int = 1,
+) -> Path:
+    """Execute every planned run, then write report.json and REPORT.md.
+
+    `jobs` > 1 runs independent (agent, problem, repetition) cells in
+    parallel; every cell still gets its own directories, container names, and
+    records, so the report is built the same way either way.
+    """
     stamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     root = Path(runs_root) if runs_root else repo_root() / "runs"
     pilot_dir = root / f"pilot_{stamp}_{slug(config.name)}"
@@ -135,38 +147,60 @@ def run_pilot(config: PilotConfig, runs_root: Path | None = None, echo=print) ->
         "repetitions": config.repetitions,
         "sandbox": {"mode": config.sandbox, "image": config.image, "network": config.network},
         "planned_runs": config.planned_runs,
+        "jobs": jobs,
         "started": datetime.now().isoformat(timespec="seconds"),
     }
     (pilot_dir / "plan.json").write_text(json.dumps(plan, indent=2) + "\n")
-    echo(f"pilot {config.name}: {config.planned_runs} runs -> {pilot_dir}")
+    echo(f"pilot {config.name}: {config.planned_runs} runs, {jobs} job(s) -> {pilot_dir}")
 
-    done = 0
-    slugs = agent_slugs(config.agents)
-    for agent, agent_slug in zip(config.agents, slugs):
-        for problem_spec in config.problems:
-            problem = _resolve_problem(problem_spec)
-            for attempt in range(1, config.repetitions + 1):
-                done += 1
-                dest = pilot_dir / agent_slug / problem.name / f"rep{attempt}"
-                echo(f"[{done}/{config.planned_runs}] {agent.label} {problem.name} rep{attempt}")
-                try:
-                    record = run_agent(
-                        problem,
-                        agent.cmd,
-                        dest=dest,
-                        timeout_s=agent.timeout_s,
-                        label=agent.label,
-                        attempt=attempt,
-                        group=config.name,
-                        sandbox=config.sandbox,
-                        image=config.image,
-                        network=config.network,
-                    )
-                    status = "correct" if record.result and record.result.get("correct") else "failed"
-                    echo(f"    -> {status} score={record.score():.2f}x")
-                except Exception as exc:  # noqa: BLE001 - one bad run must not stop the pilot
-                    _write_launch_failure(dest, problem, agent, attempt, config, exc)
-                    echo(f"    -> launch failure: {type(exc).__name__}: {exc}")
+    cells = [
+        (agent, agent_slug, problem_spec, attempt)
+        for agent, agent_slug in zip(config.agents, agent_slugs(config.agents))
+        for problem_spec in config.problems
+        for attempt in range(1, config.repetitions + 1)
+    ]
+    lock = threading.Lock()
+    counter = [0]
+
+    def say(message: str) -> None:
+        with lock:
+            echo(message)
+
+    def run_cell(cell) -> None:
+        agent, agent_slug, problem_spec, attempt = cell
+        problem = _resolve_problem(problem_spec)
+        with lock:
+            counter[0] += 1
+            index = counter[0]
+        say(f"[{index}/{config.planned_runs}] {agent.label} {problem.name} rep{attempt}")
+        dest = pilot_dir / agent_slug / problem.name / f"rep{attempt}"
+        try:
+            record = run_agent(
+                problem,
+                agent.cmd,
+                dest=dest,
+                timeout_s=agent.timeout_s,
+                label=agent.label,
+                attempt=attempt,
+                group=config.name,
+                sandbox=config.sandbox,
+                image=config.image,
+                network=config.network,
+            )
+            status = "correct" if record.result and record.result.get("correct") else "failed"
+            say(f"    -> {status} score={record.score():.2f}x")
+        except Exception as exc:  # noqa: BLE001 - one bad run must not stop the pilot
+            _write_launch_failure(dest, problem, agent, attempt, config, exc)
+            say(f"    -> launch failure: {type(exc).__name__}: {exc}")
+
+    if jobs > 1 and len(cells) > 1:
+        with ThreadPoolExecutor(max_workers=jobs) as pool:
+            futures = [pool.submit(run_cell, cell) for cell in cells]
+            for future in as_completed(futures):
+                future.result()
+    else:
+        for cell in cells:
+            run_cell(cell)
 
     report = summarize(load_runs(pilot_dir))
     (pilot_dir / "report.json").write_text(json.dumps(report, indent=2) + "\n")
