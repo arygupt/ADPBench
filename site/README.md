@@ -21,6 +21,8 @@ variable is set. GitHub Pages is free for public repositories; a private
 repository needs a paid plan, in which case deploy the artifact to any static
 host instead.
 
-Design references: model × problem heatmaps (KernelBench), KPI strip and
-per-column aggregates (LiveBench), tab navigation, filters, and persisted
-theme (SWE-bench), dark data-dense tables (Artificial Analysis).
+Design references: DeepSWE's leaderboard is the primary model — near-black
+indigo palette, rank-colored 6px score bars, `70% ±4%` Wilson-interval format,
+Inter + JetBrains Mono, lettered feature cards — combined with model × problem
+heatmaps (KernelBench), the KPI strip (LiveBench), and tab navigation
+(SWE-bench).
