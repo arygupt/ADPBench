@@ -42,6 +42,7 @@ def _extreme_signs(txn):
 
 
 INTERFACE = {
+    "title": "Dot product",
     "module": "dut",
     "protocol": "valid_ready_streams",
     "params": {"LEN": LEN, "LANES": LANES, "DATA_W": DATA_W, "ACC_W": ACC_W},

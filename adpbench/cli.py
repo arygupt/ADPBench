@@ -254,6 +254,18 @@ def cmd_pilot(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_site(args: argparse.Namespace) -> int:
+    from .site import export_sanity, export_site
+
+    if args.site_command == "export":
+        out = export_site(args.pilot, args.out, sanity_file=args.sanity)
+        print(f"exported -> {out}")
+    elif args.site_command == "sanity":
+        out = export_sanity(args.out)
+        print(f"sanity metrics -> {out}")
+    return 0
+
+
 def cmd_seeds(args: argparse.Namespace) -> int:
     from . import sim, synth
 
@@ -343,6 +355,19 @@ def build_parser() -> argparse.ArgumentParser:
     p_seeds = sub.add_parser("seeds", help="publish the evaluation seed manifest")
     p_seeds.add_argument("--out")
     p_seeds.set_defaults(func=cmd_seeds)
+
+    p_site = sub.add_parser("site", help="export data for the static leaderboard site")
+    site_sub = p_site.add_subparsers(dest="site_command", required=True)
+    p_export = site_sub.add_parser("export", help="export a frozen pilot directory")
+    p_export.add_argument("--pilot", required=True, help="pilot run directory")
+    p_export.add_argument("--out", required=True, help="site data directory")
+    p_export.add_argument("--sanity", help="sanity metrics file (adpbench site sanity)")
+    p_export.set_defaults(func=cmd_site)
+    p_sanity = site_sub.add_parser(
+        "sanity", help="evaluate every sanity solution into a metrics file"
+    )
+    p_sanity.add_argument("--out", required=True)
+    p_sanity.set_defaults(func=cmd_site)
 
     return parser
 

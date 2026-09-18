@@ -37,12 +37,19 @@ class RunSummary:
 
     @property
     def kind(self) -> str:
-        """ok, wrong_rtl, or infrastructure."""
+        """ok, wrong_rtl, or infrastructure.
+
+        Infrastructure means nothing was scored: a harness error or a run that
+        timed out before producing any submission. A timeout that still left a
+        scorable (wrong) design counts as wrong RTL.
+        """
         if self.correct:
             return "ok"
-        if self.error or self.timed_out:
+        if self.error:
             return "infrastructure"
         if self.stage in INFRASTRUCTURE_STAGES:
+            return "infrastructure"
+        if self.timed_out and not self.stage:
             return "infrastructure"
         return "wrong_rtl"
 

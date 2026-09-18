@@ -47,6 +47,7 @@ def _extreme_signs(txn):
 
 
 INTERFACE = {
+    "title": "Matrix multiply",
     "module": "dut",
     "protocol": "valid_ready_streams",
     "params": {"M": M, "N": N, "K": K, "LANES": LANES, "DATA_W": DATA_W, "ACC_W": ACC_W},
