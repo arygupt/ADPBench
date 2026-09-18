@@ -292,7 +292,23 @@ that only works for the ones you can see will not pass.
 """
 
 
-def render_check_sh(problem: Problem, python: str) -> str:
+SANDBOX_MOUNT = "/adpbench"
+WORK_MOUNT = "/work"
+BUNDLE_DIR = "sandbox_pkg"
+DEFAULT_IMAGE = "adpbench-agent:latest"
+
+
+def render_check_sh(problem: Problem, python: str, sandbox: str = "none") -> str:
+    if sandbox == "docker":
+        rel = problem.root.relative_to(repo_root())
+        return f"""\
+#!/bin/sh
+# ADPBench feedback command. Dev seeds only. Runs inside the sandbox, where
+# the sanitized harness is mounted read-only at {SANDBOX_MOUNT} and scratch
+# work is written under the writable task mount.
+cd "$(dirname "$0")" || exit 1
+ADPBENCH_WORKDIR="{WORK_MOUNT}/.adpbench" exec python -m adpbench check --problem "{SANDBOX_MOUNT}/{rel}" --file dut.v
+"""
     return f"""\
 #!/bin/sh
 # ADPBench feedback command. Dev seeds only.
@@ -301,8 +317,86 @@ exec "{python}" -m adpbench check --problem "{problem.root}" --file dut.v
 """
 
 
+def build_sandbox_bundle(problem: Problem, dest: Path, force: bool = False) -> Path:
+    """Copy the harness for a read-only mount inside an agent container.
+
+    The hidden evaluation seeds are replaced with an empty tuple before the
+    copy, so the container can run the dev-seed feedback loop but cannot read
+    the held-out cases. Final scoring always runs on the host, outside the
+    sandbox.
+    """
+    dest = Path(dest).resolve()
+    if dest.exists():
+        if not force:
+            raise FileExistsError(f"{dest} already exists (pass force=True to reuse)")
+        shutil.rmtree(dest)
+    dest.mkdir(parents=True, exist_ok=True)
+
+    source = repo_root()
+    ignore = shutil.ignore_patterns("__pycache__", "*.pyc")
+    shutil.copytree(source / "adpbench", dest / "adpbench", ignore=ignore)
+    shutil.copytree(source / "flows", dest / "flows", ignore=ignore)
+
+    evaluate = dest / "adpbench" / "evaluate.py"
+    text = evaluate.read_text()
+    sanitized = re.sub(r"^EVAL_SEEDS = .*$", "EVAL_SEEDS = ()", text, flags=re.M)
+    if sanitized == text:
+        raise RuntimeError("could not redact EVAL_SEEDS for the sandbox bundle")
+    evaluate.write_text(sanitized)
+
+    relative = problem.root.relative_to(source)
+    shutil.copytree(source / relative, dest / relative, ignore=ignore)
+    return dest
+
+
+def docker_command(
+    env_dir: Path,
+    bundle: Path,
+    image: str,
+    network: str,
+    agent_cmd: str,
+    cpus: float = 4,
+    memory: str = "4g",
+    pids_limit: int = 1024,
+    name: str = "",
+) -> list[str]:
+    """The command that runs an agent inside the sandbox boundary.
+
+    Only the task directory is writable; the harness bundle is read-only and
+    contains no evaluation seeds.
+    """
+    args = [
+        "docker",
+        "run",
+        "--rm",
+        "-e",
+        f"PYTHONPATH={SANDBOX_MOUNT}",
+        "-v",
+        f"{Path(bundle).resolve()}:{SANDBOX_MOUNT}:ro",
+        "-v",
+        f"{Path(env_dir).resolve()}:{WORK_MOUNT}",
+        "-w",
+        WORK_MOUNT,
+        "--network",
+        network,
+        "--memory",
+        memory,
+        "--cpus",
+        str(cpus),
+        "--pids-limit",
+        str(pids_limit),
+    ]
+    if name:
+        args += ["--name", name]
+    return args + [image, "sh", "-lc", agent_cmd]
+
+
 def build_environment(
-    problem: Problem, dest: Path, python: str | None = None, force: bool = False
+    problem: Problem,
+    dest: Path,
+    python: str | None = None,
+    force: bool = False,
+    sandbox: str = "none",
 ) -> Path:
     """Create a self-contained task directory for an agent to work in."""
     dest = Path(dest).resolve()
@@ -324,10 +418,12 @@ def build_environment(
     )
 
     check = dest / "check.sh"
-    check.write_text(render_check_sh(problem, python))
+    check.write_text(render_check_sh(problem, python, sandbox=sandbox))
     check.chmod(0o755)
 
     (dest / ".history").mkdir(exist_ok=True)
+    if sandbox == "docker":
+        build_sandbox_bundle(problem, dest / BUNDLE_DIR, force=True)
     return dest
 
 
@@ -344,14 +440,118 @@ def snapshot(env_dir: Path, rtl_path: Path) -> Path | None:
 
 
 # --------------------------------------------------------------------------
-# Run record
+# Run record and manifest
 # --------------------------------------------------------------------------
+
+SECRET_RE = re.compile(
+    r"(?i)\b([A-Z0-9_]*(?:KEY|TOKEN|SECRET|PASSWORD)[A-Z0-9_]*)\s*=\s*\S+"
+)
+
+
+def redact_secrets(text: str) -> str:
+    """Keep credentials out of logs and run records."""
+    return SECRET_RE.sub(r"\1=***", text)
+
+
+def adpbench_version() -> str:
+    try:
+        from importlib.metadata import version
+
+        return version("adpbench")
+    except Exception:  # noqa: BLE001 - version metadata is best-effort
+        return "unknown"
+
+
+def git_commit() -> str:
+    try:
+        proc = subprocess.run(
+            ["git", "rev-parse", "HEAD"],
+            cwd=repo_root(),
+            capture_output=True,
+            text=True,
+            timeout=10,
+        )
+    except (OSError, subprocess.TimeoutExpired):
+        return ""
+    return proc.stdout.strip() if proc.returncode == 0 else ""
+
+
+def sha256_file(path: Path) -> str:
+    digest = hashlib.sha256()
+    with Path(path).open("rb") as handle:
+        for chunk in iter(lambda: handle.read(65536), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+def build_manifest(
+    problem: Problem,
+    record: "RunRecord",
+    dest: Path,
+    timeout_s: int,
+    sandbox: str,
+    image: str,
+    network: str,
+) -> dict:
+    """Everything needed to replay and audit a run, in one file."""
+    from . import sim, synth
+
+    dest = Path(dest)
+    submission = dest / "dut.v"
+    netlist_sha = ""
+    if record.result:
+        per_case = record.result.get("metadata", {}).get("per_case", [])
+        if per_case:
+            netlist_sha = per_case[0].get("netlist_sha256", "")
+
+    return {
+        "adpbench_version": adpbench_version(),
+        "git_commit": git_commit(),
+        "problem": problem.name,
+        "problem_sha256": {
+            name: sha256_file(problem.root / name)
+            for name in ("dut.py", "baseline.v", "baseline.json")
+            if (problem.root / name).is_file()
+        },
+        "cases": {
+            "seeds": list(EVAL_SEEDS),
+            "directed": problem.directed_cases,
+            "transactions": problem.transactions,
+            "input_lens": problem.input_lens,
+        },
+        "tools": {"yosys": synth.tool_version(), "iverilog": sim.tool_version()},
+        "submission_sha256": sha256_file(submission) if submission.is_file() else "",
+        "netlist_sha256": netlist_sha,
+        "agent_cmd": redact_secrets(record.agent_cmd),
+        "budget_s": timeout_s,
+        "sandbox": {
+            "mode": sandbox,
+            "image": image if sandbox == "docker" else "",
+            "network": network if sandbox == "docker" else "",
+        },
+        "result": {
+            "correct": bool(record.result.get("correct")) if record.result else False,
+            "ratio": record.result.get("ratio", -1.0) if record.result else -1.0,
+            "cells": record.result.get("cells", -1) if record.result else -1,
+            "cycles": record.result.get("cycles", -1) if record.result else -1,
+            "stage": record.result.get("metadata", {}).get("stage", "")
+            if record.result
+            else "error",
+        },
+        "error": record.error,
+        "timed_out": record.timed_out,
+        "duration_s": record.duration_s,
+    }
 
 
 @dataclass
 class RunRecord:
     problem: str
     agent_cmd: str
+    label: str = ""
+    attempt: int = 1
+    group: str = ""
+    sandbox: str = "none"
     started: str = ""
     duration_s: float = 0.0
     exit_code: int = -1
@@ -359,6 +559,7 @@ class RunRecord:
     audit: dict = field(default_factory=dict)
     result: dict | None = None
     error: str = ""
+    manifest: dict = field(default_factory=dict)
     history: list[str] = field(default_factory=list)
 
     def score(self) -> float:
@@ -379,50 +580,87 @@ def run_agent(
     timeout_s: int = 1800,
     python: str | None = None,
     force: bool = True,
+    label: str = "",
+    attempt: int = 1,
+    group: str = "",
+    sandbox: str = "none",
+    image: str = DEFAULT_IMAGE,
+    network: str = "bridge",
 ) -> RunRecord:
     """Spawn an agent CLI inside a fresh environment, then audit and score it.
 
-    The agent command runs through the shell with cwd set to the environment
-    directory. It is given full access to that directory and nothing else is
-    assumed about it.
+    With `sandbox="docker"` the agent runs in a container that mounts the task
+    directory read-write and a sanitized harness bundle read-only. Final
+    scoring always happens on the host, outside the container.
     """
+    if sandbox not in ("none", "docker"):
+        raise ValueError(f"unknown sandbox {sandbox!r}")
     stamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     dest = Path(dest).resolve() if dest else repo_root() / "runs" / problem.name / stamp
-    build_environment(problem, dest, python=python, force=force)
+    build_environment(problem, dest, python=python, force=force, sandbox=sandbox)
 
     record = RunRecord(
         problem=problem.name,
-        agent_cmd=agent_cmd,
+        agent_cmd=redact_secrets(agent_cmd),
+        label=label or agent_cmd,
+        attempt=attempt,
+        group=group,
+        sandbox=sandbox,
         started=datetime.now().isoformat(timespec="seconds"),
     )
 
+    container = ""
+    if sandbox == "docker":
+        from uuid import uuid4
+
+        container = f"adpbench_{uuid4().hex[:10]}"
+        argv = docker_command(
+            dest, dest / BUNDLE_DIR, image, network, agent_cmd, name=container
+        )
+        command_display = " ".join(argv)
+        proc = subprocess.Popen(
+            argv,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+            start_new_session=True,
+        )
+    else:
+        command_display = agent_cmd
+        proc = subprocess.Popen(
+            agent_cmd,
+            shell=True,
+            cwd=dest,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+            start_new_session=True,
+        )
+
+    shown = redact_secrets(command_display)
     started = time.time()
-    proc = subprocess.Popen(
-        agent_cmd,
-        shell=True,
-        cwd=dest,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-        text=True,
-        start_new_session=True,
-    )
     try:
         stdout, stderr = proc.communicate(timeout=timeout_s)
         record.exit_code = proc.returncode
         record.timed_out = False
-        log = f"$ {agent_cmd}\n\n--- stdout ---\n{stdout}\n--- stderr ---\n{stderr}\n"
+        log = f"$ {shown}\n\n--- stdout ---\n{stdout}\n--- stderr ---\n{stderr}\n"
     except subprocess.TimeoutExpired:
-        # The command runs through a shell, so killing the shell alone can
-        # leave the agent running. Kill and reap the whole process group.
+        # The command runs through a shell (or a docker client), so killing
+        # that process alone can leave the agent running. Kill the group, and
+        # the container if there is one.
         try:
             os.killpg(os.getpgid(proc.pid), signal.SIGKILL)
         except ProcessLookupError:
             pass
+        if container:
+            subprocess.run(
+                ["docker", "kill", container], capture_output=True, timeout=30
+            )
         stdout, stderr = proc.communicate()
         record.exit_code = -1
         record.timed_out = True
         log = (
-            f"$ {agent_cmd}\n\n--- TIMEOUT after {timeout_s}s"
+            f"$ {shown}\n\n--- TIMEOUT after {timeout_s}s"
             f" (process group killed) ---\n{stdout}\n{stderr}\n"
         )
 
@@ -467,6 +705,16 @@ def run_agent(
     else:
         (dest / "dut.v").replace(dest / "rejected_dut.v")
 
+    try:
+        record.manifest = build_manifest(
+            problem, record, dest, timeout_s, sandbox, image, network
+        )
+        (dest / "manifest.json").write_text(
+            json.dumps(record.manifest, indent=2) + "\n"
+        )
+    except Exception as exc:  # noqa: BLE001 - never lose the run record
+        record.manifest = {"error": f"{type(exc).__name__}: {exc}"}
+
     (dest / "record.json").write_text(record.to_json() + "\n")
     return record
 
@@ -474,9 +722,14 @@ def run_agent(
 __all__ = [
     "DEV_SEEDS",
     "EVAL_SEEDS",
+    "DEFAULT_IMAGE",
     "RunRecord",
     "audit_submission",
     "build_environment",
+    "build_manifest",
+    "build_sandbox_bundle",
+    "docker_command",
+    "redact_secrets",
     "render_ports",
     "render_problem_md",
     "run_agent",

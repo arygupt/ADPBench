@@ -17,6 +17,14 @@ def repo_root() -> Path:
     return Path(__file__).resolve().parent.parent
 
 
+def discover_problems(root: str | Path | None = None) -> list[Path]:
+    """Every directory under `problems/` that looks like a problem."""
+    base = Path(root) if root else repo_root() / "problems"
+    if not base.is_dir():
+        return []
+    return sorted(path.parent for path in base.glob("*/*/dut.py"))
+
+
 @dataclass
 class Problem:
     name: str

@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 from pathlib import Path
 from uuid import uuid4
 
@@ -37,6 +38,16 @@ DEV_SEEDS = (0, 1)
 EVAL_SEEDS = (1000, 1001, 1002)
 
 
+def work_root() -> Path:
+    """Where evaluation scratch lives.
+
+    `ADPBENCH_WORKDIR` overrides the default; sandboxed feedback runs point it
+    at the writable task mount because the harness bundle is read-only.
+    """
+    override = os.environ.get("ADPBENCH_WORKDIR")
+    return Path(override) if override else repo_root() / ".adpbench"
+
+
 def work_dir(problem: Problem, seed: int | str, tag: str = "", job: str = "") -> Path:
     """A per-invocation directory.
 
@@ -45,7 +56,7 @@ def work_dir(problem: Problem, seed: int | str, tag: str = "", job: str = "") ->
     """
     label = f"seed{seed}" if isinstance(seed, int) else str(seed)
     suffix = label + (f"_{tag}" if tag else "") + (f"_{job}" if job else "")
-    return repo_root() / ".adpbench" / problem.name / suffix
+    return work_root() / problem.name / suffix
 
 
 def load_baseline(problem: Problem) -> dict | None:
