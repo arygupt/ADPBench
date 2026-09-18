@@ -268,6 +268,21 @@ Known gaps:
 - Per-port data widths are shared (`DATA_W`); mixed-width ports need an
   explicit map.
 
+## The site
+
+`site/` is a zero-dependency static leaderboard rendered from committed JSON.
+Regenerate its data from a frozen pilot and preview:
+
+```bash
+.venv/bin/python -m adpbench site sanity --out pilot/sanity.json
+.venv/bin/python -m adpbench site export --pilot runs/<pilot> --out site/data --sanity pilot/sanity.json
+python3 -m http.server 8000 --directory site
+```
+
+`.github/workflows/deploy-site.yml` publishes it to GitHub Pages on push.
+The page never touches the toolchain: the published numbers are the frozen
+records, re-rendered.
+
 ## Related work
 
 The module-level generation benchmarks: VerilogEval, RTLLM, CVDP, ChipBench,

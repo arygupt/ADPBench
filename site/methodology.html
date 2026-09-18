@@ -1,0 +1,162 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Methodology — ADPBench</title>
+  <meta name="description" content="How ADPBench scores AI-generated Verilog: metric, contract, pipeline, sandbox, and caveats." />
+  <link rel="icon" href="favicon.svg" type="image/svg+xml" />
+  <link rel="stylesheet" href="assets/style.css" />
+  <script>
+    (function () {
+      try {
+        if (localStorage.getItem("adpbench-theme") === "light") {
+          document.documentElement.setAttribute("data-theme", "light");
+        }
+      } catch (e) {}
+    })();
+  </script>
+</head>
+<body>
+  <header class="site-header">
+    <a class="brand" href="index.html">
+      <svg class="mark" viewBox="0 0 26 26" fill="none" aria-hidden="true">
+        <rect x="1" y="1" width="24" height="24" rx="6" stroke="#4f8cff" stroke-width="2"/>
+        <path d="M7 9h12M7 13h12M7 17h7" stroke="#4f8cff" stroke-width="2" stroke-linecap="round"/>
+      </svg>
+      ADPBench <span class="brand-sub">· cells × cycles</span>
+    </a>
+    <nav class="site-nav" aria-label="Primary">
+      <a href="index.html">Leaderboard</a>
+      <a href="problems.html">Problems</a>
+      <a href="methodology.html" class="active">Methodology</a>
+    </nav>
+    <div class="header-actions">
+      <a class="icon-btn" href="https://github.com/arygupt/ADPBench" target="_blank" rel="noopener" aria-label="GitHub repository" title="GitHub repository">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27s1.36.09 2 .27c1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8Z"/></svg>
+      </a>
+      <button class="icon-btn" id="theme-toggle" aria-label="Toggle theme">☀️</button>
+    </div>
+  </header>
+
+  <main class="wrap">
+    <section class="hero" style="padding-bottom: 8px">
+      <p class="eyebrow">Methodology</p>
+      <h1>Numbers you can replay.</h1>
+      <p class="lede">
+        Every score on this site comes from a frozen run record: the submission
+        hash, netlist hash, case manifest, tool versions, and git commit are
+        stored alongside it, and <code>adpbench replay</code> re-scores the
+        frozen file to verify the published number.
+      </p>
+    </section>
+
+    <div class="prose">
+      <h2>The metric</h2>
+      <p>
+        A submission is synthesized to a gate netlist with a pinned Yosys flow
+        (<code>synth -noabc</code>) and simulated at gate level with the same
+        release's cell models. Area is a <em>cell count</em> — a proxy, not a
+        placed-and-routed area. Time is <em>cycles</em>, measured from input
+        presentation to the last accepted output across all transactions.
+      </p>
+      <pre>adp   = cells × cycles
+score = baseline_adp / submission_adp      // higher is better</pre>
+      <div class="callout">
+        <p><strong>What this is not.</strong> <code>cells × cycles</code> counts
+        generic cells before ABC optimization. A 100 MHz testbench clock does
+        not prove the netlist closes timing at 100 MHz, and no power is
+        modeled. Treat the score as a reproducible proxy, not silicon
+        sign-off.</p>
+      </div>
+
+      <h2>The contract</h2>
+      <ul>
+        <li>Each input port has its own <code>valid</code>/<code>ready</code> pair and its own element count per transaction; streams of different lengths run independently.</li>
+        <li>Every case drives <strong>two back-to-back transactions without reset</strong> — leaked per-transaction state fails.</li>
+        <li>Correctness is exact integer equality on held-out random seeds plus directed edge cases (zeros, extreme signed values).</li>
+        <li>A protocol run applies forced output stalls and seeded input gaps: dropping or mutating a word while stalled fails, extra output words fail, and finishing without consuming all input beats fails.</li>
+        <li>Synthesis must reduce to gate-level internal cells; blackboxes and residual arithmetic cells (<code>$mul</code>, <code>$div</code>, …) are rejected, since the simulator would resolve them for the price of one cell.</li>
+      </ul>
+
+      <h2>The pipeline</h2>
+      <pre>submission.v
+  → synthesize   yosys, pinned flow, chparam parameters      → netlist + cells
+  → vectors      numpy golden model, held-out seeds          → inputs + expected
+  → simulate     iverilog on the netlist (score + protocol)  → cycles, bit-exact pass/fail
+  → score        baseline_adp / adp</pre>
+      <p>
+        Synthesis and simulation judge <em>one artifact</em>: the parameters
+        applied at synthesis are the ones the testbench drives, and the
+        simulated netlist is the netlist whose cells were counted.
+      </p>
+
+      <h2>The boundary</h2>
+      <p>
+        Agents run inside Docker on a pinned substrate image — Yosys built from
+        the exact commit the host scores with, Icarus v13_0, same cell library.
+        The container mounts the task directory read-write and a seed-redacted
+        harness bundle read-only (held-out seeds are stripped; reference
+        solutions are not shipped). After the run, nothing in the
+        agent-writable directory is trusted: the submission is copied
+        symlink-free to a host-only directory, hashed, and scored there.
+        Fabricated records and symlink tricks are covered by regression tests.
+      </p>
+
+      <h2>Reporting</h2>
+      <p>
+        The headline is <strong>beat-baseline rate</strong> — the fraction of
+        planned attempts that end correct and faster than the baseline.
+        Correctness rate, geometric mean among successful attempts,
+        infrastructure failures, timeouts, and repetitions are all disclosed;
+        a correctness-gated average is never presented alone. Attempts are
+        counted, not averaged away.
+      </p>
+
+      <h2>Cases and substrate</h2>
+      <p>
+        The case manifest is public — seeds are hidden only from the agent, and
+        published with the results so anything can be re-derived:
+      </p>
+      <p id="meta-seeds" class="chip-row"></p>
+      <p>
+        Toolchain for this dataset: yosys <span id="meta-yosys">—</span> ·
+        iverilog <span id="meta-iverilog">—</span> · pilot
+        <span id="meta-pilot">—</span> · budget
+        <span id="meta-budget">—</span> per run.
+      </p>
+
+      <h2>Current caveats</h2>
+      <ul>
+        <li>One attempt per cell (pilot-001); model variance is not yet sampled.</li>
+        <li>All five evaluated systems are free-tier OpenCode models; stronger systems are not on the board yet.</li>
+        <li>The dot-product sanity solution (2.89×) and the best model result (3.39×) suggest the ceiling is not yet known.</li>
+        <li>Four problems is a small sample of the operator space; conclusions should stay at "these models, these tasks".</li>
+      </ul>
+
+      <h2>Run it yourself</h2>
+      <pre>uv venv && uv pip install -e .
+.venv/bin/python -m adpbench list
+.venv/bin/python -m adpbench pilot --config pilot/pilot_free_models.json --jobs 4
+.venv/bin/python -m adpbench report --runs runs/
+.venv/bin/python -m adpbench replay runs/&lt;pilot&gt;/&lt;model&gt;/&lt;problem&gt;/rep1</pre>
+      <p>
+        Submissions are evaluated with <code>adpbench run &lt;problem&gt; -f dut.v</code>;
+        the static site data regenerates with
+        <code>adpbench site sanity --out pilot/sanity.json</code> and
+        <code>adpbench site export --pilot runs/&lt;pilot&gt; --out site/data --sanity pilot/sanity.json</code>.
+      </p>
+    </div>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap cols">
+      <span>ADPBench · generated <span id="meta-generated">—</span> · commit <code id="meta-commit">—</code></span>
+      <span>yosys <span id="meta-yosys">—</span> · iverilog <span id="meta-iverilog">—</span></span>
+      <span><a href="data/leaderboard.json">raw leaderboard</a> · <a href="data/report.json">report</a> · <a href="data/problems.json">problems</a></span>
+    </div>
+  </footer>
+
+  <script src="assets/app.js"></script>
+</body>
+</html>

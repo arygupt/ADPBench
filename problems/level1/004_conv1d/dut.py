@@ -54,6 +54,7 @@ def _extreme_signs(txn):
 
 
 INTERFACE = {
+    "title": "1-D convolution",
     "module": "dut",
     "protocol": "valid_ready_streams",
     "params": {"IN_LEN": IN_LEN, "F": F, "K": K, "LANES": LANES, "DATA_W": DATA_W, "ACC_W": ACC_W},

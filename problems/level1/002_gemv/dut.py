@@ -44,6 +44,7 @@ def _extreme_signs(txn):
 
 
 INTERFACE = {
+    "title": "Matrix-vector (GEMV)",
     "module": "dut",
     "protocol": "valid_ready_streams",
     "params": {"ROWS": ROWS, "COLS": COLS, "LANES": LANES, "DATA_W": DATA_W, "ACC_W": ACC_W},

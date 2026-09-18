@@ -1,0 +1,656 @@
+{
+  "meta": {
+    "generated": "2026-09-18T17:00:05",
+    "git_commit": "df00ced538f4d9e035ee419249629cdae17e7ccf",
+    "pilot": "pilot-001",
+    "problems_planned": [
+      "001_dot_product",
+      "002_gemv",
+      "003_matmul",
+      "004_conv1d"
+    ],
+    "sandbox": {
+      "mode": "docker",
+      "image": "adpbench-agent-opencode",
+      "network": "bridge"
+    },
+    "budget_s": 1200,
+    "repetitions": 1,
+    "jobs": 3,
+    "cases": {
+      "seeds": [
+        1000,
+        1001,
+        1002
+      ],
+      "dev_seeds": [
+        0,
+        1
+      ],
+      "transactions": 2
+    },
+    "tools": {
+      "yosys": "Yosys 0.69+post (git sha1 143eb14f9cc55d6f8927e68523b0c9d2166ed02c, Release, AppleClang clang++ 21.0.0.21000101)",
+      "iverilog": "Icarus Verilog version 13.0 (stable) (v13_0)"
+    },
+    "adpbench_version": "0.0.1"
+  },
+  "problems": [
+    {
+      "name": "001_dot_product",
+      "title": "Dot product",
+      "level": 1,
+      "params": {
+        "LEN": 256,
+        "LANES": 32,
+        "DATA_W": 8,
+        "ACC_W": 32
+      },
+      "input_lens": {
+        "in_a_flat": 256,
+        "in_b_flat": 256
+      },
+      "out_len": 1,
+      "transactions": 2,
+      "directed": [
+        "zeros",
+        "min_values",
+        "extreme_signs"
+      ],
+      "quant": {
+        "in_a_flat": "int8 two's complement",
+        "in_b_flat": "int8 two's complement",
+        "out_c": "int32 two's complement, exact",
+        "accumulator": "int32, no saturation, no rounding",
+        "tolerance": "none - bit exact"
+      },
+      "baseline": {
+        "cells": 2142,
+        "cycles": 546,
+        "adp": 1169532.0
+      },
+      "sanity": {
+        "correct": true,
+        "cells": 20200,
+        "cycles": 20,
+        "adp": 404000.0,
+        "ratio": 2.894881188118812
+      }
+    },
+    {
+      "name": "002_gemv",
+      "title": "Matrix-vector (GEMV)",
+      "level": 1,
+      "params": {
+        "ROWS": 16,
+        "COLS": 64,
+        "LANES": 16,
+        "DATA_W": 8,
+        "ACC_W": 32
+      },
+      "input_lens": {
+        "in_a_flat": 1024,
+        "in_x_flat": 64
+      },
+      "out_len": 16,
+      "transactions": 2,
+      "directed": [
+        "zeros",
+        "min_values",
+        "extreme_signs"
+      ],
+      "quant": {
+        "in_a_flat": "int8 two's complement, row-major A",
+        "in_x_flat": "int8 two's complement",
+        "out_c": "int32 two's complement, exact, one word per row",
+        "accumulator": "int32, no saturation, no rounding",
+        "tolerance": "none - bit exact"
+      },
+      "baseline": {
+        "cells": 3295,
+        "cycles": 2216,
+        "adp": 7301720.0
+      },
+      "sanity": {
+        "correct": true,
+        "cells": 11657,
+        "cycles": 298,
+        "adp": 3473786.0,
+        "ratio": 2.101948709563571
+      }
+    },
+    {
+      "name": "003_matmul",
+      "title": "Matrix multiply",
+      "level": 1,
+      "params": {
+        "M": 8,
+        "N": 8,
+        "K": 16,
+        "LANES": 16,
+        "DATA_W": 8,
+        "ACC_W": 32
+      },
+      "input_lens": {
+        "in_a_flat": 128,
+        "in_b_flat": 128
+      },
+      "out_len": 64,
+      "transactions": 2,
+      "directed": [
+        "zeros",
+        "min_values",
+        "extreme_signs"
+      ],
+      "quant": {
+        "in_a_flat": "int8 two's complement, row-major A (M x K)",
+        "in_b_flat": "int8 two's complement, row-major B (K x N)",
+        "out_c": "int32 two's complement, exact, row-major C (M x N)",
+        "accumulator": "int32, no saturation, no rounding",
+        "tolerance": "none - bit exact"
+      },
+      "baseline": {
+        "cells": 6253,
+        "cycles": 2194,
+        "adp": 13719082.0
+      },
+      "sanity": {
+        "correct": true,
+        "cells": 15501,
+        "cycles": 146,
+        "adp": 2263146.0,
+        "ratio": 6.061951813979301
+      }
+    },
+    {
+      "name": "004_conv1d",
+      "title": "1-D convolution",
+      "level": 1,
+      "params": {
+        "IN_LEN": 128,
+        "F": 4,
+        "K": 4,
+        "LANES": 16,
+        "DATA_W": 8,
+        "ACC_W": 32
+      },
+      "input_lens": {
+        "in_x_flat": 128,
+        "in_w_flat": 16
+      },
+      "out_len": 500,
+      "transactions": 2,
+      "directed": [
+        "zeros",
+        "zero_weights",
+        "extreme_signs"
+      ],
+      "quant": {
+        "in_x_flat": "int8 two's complement",
+        "in_w_flat": "int8 two's complement, row-major filters (F x K)",
+        "out_c": "int32 two's complement, exact, row-major y (F x OUT_POS)",
+        "accumulator": "int32, no saturation, no rounding",
+        "tolerance": "none - bit exact"
+      },
+      "baseline": {
+        "cells": 4565,
+        "cycles": 5018,
+        "adp": 22907170.0
+      },
+      "sanity": {
+        "correct": true,
+        "cells": 7988,
+        "cycles": 1018,
+        "adp": 8131784.0,
+        "ratio": 2.8169919417436566
+      }
+    }
+  ],
+  "models": [
+    {
+      "label": "opencode/ling-3.0-flash-fin-free",
+      "attempts": 4,
+      "correct": 0,
+      "beating": 0,
+      "correctness_rate": 0.0,
+      "beat_rate": 0.0,
+      "geomean": -1.0,
+      "wrong_rtl": 4,
+      "infra": 0,
+      "runs": [
+        {
+          "label": "opencode/ling-3.0-flash-fin-free",
+          "problem": "001_dot_product",
+          "attempt": 1,
+          "correct": false,
+          "ratio": -1.0,
+          "cells": 13040,
+          "cycles": -1,
+          "adp": -1.0,
+          "stage": "timeout",
+          "correctness": "timeout in the timing run - DUT never produced a full result",
+          "duration_s": 531.95,
+          "timed_out": false,
+          "error": "",
+          "audit_ok": true,
+          "submission_sha256": "65bbabb389c61e0661a8d5a8681bcb706339fcd13b5f568e0ae06c2c97e2a713",
+          "netlist_sha256": "3843fbf2068f41af6b6fb2222c230c9f6c3f6d0972c6e74b1b65e0e9142a6cf2",
+          "history": 2
+        },
+        {
+          "label": "opencode/ling-3.0-flash-fin-free",
+          "problem": "002_gemv",
+          "attempt": 1,
+          "correct": false,
+          "ratio": -1.0,
+          "cells": -1,
+          "cycles": -1,
+          "adp": -1.0,
+          "stage": "",
+          "correctness": "",
+          "duration_s": 89.14,
+          "timed_out": false,
+          "error": "",
+          "audit_ok": false,
+          "submission_sha256": "9e3f1fcaa0fd70d08aad6ab43d8827635a5f13b34b78ca8533e84c9bac30b12b",
+          "netlist_sha256": "",
+          "history": 0
+        },
+        {
+          "label": "opencode/ling-3.0-flash-fin-free",
+          "problem": "003_matmul",
+          "attempt": 1,
+          "correct": false,
+          "ratio": -1.0,
+          "cells": -1,
+          "cycles": -1,
+          "adp": -1.0,
+          "stage": "",
+          "correctness": "",
+          "duration_s": 97.02,
+          "timed_out": false,
+          "error": "",
+          "audit_ok": false,
+          "submission_sha256": "7e75b90e75d673b3c93530abe256f50b8e810a51027badc525022f2bc31b6d56",
+          "netlist_sha256": "",
+          "history": 0
+        },
+        {
+          "label": "opencode/ling-3.0-flash-fin-free",
+          "problem": "004_conv1d",
+          "attempt": 1,
+          "correct": false,
+          "ratio": -1.0,
+          "cells": -1,
+          "cycles": -1,
+          "adp": -1.0,
+          "stage": "",
+          "correctness": "",
+          "duration_s": 81.29,
+          "timed_out": false,
+          "error": "",
+          "audit_ok": false,
+          "submission_sha256": "82ef7151b50140ac6bd67c4eb7f0ebe126848fdbec60214b2184e3fc2960d41c",
+          "netlist_sha256": "",
+          "history": 0
+        }
+      ]
+    },
+    {
+      "label": "opencode/mimo-v2.5-free",
+      "attempts": 4,
+      "correct": 2,
+      "beating": 2,
+      "correctness_rate": 0.5,
+      "beat_rate": 0.5,
+      "geomean": 3.2742,
+      "wrong_rtl": 2,
+      "infra": 0,
+      "runs": [
+        {
+          "label": "opencode/mimo-v2.5-free",
+          "problem": "001_dot_product",
+          "attempt": 1,
+          "correct": true,
+          "ratio": 3.3852967227635076,
+          "cells": 19193,
+          "cycles": 18,
+          "adp": 345474.0,
+          "stage": "ok",
+          "correctness": "exact match on 6 cases",
+          "duration_s": 609.46,
+          "timed_out": false,
+          "error": "",
+          "audit_ok": true,
+          "submission_sha256": "7913a05754cd868723734c1ea2ab9ec2e6b8529acb3d391619ae8b75473db2b9",
+          "netlist_sha256": "cc97cb1b46d8441917598f4d60ba08baec2fb723e688e8843b9788524879676f",
+          "history": 1
+        },
+        {
+          "label": "opencode/mimo-v2.5-free",
+          "problem": "002_gemv",
+          "attempt": 1,
+          "correct": true,
+          "ratio": 3.166675340445832,
+          "cells": 13725,
+          "cycles": 168,
+          "adp": 2305800.0,
+          "stage": "ok",
+          "correctness": "exact match on 6 cases",
+          "duration_s": 1037.19,
+          "timed_out": false,
+          "error": "",
+          "audit_ok": true,
+          "submission_sha256": "2735879f8a7678b7674c3ae24c24fb94d7607b2b544d390c391b321428dc243f",
+          "netlist_sha256": "016c22bb0d679e816f76c6ad39984ca001329a37963afc200fcd74f1510ed68c",
+          "history": 3
+        },
+        {
+          "label": "opencode/mimo-v2.5-free",
+          "problem": "003_matmul",
+          "attempt": 1,
+          "correct": false,
+          "ratio": -1.0,
+          "cells": -1,
+          "cycles": -1,
+          "adp": -1.0,
+          "stage": "",
+          "correctness": "",
+          "duration_s": 262.09,
+          "timed_out": false,
+          "error": "",
+          "audit_ok": false,
+          "submission_sha256": "7e75b90e75d673b3c93530abe256f50b8e810a51027badc525022f2bc31b6d56",
+          "netlist_sha256": "",
+          "history": 0
+        },
+        {
+          "label": "opencode/mimo-v2.5-free",
+          "problem": "004_conv1d",
+          "attempt": 1,
+          "correct": false,
+          "ratio": -1.0,
+          "cells": -1,
+          "cycles": -1,
+          "adp": -1.0,
+          "stage": "",
+          "correctness": "",
+          "duration_s": 1169.11,
+          "timed_out": false,
+          "error": "",
+          "audit_ok": false,
+          "submission_sha256": "82ef7151b50140ac6bd67c4eb7f0ebe126848fdbec60214b2184e3fc2960d41c",
+          "netlist_sha256": "",
+          "history": 0
+        }
+      ]
+    },
+    {
+      "label": "opencode/muse-spark-1.3-contributor-free",
+      "attempts": 4,
+      "correct": 2,
+      "beating": 2,
+      "correctness_rate": 0.5,
+      "beat_rate": 0.5,
+      "geomean": 2.7719,
+      "wrong_rtl": 2,
+      "infra": 0,
+      "runs": [
+        {
+          "label": "opencode/muse-spark-1.3-contributor-free",
+          "problem": "001_dot_product",
+          "attempt": 1,
+          "correct": true,
+          "ratio": 3.3714196762141966,
+          "cells": 19272,
+          "cycles": 18,
+          "adp": 346896.0,
+          "stage": "ok",
+          "correctness": "exact match on 6 cases",
+          "duration_s": 142.98,
+          "timed_out": false,
+          "error": "",
+          "audit_ok": true,
+          "submission_sha256": "ffd7d67e3de2066d9f9906905f78ed57d64946b2044f0f27081a003ca2d9c18f",
+          "netlist_sha256": "d8d97cd4cf5e960e80e5ed667052a9ccb8177f86fbd4ab8715854a7bcccc845c",
+          "history": 1
+        },
+        {
+          "label": "opencode/muse-spark-1.3-contributor-free",
+          "problem": "002_gemv",
+          "attempt": 1,
+          "correct": false,
+          "ratio": -1.0,
+          "cells": -1,
+          "cycles": -1,
+          "adp": -1.0,
+          "stage": "",
+          "correctness": "",
+          "duration_s": 23.63,
+          "timed_out": false,
+          "error": "",
+          "audit_ok": false,
+          "submission_sha256": "9e3f1fcaa0fd70d08aad6ab43d8827635a5f13b34b78ca8533e84c9bac30b12b",
+          "netlist_sha256": "",
+          "history": 0
+        },
+        {
+          "label": "opencode/muse-spark-1.3-contributor-free",
+          "problem": "003_matmul",
+          "attempt": 1,
+          "correct": true,
+          "ratio": 2.278936203789068,
+          "cells": 14975,
+          "cycles": 402,
+          "adp": 6019950.0,
+          "stage": "ok",
+          "correctness": "exact match on 6 cases",
+          "duration_s": 266.15,
+          "timed_out": false,
+          "error": "",
+          "audit_ok": true,
+          "submission_sha256": "a72079ea2181553624493b99d537a14a9ff5f07c08381cb0e33a4c136611e59b",
+          "netlist_sha256": "6ae3d1f6279e2f7afb90bc00865c9621c1c7899583775cf4bac74a546a661f93",
+          "history": 1
+        },
+        {
+          "label": "opencode/muse-spark-1.3-contributor-free",
+          "problem": "004_conv1d",
+          "attempt": 1,
+          "correct": false,
+          "ratio": -1.0,
+          "cells": -1,
+          "cycles": -1,
+          "adp": -1.0,
+          "stage": "",
+          "correctness": "",
+          "duration_s": 30.11,
+          "timed_out": false,
+          "error": "",
+          "audit_ok": false,
+          "submission_sha256": "82ef7151b50140ac6bd67c4eb7f0ebe126848fdbec60214b2184e3fc2960d41c",
+          "netlist_sha256": "",
+          "history": 0
+        }
+      ]
+    },
+    {
+      "label": "opencode/nemotron-3-ultra-free",
+      "attempts": 4,
+      "correct": 2,
+      "beating": 1,
+      "correctness_rate": 0.5,
+      "beat_rate": 0.25,
+      "geomean": 0.9094,
+      "wrong_rtl": 2,
+      "infra": 0,
+      "runs": [
+        {
+          "label": "opencode/nemotron-3-ultra-free",
+          "problem": "001_dot_product",
+          "attempt": 1,
+          "correct": true,
+          "ratio": 0.27897144765403237,
+          "cells": 7910,
+          "cycles": 530,
+          "adp": 4192300.0,
+          "stage": "ok",
+          "correctness": "exact match on 6 cases",
+          "duration_s": 1200.14,
+          "timed_out": true,
+          "error": "",
+          "audit_ok": true,
+          "submission_sha256": "2a354773a2ca6ee8c66dfd12d25b2db55ae6a5b012f9bf6c8d69ae9bc4492550",
+          "netlist_sha256": "f065cf2498d660b42e7febe0666c5093572df7816eba034213fc1eb0b96ba39e",
+          "history": 9
+        },
+        {
+          "label": "opencode/nemotron-3-ultra-free",
+          "problem": "002_gemv",
+          "attempt": 1,
+          "correct": true,
+          "ratio": 2.9642024925912396,
+          "cells": 14490,
+          "cycles": 170,
+          "adp": 2463300.0,
+          "stage": "ok",
+          "correctness": "exact match on 6 cases",
+          "duration_s": 926.33,
+          "timed_out": false,
+          "error": "",
+          "audit_ok": true,
+          "submission_sha256": "1f8d6b883f19257bb147ec489f775834a8ab835647b0022d37a29ec5e7e38205",
+          "netlist_sha256": "38a34c7d580e49aee2966a09c16f8fbb75bcb0834a8929c1ff870f7c40d5d456",
+          "history": 3
+        },
+        {
+          "label": "opencode/nemotron-3-ultra-free",
+          "problem": "003_matmul",
+          "attempt": 1,
+          "correct": false,
+          "ratio": -1.0,
+          "cells": 35779,
+          "cycles": -1,
+          "adp": -1.0,
+          "stage": "incorrect",
+          "correctness": "first mismatch at index 1: expected -181, got -13687",
+          "duration_s": 1200.16,
+          "timed_out": true,
+          "error": "",
+          "audit_ok": true,
+          "submission_sha256": "e20e769ab37a31a31d3b0792d350bf40be5e6250961c32cdd35972001215017a",
+          "netlist_sha256": "4dd430462885ffcfc48cf243c7f0908652fa2127cfd5590d73e7bdfeac6a1372",
+          "history": 3
+        },
+        {
+          "label": "opencode/nemotron-3-ultra-free",
+          "problem": "004_conv1d",
+          "attempt": 1,
+          "correct": false,
+          "ratio": -1.0,
+          "cells": 6121,
+          "cycles": 4020,
+          "adp": -1.0,
+          "stage": "incorrect",
+          "correctness": "first mismatch at index 0: expected -7346, got -4694",
+          "duration_s": 1200.14,
+          "timed_out": true,
+          "error": "",
+          "audit_ok": true,
+          "submission_sha256": "9f46bd1e06aa043060d7f0455fa7c991caea81ea14f0c123a69b5ea5ac22d662",
+          "netlist_sha256": "5832d5e8f6999a076a69b7e4347bbc6059d2ccd54774f0b0dd56abaa034acc45",
+          "history": 3
+        }
+      ]
+    },
+    {
+      "label": "opencode/nemotron-3.5-lightning-free",
+      "attempts": 4,
+      "correct": 0,
+      "beating": 0,
+      "correctness_rate": 0.0,
+      "beat_rate": 0.0,
+      "geomean": -1.0,
+      "wrong_rtl": 2,
+      "infra": 2,
+      "runs": [
+        {
+          "label": "opencode/nemotron-3.5-lightning-free",
+          "problem": "001_dot_product",
+          "attempt": 1,
+          "correct": false,
+          "ratio": -1.0,
+          "cells": -1,
+          "cycles": -1,
+          "adp": -1.0,
+          "stage": "",
+          "correctness": "",
+          "duration_s": 1200.12,
+          "timed_out": true,
+          "error": "",
+          "audit_ok": false,
+          "submission_sha256": "3c9bf023987ff2f2287fb09b5c9978899a32a0a80c5a323ffc8944b95d6ae8c2",
+          "netlist_sha256": "",
+          "history": 0
+        },
+        {
+          "label": "opencode/nemotron-3.5-lightning-free",
+          "problem": "002_gemv",
+          "attempt": 1,
+          "correct": false,
+          "ratio": -1.0,
+          "cells": -1,
+          "cycles": -1,
+          "adp": -1.0,
+          "stage": "",
+          "correctness": "",
+          "duration_s": 23.36,
+          "timed_out": false,
+          "error": "",
+          "audit_ok": false,
+          "submission_sha256": "9e3f1fcaa0fd70d08aad6ab43d8827635a5f13b34b78ca8533e84c9bac30b12b",
+          "netlist_sha256": "",
+          "history": 0
+        },
+        {
+          "label": "opencode/nemotron-3.5-lightning-free",
+          "problem": "003_matmul",
+          "attempt": 1,
+          "correct": false,
+          "ratio": -1.0,
+          "cells": -1,
+          "cycles": -1,
+          "adp": -1.0,
+          "stage": "",
+          "correctness": "",
+          "duration_s": 1200.13,
+          "timed_out": true,
+          "error": "",
+          "audit_ok": false,
+          "submission_sha256": "7e75b90e75d673b3c93530abe256f50b8e810a51027badc525022f2bc31b6d56",
+          "netlist_sha256": "",
+          "history": 0
+        },
+        {
+          "label": "opencode/nemotron-3.5-lightning-free",
+          "problem": "004_conv1d",
+          "attempt": 1,
+          "correct": false,
+          "ratio": -1.0,
+          "cells": -1,
+          "cycles": -1,
+          "adp": -1.0,
+          "stage": "",
+          "correctness": "",
+          "duration_s": 16.95,
+          "timed_out": false,
+          "error": "",
+          "audit_ok": false,
+          "submission_sha256": "82ef7151b50140ac6bd67c4eb7f0ebe126848fdbec60214b2184e3fc2960d41c",
+          "netlist_sha256": "",
+          "history": 0
+        }
+      ]
+    }
+  ]
+}
