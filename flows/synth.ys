@@ -1,0 +1,14 @@
+# Pinned synthesis flow. Do not edit without re-recording every baseline.
+#
+# `-noabc` skips ABC technology mapping. ABC's generic-gate optimisation is
+# superlinear on wide arithmetic and took >180s on a 32-multiplier datapath,
+# which is unacceptable for a fast eval tier. Everything up to techmap is
+# linear-ish and bounded, so wide designs stay cheap to score.
+#
+# Consequence: cell counts are post-techmap, pre-ABC, so they over-count area.
+# They are a deterministic proxy for area, comparable across submissions that
+# use this exact flow - not an absolute gate count.
+{reads}
+hierarchy -check -top {top}
+synth -top {top} -flatten -noabc
+stat

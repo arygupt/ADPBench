@@ -1,0 +1,16 @@
+[project]
+name = "adpbench"
+version = "0.0.1"
+description = "KernelBench-shaped benchmark for ASIC/RTL generation, scored on area-delay product"
+requires-python = ">=3.10"
+dependencies = ["numpy>=1.24"]
+
+[project.scripts]
+adpbench = "adpbench.cli:main"
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+packages = ["adpbench"]
