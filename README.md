@@ -148,22 +148,24 @@ answers: `initial`, `#delay`, `$readmemh`, `$display`, `force`, `` `include ``,
 testbench references. An untouched skeleton is also rejected. Comments and
 string literals are masked first, so naming a construct in a comment is fine.
 
-**Freeze and score.** The submission is copied alone into a fresh directory,
-hashed, and scored on the held-out cases. Scoring never trusts the environment
-directory.
+**Freeze and score.** Nothing in the agent-writable task directory is trusted:
+the submission is read symlink-free and copied into a host-only directory next
+to the run, hashed, and scored there on the held-out cases.
 
 A run record lands in `runs/<problem>/<timestamp>/`:
 
 ```
-record.json     duration, exit code, audit, per-case scores, label, attempt
-manifest.json   hashes, seeds, tool versions, git commit, sandbox config
-agent.log       raw agent stdout/stderr
-dut.v           final submission
-.history/       every version the agent tested
-clean/          the frozen copy that was actually scored
+record.json          duration, exit code, audit, per-case scores, label, attempt
+manifest.json        hashes, seeds, tool versions, git commit, sandbox config
+agent.log            raw agent stdout/stderr
+dut.v                final submission (agent-written)
+.history/            every version the agent tested
+../<run>_frozen/     the frozen copy that was actually scored
+../<run>_pkg/        read-only harness bundle mounted in the container
 ```
 
-Re-score a frozen run to check the number reproduces:
+Re-score a frozen run to check the number reproduces; replay compares the
+manifest's submission hash and the ratio, not just cells and cycles:
 
 ```bash
 adpbench replay runs/001_dot_product/<timestamp>      # prints MATCH or MISMATCH

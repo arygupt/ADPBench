@@ -88,6 +88,35 @@ class SummarizeTest(unittest.TestCase):
 
 
 class LoadRunsTest(unittest.TestCase):
+    def test_nested_fabricated_records_are_ignored(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            real = root / "pilot_x" / "m" / "001_dot_product" / "rep1"
+            real.mkdir(parents=True)
+            (real / "record.json").write_text(
+                json.dumps(
+                    {
+                        "problem": "001_dot_product",
+                        "label": "m",
+                        "result": {"correct": False, "metadata": {}},
+                    }
+                )
+            )
+            fake = real / "nested" / "deeper"
+            fake.mkdir(parents=True)
+            (fake / "record.json").write_text(
+                json.dumps(
+                    {
+                        "problem": "001_dot_product",
+                        "label": "m",
+                        "result": {"correct": True, "ratio": 999.0, "metadata": {}},
+                    }
+                )
+            )
+            runs = load_runs(root)
+            self.assertEqual(len(runs), 1)
+            self.assertFalse(runs[0].correct)
+
     def test_records_are_read_from_disk(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             run_dir = Path(tmp) / "model-a" / "001_dot_product" / "rep1"

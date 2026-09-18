@@ -13,3 +13,5 @@ tests so the same exploit cannot come back silently.
 | `two_transactions.v` | 3. repeated transactions are part of the contract | passes: the sanity-check parallel design handles back-to-back transactions |
 | `unknown_output.v` | 5. malformed simulation output raises an uncaught `ValueError` | structured correctness failure, no exception |
 | `comment_words.v` | 5. audit flags trigger words inside comments | audit passes; real constructs still rejected |
+| `blackbox_mul.v` | adversarial review: blackbox `$mul` counts as one cell but simulates | rejected at synthesis: not reduced to gate-level cells |
+| `zero_handshake.v` | adversarial review: outputs credited without consuming inputs | rejected: transaction inputs were never accepted |

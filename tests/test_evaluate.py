@@ -7,11 +7,12 @@ They need `yosys`, `iverilog`, and `vvp` on PATH.
 
 from __future__ import annotations
 
+import json
 import shutil
 import unittest
 from pathlib import Path
 
-from adpbench.evaluate import evaluate_multi
+from adpbench.evaluate import baseline_mismatch, evaluate, evaluate_multi
 from adpbench.problem import load_problem
 
 REPO = Path(__file__).resolve().parent.parent
@@ -79,7 +80,49 @@ class UnknownOutputTest(unittest.TestCase):
     def test_unknown_bits_are_a_structured_failure(self) -> None:
         result = _score("unknown_output.v")
         self.assertFalse(result.correct)
-        self.assertIn("malformed", result.metadata.get("correctness", ""))
+        message = result.metadata.get("correctness", "")
+        self.assertTrue("malformed" in message or "violation" in message, message)
+
+
+@requires_tools
+class BlackboxCellTest(unittest.TestCase):
+    """The anti-cheat review: a blackbox $mul must not count as one cell."""
+
+    def test_blackbox_arithmetic_is_rejected(self) -> None:
+        result = _score("blackbox_mul.v")
+        self.assertFalse(result.synthesizable)
+        self.assertIn("gate-level cells", result.metadata.get("synthesis_log", ""))
+
+
+@requires_tools
+class ZeroHandshakeTest(unittest.TestCase):
+    """The anti-cheat review: outputs must not be credited without inputs.
+
+    The `zeros` case expects zero, so a DUT that answers zero forever looks
+    correct unless the harness checks that the transaction's inputs were
+    actually consumed.
+    """
+
+    def test_zero_handshake_lookup_is_rejected(self) -> None:
+        problem = load_problem(PROBLEM_DIR)
+        result = evaluate(problem, [FIXTURES / "zero_handshake.v"], seed="zeros")
+        self.assertFalse(result.correct)
+        self.assertIn("valid/ready", result.metadata.get("correctness", ""))
+
+
+class BaselineCompatibilityTest(unittest.TestCase):
+    def test_stored_baseline_must_match_flow_params_and_tools(self) -> None:
+        problem = load_problem(PROBLEM_DIR)
+        baseline = json.loads(problem.baseline_metrics.read_text())
+        self.assertEqual(baseline_mismatch(problem, baseline), "")
+        self.assertIn(
+            "tools", baseline_mismatch(problem, dict(baseline, tools={"yosys": "x"}))
+        )
+        self.assertIn(
+            "transactions",
+            baseline_mismatch(problem, dict(baseline, transactions=999)),
+        )
+        self.assertIn("flow", baseline_mismatch(problem, dict(baseline, flow_sha256="x")))
 
 
 @requires_tools

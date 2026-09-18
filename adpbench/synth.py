@@ -24,6 +24,7 @@ CELL_RES = (
     re.compile(r"^\s*(\d+)\s+cells\s*$", re.MULTILINE),
 )
 STATS_MARKER = re.compile(r"Printing statistics", re.MULTILINE)
+CELL_TYPE_RE = re.compile(r"^\s*\d+\s+(\\?\$[A-Za-z0-9_$]+)\s*$", re.MULTILINE)
 FLOW = repo_root() / "flows" / "synth.ys"
 NETLIST = "netlist.v"
 
@@ -43,6 +44,24 @@ def _parse_cells(log: str) -> int | None:
     if STATS_MARKER.search(log):
         return 0
     return None
+
+
+def _parse_cell_types(log: str) -> list[str]:
+    """Cell types in the final stat pass, in report order."""
+    return CELL_TYPE_RE.findall(log)
+
+
+def _disallowed_cells(types: list[str]) -> list[str]:
+    """Anything that is not a gate-level internal cell.
+
+    The pinned flow is expected to techmap arithmetic to `$_AND_`-style cells.
+    A residual `$mul`, `$div`, `$mem`, or a blackbox instance still simulates
+    (simlib has behavioural models) but counts as one cell - so it must be
+    rejected, not scored.
+    """
+    return sorted(
+        {cell for cell in types if not cell.lstrip("\\").startswith("$_")}
+    )
 
 
 def _build_script(problem: Problem, rtl_paths: list[Path], workdir: Path) -> Path:
@@ -107,6 +126,17 @@ def synthesize(problem: Problem, rtl_paths: list[Path], workdir: Path) -> dict:
             "cells": -1,
             "netlist": None,
             "log": log + f"\n[adpbench] flow produced no {NETLIST}",
+        }
+
+    disallowed = _disallowed_cells(_parse_cell_types(log))
+    if disallowed:
+        return {
+            "ok": False,
+            "cells": -1,
+            "netlist": None,
+            "log": log
+            + "\n[adpbench] design did not reduce to gate-level cells: "
+            + ", ".join(disallowed),
         }
 
     return {"ok": True, "cells": cells, "netlist": netlist, "log": log}

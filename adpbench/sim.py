@@ -87,7 +87,6 @@ module tb;
   reg     done        = 1'b0;
   integer cycle_count  = 0;
   integer total_cycles = 0;
-  wire any_handshake = {any_handshake};
 
   always @(posedge clk) begin
     if (!rst_n) begin
@@ -100,7 +99,10 @@ module tb;
       total_cycles <= 0;
     end else begin
       if (txn_go) txn_done <= 1'b0;
-      if (any_handshake) counting <= 1'b1;
+      // Time is measured from when the transaction's inputs are first
+      // presented, not from the first handshake, so a DUT cannot compute
+      // before acknowledging for free.
+      if (txn_active) counting <= 1'b1;
       if (counting) cycle_count <= cycle_count + 1;
       // Only outputs produced while a transaction is active count; a DUT that
       // presents stale data between transactions must not be credited for it.
@@ -113,9 +115,13 @@ module tb;
           counting     <= 1'b0;
           out_count    <= 0;
           txn_done     <= 1'b1;
+{input_count_checks}
         end else begin
           out_count <= out_count + 1;
         end
+      end else if (total_words >= TXNS*OUT_LEN && out_valid && out_ready) begin
+        // More accepted output words than the task defines.
+        protocol_error <= 1'b1;
       end
       if (total_cycles + cycle_count > MAX_CYCLES) timed_out <= 1'b1;
     end
@@ -165,6 +171,7 @@ PORT_DECL = """\
   wire                    {p}_ready;
   reg  [LANES*DATA_W-1:0] {p}_mem [0:TXNS*{P}_BEATS-1];
   integer                 {p}_idx = 0;
+  integer                 {p}_count = 0;
   assign {p} = {p}_mem[txn*{P}_BEATS + {p}_idx];"""
 
 PORT_DRIVER = """\
@@ -178,16 +185,19 @@ PORT_DRIVER = """\
       {p}_active <= 1'b0;
       {p}_beat   <= 0;
       {p}_idx    <= 0;
+      {p}_count  <= 0;
       {p}_gap    <= 3'd0;
     end else if (txn_go) begin
       {p}_valid  <= 1'b1;
       {p}_active <= 1'b1;
       {p}_beat   <= 0;
       {p}_idx    <= 0;
+      {p}_count  <= 0;
       {p}_gap    <= 3'd0;
     end else if ({p}_active) begin
       if ({p}_valid) begin
         if ({p}_ready) begin
+          {p}_count <= {p}_count + 1;
           if ({p}_beat == {P}_BEATS - 1) begin
             {p}_valid  <= 1'b0;
             {p}_active <= 1'b0;
@@ -214,22 +224,42 @@ PORT_LFSR = """\
   end"""
 
 OUT_READY_DRIVER = """\
-  // Seeded output backpressure: one cycle ready, then 1-4 cycles stalled.
+  // Deterministic hold-stability pressure: every presented output word is
+  // held off for 1-4 seeded cycles before it can be accepted, and there is a
+  // seeded low gap after each acceptance. A DUT that drops or mutates a word
+  // while stalled is caught on its first word, not by luck.
   reg [15:0] out_lfsr = {seed};
-  reg [2:0]  stall_run = 3'd0;
+  reg [2:0]  pressure_phase = 3'd0;
+  reg [2:0]  pressure_count = 3'd0;
   always @(posedge clk) begin
     if (!rst_n) begin
-      out_lfsr  <= {seed};
-      stall_run <= 3'd0;
-      out_ready <= 1'b0;
+      out_lfsr       <= {seed};
+      out_ready      <= 1'b0;
+      pressure_phase <= 3'd0;
+      pressure_count <= 3'd0;
     end else begin
       out_lfsr <= {{ out_lfsr[14:0], out_lfsr[15] ^ out_lfsr[13] ^ out_lfsr[12] ^ out_lfsr[10] }};
-      if (stall_run == 3'd0) begin
-        out_ready <= 1'b1;
-        stall_run <= 3'd1 + out_lfsr[2:1];
-      end else begin
-        out_ready <= 1'b0;
-        stall_run <= stall_run - 3'd1;
+      case (pressure_phase)
+        3'd0: begin
+          out_ready <= 1'b0;
+          if (out_valid) begin
+            pressure_count <= 3'd1 + out_lfsr[2:1];
+            pressure_phase <= 3'd1;
+          end
+        end
+        3'd1: begin
+          out_ready <= 1'b0;
+          if (pressure_count <= 3'd1) pressure_phase <= 3'd2;
+          else pressure_count <= pressure_count - 3'd1;
+        end
+        default: begin
+          out_ready      <= 1'b1;
+          pressure_phase <= 3'd0;
+        end
+      endcase
+      if (out_valid && out_ready) begin
+        out_ready      <= 1'b0;
+        pressure_phase <= 3'd0;
       end
     end
   end"""
@@ -292,6 +322,7 @@ def render_tb(problem: Problem, seed: int = 0, mode: str = "score") -> str:
     port_conns = []
     readmem = []
     handshakes = []
+    input_count_checks = []
     for index, port in enumerate(ports):
         upper = _identifier(port)
         plen = lens[port]
@@ -319,6 +350,10 @@ def render_tb(problem: Problem, seed: int = 0, mode: str = "score") -> str:
         )
         readmem.append(f'    $readmemh("{port}_beats.hex", {port}_mem);')
         handshakes.append(f"({port}_valid && {port}_ready)")
+        input_count_checks.append(
+            f"          if (({port}_count + (({port}_valid && {port}_ready) ? 1 : 0)) != {upper}_BEATS)\n"
+            f"            protocol_error <= 1'b1;"
+        )
 
     port_lfsrs = ""
     if protocol:
@@ -349,6 +384,7 @@ def render_tb(problem: Problem, seed: int = 0, mode: str = "score") -> str:
         OUT_READY_INIT="1'b0" if protocol else "1'b1",
         out_ready_driver=out_ready_driver,
         protocol_check=protocol_check,
+        input_count_checks="\n".join(input_count_checks),
         any_handshake=" || ".join(handshakes) if handshakes else "1'b0",
         readmem="\n".join(readmem),
         top=problem.top,

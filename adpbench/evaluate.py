@@ -74,10 +74,47 @@ def _sha256_file(path: Path) -> str:
     return digest.hexdigest()
 
 
+def _current_tools() -> dict:
+    return {"yosys": synth.tool_version(), "iverilog": sim.tool_version()}
+
+
+def baseline_mismatch(problem: Problem, baseline: dict) -> str:
+    """Reasons a stored denominator cannot be compared with this run.
+
+    A baseline is only meaningful under the same parameters, transactions,
+    flow, and toolchain; otherwise a silently different evaluation produces a
+    silently incomparable ratio.
+    """
+    reasons = []
+    if baseline.get("transactions") != problem.transactions:
+        reasons.append("transactions")
+    if baseline.get("params") != problem.params:
+        reasons.append("params")
+    if baseline.get("input_lens") != problem.input_lens:
+        reasons.append("input_lens")
+    if baseline.get("flow_sha256") != _sha256_file(synth.FLOW):
+        reasons.append("flow")
+    if baseline.get("tools") != _current_tools():
+        reasons.append("tools")
+    return ",".join(reasons)
+
+
+def _ratio(problem: Problem, result: EvalResult, baseline: dict | None) -> float:
+    """A usable ratio, or -1 with the mismatch recorded in metadata."""
+    if not baseline:
+        return -1.0
+    mismatch = baseline_mismatch(problem, baseline)
+    if mismatch:
+        result.metadata["baseline_incompatible"] = mismatch
+        return -1.0
+    result.metadata["baseline"] = baseline
+    return scoring.ratio(result.adp, baseline.get("adp", -1.0))
+
+
 def _sim_failure_message(run: dict, context: str) -> str:
     messages = {
         "TIMEOUT": f"timeout {context} - DUT never produced a full result",
-        "PROTOCOL": "valid/ready violation - output changed or dropped while stalled",
+        "PROTOCOL": "valid/ready or output-framing violation",
         "NO RESULT": f"simulator produced no RESULT line {context}",
     }
     return messages.get(run["status"], f"simulation failed {context} ({run['status']})")
@@ -162,7 +199,11 @@ def evaluate(
         result.metadata["correctness"] = "protocol testbench failed to compile"
         return result
     if not protocol_run["finished"]:
-        result.metadata["stage"] = f"protocol_{protocol_run['status'].lower()}"
+        result.metadata["stage"] = (
+            "protocol"
+            if protocol_run["status"] == "PROTOCOL"
+            else f"protocol_{protocol_run['status'].lower()}"
+        )
         result.metadata["correctness"] = _sim_failure_message(
             protocol_run, "under backpressure"
         )
@@ -191,13 +232,7 @@ def evaluate(
     result.metadata["correctness"] = "exact match under score and backpressure runs"
     result.cycles = run["cycles"]
     result.adp = scoring.area_delay_product(result.cells, result.cycles)
-
-    baseline = load_baseline(problem)
-    if baseline:
-        baseline_adp = baseline.get("adp", -1.0)
-        result.ratio = scoring.ratio(result.adp, baseline_adp)
-        result.metadata["baseline"] = baseline
-
+    result.ratio = _ratio(problem, result, load_baseline(problem))
     return result
 
 
@@ -219,6 +254,10 @@ def record_baseline(problem: Problem, rtl_paths: list[Path]) -> EvalResult:
         "seeds": list(EVAL_SEEDS),
         "directed": list(problem.directed_cases),
         "transactions": problem.transactions,
+        "params": problem.params,
+        "input_lens": problem.input_lens,
+        "flow_sha256": _sha256_file(synth.FLOW),
+        "tools": _current_tools(),
         "cells": result.cells,
         "cycles": result.cycles,
         "adp": result.adp,
@@ -299,10 +338,5 @@ def evaluate_multi(
     merged.metadata["stage"] = "ok"
     merged.metadata["correctness"] = f"exact match on {len(cases)} cases"
     merged.adp = scoring.area_delay_product(merged.cells, merged.cycles)
-
-    baseline = load_baseline(problem)
-    if baseline:
-        merged.ratio = scoring.ratio(merged.adp, baseline.get("adp", -1.0))
-        merged.metadata["baseline"] = baseline
-
+    merged.ratio = _ratio(problem, merged, load_baseline(problem))
     return merged

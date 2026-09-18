@@ -66,10 +66,36 @@ def _summary_from_record(path: Path) -> RunSummary:
     )
 
 
+def _is_canonical(path: Path, root: Path) -> bool:
+    """Only host-written record locations count.
+
+    Task directories are agent-writable, so a nested `record.json` could be
+    fabricated. Records are accepted only at the exact depths this harness
+    writes: `runs/<problem>/<stamp>/record.json`, or a pilot's
+    `<pilot>/<label>/<problem>/rep<N>/record.json` (also relative to a pilot
+    root). Anything deeper is ignored.
+    """
+    try:
+        rel = path.relative_to(root).parts
+    except ValueError:
+        return False
+    if len(rel) == 3:
+        return True
+    if len(rel) == 4 and rel[2].startswith("rep"):
+        return True
+    if len(rel) == 5 and rel[0].startswith("pilot_") and rel[3].startswith("rep"):
+        return True
+    return False
+
+
 def load_runs(root: str | Path) -> list[RunSummary]:
     root = Path(root)
     return sorted(
-        (_summary_from_record(path) for path in root.glob("**/record.json")),
+        (
+            _summary_from_record(path)
+            for path in root.glob("**/record.json")
+            if _is_canonical(path, root)
+        ),
         key=lambda run: (run.label, run.problem, run.attempt),
     )
 

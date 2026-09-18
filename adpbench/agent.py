@@ -294,8 +294,18 @@ that only works for the ones you can see will not pass.
 
 SANDBOX_MOUNT = "/adpbench"
 WORK_MOUNT = "/work"
-BUNDLE_DIR = "sandbox_pkg"
+BUNDLE_DIR = "pkg"
 DEFAULT_IMAGE = "adpbench-agent:latest"
+
+
+def bundle_path(dest: Path) -> Path:
+    """Host-only location for the read-only harness bundle.
+
+    Kept outside the task directory: if it lived inside the writable mount, the
+    agent could rewrite the read-only alias through the writable one.
+    """
+    dest = Path(dest)
+    return dest.parent / f"{dest.name}_{BUNDLE_DIR}"
 
 
 def render_check_sh(problem: Problem, python: str, sandbox: str = "none") -> str:
@@ -317,19 +327,53 @@ exec "{python}" -m adpbench check --problem "{problem.root}" --file dut.v
 """
 
 
+def _reset_path(path: Path) -> None:
+    """Remove a path without following symlinks."""
+    path = Path(path)
+    if path.is_symlink() or path.is_file():
+        path.unlink()
+    elif path.exists():
+        shutil.rmtree(path)
+
+
+def _write_host_file(path: Path, text: str) -> None:
+    """Write a host-owned file, replacing (and never following) any symlink."""
+    path = Path(path)
+    path.unlink(missing_ok=True)
+    path.write_text(text)
+
+
+def freeze_submission(dest: Path, frozen_dir: Path) -> tuple[Path | None, str]:
+    """Copy the submission into a host-only directory.
+
+    The task directory is agent-writable, so nothing in it is trusted: symlinks
+    are refused and the bytes are copied out before scoring.
+    """
+    dut = Path(dest) / "dut.v"
+    if dut.is_symlink():
+        return None, "submission dut.v is a symlink"
+    if not dut.is_file():
+        return None, "no dut.v produced"
+    _reset_path(frozen_dir)
+    Path(frozen_dir).mkdir(parents=True, exist_ok=True)
+    frozen = Path(frozen_dir) / "dut.v"
+    frozen.write_bytes(dut.read_bytes())
+    return frozen, ""
+
+
 def build_sandbox_bundle(problem: Problem, dest: Path, force: bool = False) -> Path:
     """Copy the harness for a read-only mount inside an agent container.
 
-    The hidden evaluation seeds are replaced with an empty tuple before the
-    copy, so the container can run the dev-seed feedback loop but cannot read
-    the held-out cases. Final scoring always runs on the host, outside the
-    sandbox.
+    The hidden evaluation seeds are replaced with an empty tuple and the
+    problem copy is limited to `dut.py`, `baseline.v`, and a seed-redacted
+    `baseline.json`, so the container can run the dev-seed feedback loop but
+    cannot read the held-out cases or any reference solution.
     """
     dest = Path(dest).resolve()
     if dest.exists():
         if not force:
             raise FileExistsError(f"{dest} already exists (pass force=True to reuse)")
-        shutil.rmtree(dest)
+        _reset_path(dest)
     dest.mkdir(parents=True, exist_ok=True)
 
     source = repo_root()
@@ -345,7 +389,15 @@ def build_sandbox_bundle(problem: Problem, dest: Path, force: bool = False) -> P
     evaluate.write_text(sanitized)
 
     relative = problem.root.relative_to(source)
-    shutil.copytree(source / relative, dest / relative, ignore=ignore)
+    target = dest / relative
+    target.mkdir(parents=True, exist_ok=True)
+    for name in ("dut.py", "baseline.v"):
+        shutil.copy2(problem.root / name, target / name)
+    baseline = problem.baseline_metrics
+    if baseline.is_file():
+        data = json.loads(baseline.read_text())
+        redacted = {key: value for key, value in data.items() if key not in ("seeds", "directed")}
+        (target / "baseline.json").write_text(json.dumps(redacted, indent=2) + "\n")
     return dest
 
 
@@ -423,7 +475,7 @@ def build_environment(
 
     (dest / ".history").mkdir(exist_ok=True)
     if sandbox == "docker":
-        build_sandbox_bundle(problem, dest / BUNDLE_DIR, force=True)
+        build_sandbox_bundle(problem, bundle_path(dest), force=True)
     return dest
 
 
@@ -487,7 +539,7 @@ def sha256_file(path: Path) -> str:
 def build_manifest(
     problem: Problem,
     record: "RunRecord",
-    dest: Path,
+    submission: Path | None,
     timeout_s: int,
     sandbox: str,
     image: str,
@@ -496,8 +548,6 @@ def build_manifest(
     """Everything needed to replay and audit a run, in one file."""
     from . import sim, synth
 
-    dest = Path(dest)
-    submission = dest / "dut.v"
     netlist_sha = ""
     if record.result:
         per_case = record.result.get("metadata", {}).get("per_case", [])
@@ -520,7 +570,9 @@ def build_manifest(
             "input_lens": problem.input_lens,
         },
         "tools": {"yosys": synth.tool_version(), "iverilog": sim.tool_version()},
-        "submission_sha256": sha256_file(submission) if submission.is_file() else "",
+        "submission_sha256": sha256_file(submission)
+        if submission is not None and Path(submission).is_file()
+        else "",
         "netlist_sha256": netlist_sha,
         "agent_cmd": redact_secrets(record.agent_cmd),
         "budget_s": timeout_s,
@@ -559,6 +611,7 @@ class RunRecord:
     audit: dict = field(default_factory=dict)
     result: dict | None = None
     error: str = ""
+    frozen: str = ""
     manifest: dict = field(default_factory=dict)
     history: list[str] = field(default_factory=list)
 
@@ -597,7 +650,12 @@ def run_agent(
         raise ValueError(f"unknown sandbox {sandbox!r}")
     stamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     dest = Path(dest).resolve() if dest else repo_root() / "runs" / problem.name / stamp
-    build_environment(problem, dest, python=python, force=force, sandbox=sandbox)
+    if dest.is_symlink():
+        raise ValueError(f"run directory is a symlink: {dest}")
+    # Start from a clean directory: leftover agent-written symlinks or files
+    # must never be reused or followed.
+    _reset_path(dest)
+    build_environment(problem, dest, python=python, force=True, sandbox=sandbox)
 
     record = RunRecord(
         problem=problem.name,
@@ -615,7 +673,7 @@ def run_agent(
 
         container = f"adpbench_{uuid4().hex[:10]}"
         argv = docker_command(
-            dest, dest / BUNDLE_DIR, image, network, agent_cmd, name=container
+            dest, bundle_path(dest), image, network, agent_cmd, name=container
         )
         command_display = " ".join(argv)
         proc = subprocess.Popen(
@@ -665,21 +723,24 @@ def run_agent(
         )
 
     record.duration_s = round(time.time() - started, 2)
-    (dest / "agent.log").write_text(log)
+    _write_host_file(dest / "agent.log", log)
 
     history = sorted((dest / ".history").glob("*_dut.v"))
     record.history = [p.name for p in history]
 
-    dut = dest / "dut.v"
-    text = dut.read_text() if dut.is_file() else ""
+    # Nothing in the agent-writable directory is trusted: the submission is
+    # copied, symlink-free, into a host-only directory before it is scored.
+    frozen, freeze_error = freeze_submission(dest, dest.parent / f"{dest.name}_frozen")
+    record.frozen = str(frozen) if frozen else ""
+    text = frozen.read_text() if frozen else ""
     record.audit = audit_submission(text)
 
     meta = dest / META_FILE
     skeleton_hash = json.loads(meta.read_text()).get("skeleton_sha256") if meta.is_file() else None
 
-    if not text:
+    if frozen is None:
         record.audit["violations"].append(
-            {"line": 0, "match": "", "reason": "no dut.v produced"}
+            {"line": 0, "match": "", "reason": freeze_error}
         )
         record.audit["ok"] = False
     elif skeleton_hash and sha256_text(text) == skeleton_hash:
@@ -689,33 +750,28 @@ def run_agent(
         record.audit["ok"] = False
 
     if record.audit["ok"]:
-        # Clean room: copy the submission alone and score against pristine
-        # problem files on seeds the agent never saw.
-        clean = dest / "clean"
-        clean.mkdir(exist_ok=True)
-        shutil.copy2(dut, clean / "dut.v")
+        # Score the frozen copy against pristine problem files on seeds the
+        # agent never saw.
         try:
             result = evaluate_multi(
-                problem, [clean / "dut.v"], seeds=EVAL_SEEDS, source="agent", tag="eval"
+                problem, [frozen], seeds=EVAL_SEEDS, source="agent", tag="eval"
             )
             record.result = result.to_dict()
         except Exception as exc:  # noqa: BLE001 - the record must survive scorer bugs
             record.error = f"{type(exc).__name__}: {exc}"
             record.result = {"error": record.error}
-    else:
-        (dest / "dut.v").replace(dest / "rejected_dut.v")
 
     try:
         record.manifest = build_manifest(
-            problem, record, dest, timeout_s, sandbox, image, network
+            problem, record, frozen, timeout_s, sandbox, image, network
         )
-        (dest / "manifest.json").write_text(
-            json.dumps(record.manifest, indent=2) + "\n"
+        _write_host_file(
+            dest / "manifest.json", json.dumps(record.manifest, indent=2) + "\n"
         )
     except Exception as exc:  # noqa: BLE001 - never lose the run record
         record.manifest = {"error": f"{type(exc).__name__}: {exc}"}
 
-    (dest / "record.json").write_text(record.to_json() + "\n")
+    _write_host_file(dest / "record.json", record.to_json() + "\n")
     return record
 
 

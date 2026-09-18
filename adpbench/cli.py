@@ -7,7 +7,7 @@ import json
 import sys
 from pathlib import Path
 
-from .agent import DEFAULT_IMAGE
+from .agent import DEFAULT_IMAGE, sha256_file
 from .evaluate import DEV_SEEDS, EVAL_SEEDS, evaluate, evaluate_multi, record_baseline
 from .problem import discover_problems, load_problem, repo_root
 
@@ -194,8 +194,12 @@ def cmd_replay(args: argparse.Namespace) -> int:
     record = json.loads(record_path.read_text())
 
     problem = load_problem(_resolve(args.problem or record["problem"]))
-    for candidate in (run_dir / "clean" / "dut.v", run_dir / "dut.v", run_dir / "rejected_dut.v"):
-        if candidate.is_file():
+    for candidate in (
+        run_dir.parent / f"{run_dir.name}_frozen" / "dut.v",
+        run_dir / "clean" / "dut.v",
+        run_dir / "dut.v",
+    ):
+        if candidate.is_file() and not candidate.is_symlink():
             submission = candidate
             break
     else:
@@ -212,11 +216,23 @@ def cmd_replay(args: argparse.Namespace) -> int:
     if recorded.get("correct") is not None:
         print(f"recorded   correct={recorded.get('correct')} cells={recorded.get('cells')} "
               f"cycles={recorded.get('cycles')} ratio={float(recorded.get('ratio', -1)):.4f}")
+
     matches = (
         bool(recorded.get("correct")) == result.correct
         and recorded.get("cells") == result.cells
         and recorded.get("cycles") == result.cycles
     )
+    manifest_path = run_dir / "manifest.json"
+    if manifest_path.is_file():
+        manifest = json.loads(manifest_path.read_text())
+        recorded_sha = manifest.get("submission_sha256", "")
+        if recorded_sha and recorded_sha != sha256_file(submission):
+            print("replay     MISMATCH - frozen submission hash differs from the manifest")
+            return 1
+    if recorded.get("ratio") is not None and result.ratio >= 0:
+        if abs(float(recorded["ratio"]) - result.ratio) > 1e-6:
+            matches = False
+            print("replay     MISMATCH - ratio differs (baseline or case set changed)")
     print(f"replay     {'MATCH' if matches else 'MISMATCH'}")
     return 0 if matches else 1
 

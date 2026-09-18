@@ -7,6 +7,7 @@ the frozen run records rather than from anything in memory.
 
 from __future__ import annotations
 
+import hashlib
 import json
 import re
 import traceback
@@ -44,6 +45,26 @@ class PilotConfig:
 def slug(text: str) -> str:
     cleaned = re.sub(r"[^a-zA-Z0-9._-]+", "-", text).strip("-").lower()
     return cleaned or "run"
+
+
+def agent_slugs(agents: list[PilotAgent]) -> list[str]:
+    """Directory names for agents, disambiguated when labels collapse.
+
+    `a/b` and `a-b` would otherwise share a directory and silently overwrite
+    each other's runs.
+    """
+    used: set[str] = set()
+    slugs = []
+    for agent in agents:
+        candidate = slug(agent.label)
+        if candidate in used:
+            digest = hashlib.sha1(agent.label.encode()).hexdigest()[:6]
+            candidate = f"{candidate}-{digest}"
+        while candidate in used:
+            candidate = f"{candidate}x"
+        used.add(candidate)
+        slugs.append(candidate)
+    return slugs
 
 
 def _resolve_problem(spec: str) -> Problem:
@@ -120,12 +141,13 @@ def run_pilot(config: PilotConfig, runs_root: Path | None = None, echo=print) ->
     echo(f"pilot {config.name}: {config.planned_runs} runs -> {pilot_dir}")
 
     done = 0
-    for agent in config.agents:
+    slugs = agent_slugs(config.agents)
+    for agent, agent_slug in zip(config.agents, slugs):
         for problem_spec in config.problems:
             problem = _resolve_problem(problem_spec)
             for attempt in range(1, config.repetitions + 1):
                 done += 1
-                dest = pilot_dir / slug(agent.label) / problem.name / f"rep{attempt}"
+                dest = pilot_dir / agent_slug / problem.name / f"rep{attempt}"
                 echo(f"[{done}/{config.planned_runs}] {agent.label} {problem.name} rep{attempt}")
                 try:
                     record = run_agent(

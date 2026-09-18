@@ -8,7 +8,8 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from adpbench.pilot import load_pilot, run_pilot, slug
+from adpbench.cli import main
+from adpbench.pilot import PilotAgent, agent_slugs, load_pilot, run_pilot, slug
 
 REPO = Path(__file__).resolve().parent.parent
 PROBLEM_DIR = REPO / "problems" / "level1" / "001_dot_product"
@@ -20,6 +21,16 @@ class SlugTest(unittest.TestCase):
     def test_labels_become_directory_names(self) -> None:
         self.assertEqual(slug("opencode/mimo-v2.5-free"), "opencode-mimo-v2.5-free")
         self.assertEqual(slug("  "), "run")
+
+
+class AgentSlugTest(unittest.TestCase):
+    def test_colliding_labels_get_distinct_directories(self) -> None:
+        agents = [
+            PilotAgent(label="a/b", cmd="true"),
+            PilotAgent(label="a-b", cmd="true"),
+        ]
+        slugs = agent_slugs(agents)
+        self.assertEqual(len(set(slugs)), 2)
 
 
 class LoadPilotTest(unittest.TestCase):
@@ -65,12 +76,17 @@ class PilotIntegrationTest(unittest.TestCase):
             report = json.loads((pilot_dir / "report.json").read_text())
             plan = json.loads((pilot_dir / "plan.json").read_text())
 
+            # Replay re-scores the frozen copy and must reproduce the number.
+            run_dir = pilot_dir / "scripted-parallel" / "001_dot_product" / "rep1"
+            replay_code = main(["replay", str(run_dir)])
+
         self.assertEqual(plan["planned_runs"], 1)
         bucket = report["labels"]["scripted/parallel"]
         self.assertEqual(bucket["attempts"], 1)
         self.assertEqual(bucket["correctness_rate"], 1.0)
         self.assertEqual(bucket["beat_baseline_rate"], 1.0)
         self.assertGreater(bucket["geomean_ratio_successful"], 2.0)
+        self.assertEqual(replay_code, 0)
 
 
 if __name__ == "__main__":
