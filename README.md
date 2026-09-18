@@ -157,12 +157,18 @@ A run record lands in `runs/<problem>/<timestamp>/`:
 ```
 record.json          duration, exit code, audit, per-case scores, label, attempt
 manifest.json        hashes, seeds, tool versions, git commit, sandbox config
-agent.log            raw agent stdout/stderr
+trajectory.md        readable index of the run: outcome, artifacts, check.sh log
+terminal.log         raw recording of the agent's full TTY session
+agent.log            the same session, ANSI-stripped
 dut.v                final submission (agent-written)
-.history/            every version the agent tested
+.history/            every version the agent tested, plus the check.sh feedback log
 ../<run>_frozen/     the frozen copy that was actually scored
 ../<run>_pkg/        read-only harness bundle mounted in the container
 ```
+
+The agent session is recorded under `script`, so interactive agent UIs are
+captured in full, not just stdout; every `./check.sh` invocation is appended
+to `.history/check.log` with a timestamp and exit status.
 
 Re-score a frozen run to check the number reproduces; replay compares the
 manifest's submission hash and the ratio, not just cells and cycles:

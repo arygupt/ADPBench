@@ -29,6 +29,7 @@ import time
 from dataclasses import asdict, dataclass, field
 from datetime import datetime
 from pathlib import Path
+from shutil import which
 
 from .evaluate import DEV_SEEDS, EVAL_SEEDS, evaluate_multi
 from .problem import Problem, repo_root
@@ -296,6 +297,28 @@ SANDBOX_MOUNT = "/adpbench"
 WORK_MOUNT = "/work"
 BUNDLE_DIR = "pkg"
 DEFAULT_IMAGE = "adpbench-agent:latest"
+TERMINAL_LOG = "terminal.log"
+
+ANSI_RE = re.compile(r"\x1b\[[0-9;?]*[ -/]*[@-~]|\x1b\][^\x07]*\x07?")
+
+
+def strip_ansi(text: str) -> str:
+    """Remove control sequences so a terminal recording reads as plain text."""
+    return ANSI_RE.sub("", text).replace("\r\n", "\n").replace("\r", "\n")
+
+
+def script_argv(agent_cmd: str, log_path: str, sandbox: str = "none") -> list[str]:
+    """Run the agent under `script`, recording the full TTY session.
+
+    Most agent CLIs draw an interactive UI, so plain stdout capture loses the
+    session. `script` allocates a pseudo-terminal and records everything to
+    `log_path`; the command's own stdout/stderr are included in the recording.
+    """
+    if sandbox == "docker":
+        # util-linux script (the sandbox image)
+        return ["script", "-qefc", agent_cmd, log_path]
+    # BSD script (macOS host)
+    return ["script", "-q", log_path, "sh", "-c", agent_cmd]
 
 
 def bundle_path(dest: Path) -> Path:
@@ -309,6 +332,12 @@ def bundle_path(dest: Path) -> Path:
 
 
 def render_check_sh(problem: Problem, python: str, sandbox: str = "none") -> str:
+    """Dev-seed feedback command.
+
+    Every invocation is appended to `.history/check.log` (with a UTC
+    timestamp and the exit status), so the whole feedback trajectory is
+    recorded even when the terminal recording is unavailable.
+    """
     if sandbox == "docker":
         rel = problem.root.relative_to(repo_root())
         return f"""\
@@ -317,13 +346,31 @@ def render_check_sh(problem: Problem, python: str, sandbox: str = "none") -> str
 # the sanitized harness is mounted read-only at {SANDBOX_MOUNT} and scratch
 # work is written under the writable task mount.
 cd "$(dirname "$0")" || exit 1
-ADPBENCH_WORKDIR="{WORK_MOUNT}/.adpbench" exec python -m adpbench check --problem "{SANDBOX_MOUNT}/{rel}" --file dut.v
+mkdir -p .history
+ADPBENCH_WORKDIR="{WORK_MOUNT}/.adpbench" python -m adpbench check --problem "{SANDBOX_MOUNT}/{rel}" --file dut.v > .history/check_tmp.log 2>&1
+status=$?
+{{
+  echo "=== check $(date -u +%Y-%m-%dT%H:%M:%SZ) ==="
+  cat .history/check_tmp.log
+  echo "exit=$status"
+}} >> .history/check.log
+cat .history/check_tmp.log
+exit $status
 """
     return f"""\
 #!/bin/sh
 # ADPBench feedback command. Dev seeds only.
 cd "$(dirname "$0")" || exit 1
-exec "{python}" -m adpbench check --problem "{problem.root}" --file dut.v
+mkdir -p .history
+"{python}" -m adpbench check --problem "{problem.root}" --file dut.v > .history/check_tmp.log 2>&1
+status=$?
+{{
+  echo "=== check $(date -u +%Y-%m-%dT%H:%M:%SZ) ==="
+  cat .history/check_tmp.log
+  echo "exit=$status"
+}} >> .history/check.log
+cat .history/check_tmp.log
+exit $status
 """
 
 
@@ -406,7 +453,7 @@ def docker_command(
     bundle: Path,
     image: str,
     network: str,
-    agent_cmd: str,
+    argv: list[str],
     cpus: float = 4,
     memory: str = "4g",
     pids_limit: int = 1024,
@@ -415,10 +462,8 @@ def docker_command(
     """The command that runs an agent inside the sandbox boundary.
 
     Only the task directory is writable; the harness bundle is read-only and
-    contains no evaluation seeds.
-
-    The command runs through `sh -c` (not a login shell), so the image's
-    `ENV PATH` - where agent CLIs install themselves - stays intact.
+    contains no evaluation seeds. `argv` is the in-container command (usually
+    the terminal recorder wrapping the agent CLI).
     """
     args = [
         "docker",
@@ -443,7 +488,7 @@ def docker_command(
     ]
     if name:
         args += ["--name", name]
-    return args + [image, "sh", "-c", agent_cmd]
+    return args + [image] + list(argv)
 
 
 def build_environment(
@@ -599,6 +644,59 @@ def build_manifest(
     }
 
 
+def render_trajectory(record: "RunRecord", dest: Path) -> str:
+    """A readable index of everything a run recorded."""
+    dest = Path(dest)
+    result = record.result or {}
+    lines = [
+        f"# Run trajectory — {record.problem}",
+        "",
+        f"- label: `{record.label}`",
+        f"- attempt: {record.attempt}",
+        f"- started: {record.started}",
+        f"- duration: {record.duration_s}s",
+        f"- exit code: {record.exit_code}" + (" (timed out)" if record.timed_out else ""),
+        f"- audit: {'passed' if (record.audit or {}).get('ok') else 'rejected'}",
+    ]
+    if result.get("correct"):
+        lines.append(
+            f"- score: {record.score():.2f}x baseline "
+            f"({result.get('cells')} cells × {result.get('cycles')} cycles)"
+        )
+    elif "error" in result:
+        lines.append(f"- result: ERROR — {result.get('error')}")
+    elif result:
+        meta = result.get("metadata") or {}
+        lines.append(f"- result: {meta.get('stage', 'failed')} — {meta.get('correctness', '')}")
+    else:
+        lines.append("- result: not scored")
+    if record.error:
+        lines.append(f"- harness error: {record.error}")
+    lines += [
+        "",
+        "## Artifacts",
+        "",
+        "- `record.json` — machine-readable run record",
+        "- `manifest.json` — hashes, cases, tools, git commit",
+        "- `agent.log` — ANSI-stripped terminal session",
+        "- `terminal.log` — raw terminal recording",
+        "- `.history/` — every tested `dut.v` snapshot plus the `check.sh` feedback log",
+        f"- `{record.frozen}` — frozen submission that was scored",
+    ]
+    history = sorted((dest / ".history").glob("*_dut.v"))
+    if history:
+        lines += ["", "## Submissions tested"]
+        for path in history:
+            lines.append(f"- `{path.name}` ({path.stat().st_size} bytes)")
+    check_log = dest / ".history" / "check.log"
+    if check_log.is_file():
+        content = strip_ansi(check_log.read_text(errors="replace"))
+        if len(content) > 12000:
+            content = content[-12000:] + "\n... (truncated)"
+        lines += ["", "## check.sh feedback log", "", "```", content.rstrip(), "```"]
+    return "\n".join(lines) + "\n"
+
+
 @dataclass
 class RunRecord:
     problem: str
@@ -675,12 +773,26 @@ def run_agent(
         from uuid import uuid4
 
         container = f"adpbench_{uuid4().hex[:10]}"
+        inner = script_argv(agent_cmd, f"{WORK_MOUNT}/{TERMINAL_LOG}", sandbox="docker")
         argv = docker_command(
-            dest, bundle_path(dest), image, network, agent_cmd, name=container
+            dest, bundle_path(dest), image, network, inner, name=container
         )
         command_display = " ".join(argv)
         proc = subprocess.Popen(
             argv,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+            start_new_session=True,
+        )
+    elif which("script"):
+        # Record the full TTY session; most agent CLIs draw a UI that plain
+        # stdout capture would lose.
+        inner = script_argv(agent_cmd, str(dest / TERMINAL_LOG))
+        command_display = " ".join(inner)
+        proc = subprocess.Popen(
+            inner,
+            cwd=dest,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             text=True,
@@ -706,9 +818,9 @@ def run_agent(
         record.timed_out = False
         log = f"$ {shown}\n\n--- stdout ---\n{stdout}\n--- stderr ---\n{stderr}\n"
     except subprocess.TimeoutExpired:
-        # The command runs through a shell (or a docker client), so killing
-        # that process alone can leave the agent running. Kill the group, and
-        # the container if there is one.
+        # The command runs through the recorder (or a docker client), so
+        # killing that process alone can leave the agent running. Kill the
+        # group, and the container if there is one.
         try:
             os.killpg(os.getpgid(proc.pid), signal.SIGKILL)
         except ProcessLookupError:
@@ -726,6 +838,13 @@ def run_agent(
         )
 
     record.duration_s = round(time.time() - started, 2)
+
+    # The terminal recording is the primary log; keep it raw and store an
+    # ANSI-stripped copy as agent.log.
+    terminal = dest / TERMINAL_LOG
+    if terminal.is_file():
+        raw = terminal.read_text(errors="replace")
+        log = f"$ {shown}\n\n--- terminal session ---\n{strip_ansi(raw)}\n"
     _write_host_file(dest / "agent.log", log)
 
     history = sorted((dest / ".history").glob("*_dut.v"))
@@ -774,6 +893,7 @@ def run_agent(
     except Exception as exc:  # noqa: BLE001 - never lose the run record
         record.manifest = {"error": f"{type(exc).__name__}: {exc}"}
 
+    _write_host_file(dest / "trajectory.md", render_trajectory(record, dest))
     _write_host_file(dest / "record.json", record.to_json() + "\n")
     return record
 
@@ -782,6 +902,7 @@ __all__ = [
     "DEV_SEEDS",
     "EVAL_SEEDS",
     "DEFAULT_IMAGE",
+    "TERMINAL_LOG",
     "RunRecord",
     "audit_submission",
     "build_environment",
@@ -791,6 +912,9 @@ __all__ = [
     "redact_secrets",
     "render_ports",
     "render_problem_md",
+    "render_trajectory",
     "run_agent",
+    "script_argv",
     "snapshot",
+    "strip_ansi",
 ]
