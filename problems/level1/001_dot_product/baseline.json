@@ -1,6 +1,10 @@
 {
   "problem": "001_dot_product",
-  "seed": 0,
+  "seeds": [
+    1000,
+    1001,
+    1002
+  ],
   "cells": 2126,
   "cycles": 264,
   "adp": 561264.0,

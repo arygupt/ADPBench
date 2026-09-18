@@ -72,6 +72,15 @@ def write_vectors(problem: Problem, inputs: tuple, workdir: Path) -> list[Path]:
     return written
 
 
+class MalformedOutput(ValueError):
+    """The simulator produced words that are not a valid two's complement result.
+
+    Unknown bits (x/z) reach the output file when a DUT drives them, or when
+    reset/pipeline logic does not settle. That is a failed run, not a harness
+    crash, so the caller turns this into a structured correctness failure.
+    """
+
+
 def quantize_expected(value: int, width: int) -> int:
     """Two's complement wrap so expected and simulated values compare in the same domain."""
     return int(value) & ((1 << width) - 1)
@@ -82,14 +91,25 @@ def read_outputs(path: Path, out_len: int, width: int) -> list[int]:
 
     Icarus emits `// 0xADDR` markers between chunks; those are skipped.
     """
+    try:
+        text = path.read_text()
+    except OSError as exc:
+        raise MalformedOutput(f"{path}: cannot read simulator output ({exc})") from exc
+
     words = []
-    for raw in path.read_text().splitlines():
+    for raw in text.splitlines():
         line = raw.strip()
         if not line or line.startswith("//"):
             continue
-        words.append(int(line.split()[0], 16) & ((1 << width) - 1))
+        token = line.split()[0]
+        try:
+            words.append(int(token, 16) & ((1 << width) - 1))
+        except ValueError as exc:
+            raise MalformedOutput(
+                f"{path}: non-hex output word {token!r} (unknown bits in result?)"
+            ) from exc
     if len(words) < out_len:
-        raise ValueError(f"{path}: expected {out_len} words, found {len(words)}")
+        raise MalformedOutput(f"{path}: expected {out_len} words, found {len(words)}")
     return words[:out_len]
 
 

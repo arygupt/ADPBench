@@ -47,7 +47,7 @@ def cmd_list(args: argparse.Namespace) -> int:
 
 def cmd_baseline(args: argparse.Namespace) -> int:
     problem = load_problem(_resolve(args.problem))
-    result = record_baseline(problem, [problem.baseline_rtl], seed=args.seed)
+    result = record_baseline(problem, [problem.baseline_rtl])
     if result.correct:
         print(f"{problem.name}: baseline recorded")
         print(f"  cells={result.cells} cycles={result.cycles} adp={result.adp:.0f}")
@@ -180,7 +180,6 @@ def build_parser() -> argparse.ArgumentParser:
 
     p_base = sub.add_parser("baseline", help="score baseline.v and freeze it as the denominator")
     p_base.add_argument("problem")
-    p_base.add_argument("--seed", type=int, default=0)
     p_base.set_defaults(func=cmd_baseline)
 
     p_run = sub.add_parser("run", help="evaluate a Verilog submission")
