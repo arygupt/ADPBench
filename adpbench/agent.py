@@ -19,8 +19,10 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 import re
 import shutil
+import signal
 import subprocess
 import sys
 import time
@@ -79,12 +81,60 @@ def _scan(patterns, text: str) -> list[dict]:
     return sorted(hits, key=lambda h: h["line"])
 
 
+def mask_noncode(text: str) -> str:
+    """Blank out comments and string literals, preserving line numbers.
+
+    The audit looks for executable constructs. Words inside comments or
+    strings are not code, and matching them was a false positive; blanking
+    keeps the reported line numbers aligned with the original file.
+    """
+    out = list(text)
+    i = 0
+    n = len(text)
+    while i < n:
+        ch = text[i]
+        nxt = text[i + 1] if i + 1 < n else ""
+        if ch == "/" and nxt == "/":
+            while i < n and text[i] != "\n":
+                out[i] = " "
+                i += 1
+        elif ch == "/" and nxt == "*":
+            out[i] = out[i + 1] = " "
+            i += 2
+            while i < n and not (text[i] == "*" and i + 1 < n and text[i + 1] == "/"):
+                if text[i] != "\n":
+                    out[i] = " "
+                i += 1
+            if i < n:
+                out[i] = " "
+                if i + 1 < n:
+                    out[i + 1] = " "
+                i += 2
+        elif ch == '"':
+            out[i] = " "
+            i += 1
+            while i < n and text[i] != '"':
+                if text[i] == "\\" and i + 1 < n:
+                    out[i] = " "
+                    i += 1
+                if i < n and text[i] != "\n":
+                    out[i] = " "
+                i += 1
+            if i < n:
+                out[i] = " "
+                i += 1
+        else:
+            i += 1
+    return "".join(out)
+
+
 def audit_submission(text: str) -> dict:
     """Static checks on a submission. Returns {ok, violations, warnings}."""
-    violations = _scan(VIOLATIONS, text)
-    warnings = _scan(WARNINGS, text)
+    code = mask_noncode(text)
+    violations = _scan(VIOLATIONS, code)
+    warnings = _scan(WARNINGS, code)
 
-    if not re.search(r"\bmodule\s+dut\b", text):
+    if not re.search(r"\bmodule\s+dut\b", code):
         violations.append(
             {"line": 0, "match": "module dut", "reason": "no module named `dut` found"}
         )
@@ -284,6 +334,7 @@ class RunRecord:
     timed_out: bool = False
     audit: dict = field(default_factory=dict)
     result: dict | None = None
+    error: str = ""
     history: list[str] = field(default_factory=list)
 
     def score(self) -> float:
@@ -322,24 +373,34 @@ def run_agent(
     )
 
     started = time.time()
+    proc = subprocess.Popen(
+        agent_cmd,
+        shell=True,
+        cwd=dest,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+        start_new_session=True,
+    )
     try:
-        proc = subprocess.run(
-            agent_cmd,
-            shell=True,
-            cwd=dest,
-            capture_output=True,
-            text=True,
-            timeout=timeout_s,
-        )
+        stdout, stderr = proc.communicate(timeout=timeout_s)
         record.exit_code = proc.returncode
         record.timed_out = False
-        log = f"$ {agent_cmd}\n\n--- stdout ---\n{proc.stdout}\n--- stderr ---\n{proc.stderr}\n"
-    except subprocess.TimeoutExpired as exc:
+        log = f"$ {agent_cmd}\n\n--- stdout ---\n{stdout}\n--- stderr ---\n{stderr}\n"
+    except subprocess.TimeoutExpired:
+        # The command runs through a shell, so killing the shell alone can
+        # leave the agent running. Kill and reap the whole process group.
+        try:
+            os.killpg(os.getpgid(proc.pid), signal.SIGKILL)
+        except ProcessLookupError:
+            pass
+        stdout, stderr = proc.communicate()
         record.exit_code = -1
         record.timed_out = True
-        out = exc.stdout.decode() if isinstance(exc.stdout, bytes) else (exc.stdout or "")
-        err = exc.stderr.decode() if isinstance(exc.stderr, bytes) else (exc.stderr or "")
-        log = f"$ {agent_cmd}\n\n--- TIMEOUT after {timeout_s}s ---\n{out}\n{err}\n"
+        log = (
+            f"$ {agent_cmd}\n\n--- TIMEOUT after {timeout_s}s"
+            f" (process group killed) ---\n{stdout}\n{stderr}\n"
+        )
 
     record.duration_s = round(time.time() - started, 2)
     (dest / "agent.log").write_text(log)
@@ -371,10 +432,14 @@ def run_agent(
         clean = dest / "clean"
         clean.mkdir(exist_ok=True)
         shutil.copy2(dut, clean / "dut.v")
-        result = evaluate_multi(
-            problem, [clean / "dut.v"], seeds=EVAL_SEEDS, source="agent", tag="eval"
-        )
-        record.result = result.to_dict()
+        try:
+            result = evaluate_multi(
+                problem, [clean / "dut.v"], seeds=EVAL_SEEDS, source="agent", tag="eval"
+            )
+            record.result = result.to_dict()
+        except Exception as exc:  # noqa: BLE001 - the record must survive scorer bugs
+            record.error = f"{type(exc).__name__}: {exc}"
+            record.result = {"error": record.error}
     else:
         (dest / "dut.v").replace(dest / "rejected_dut.v")
 

@@ -8,7 +8,16 @@
 # Consequence: cell counts are post-techmap, pre-ABC, so they over-count area.
 # They are a deterministic proxy for area, comparable across submissions that
 # use this exact flow - not an absolute gate count.
+#
+# `chparam` pins every parameter the problem fixes before elaboration, so the
+# netlist is built for the same parameter values the testbench drives. Without
+# it, a submission's defaults could be smaller than the simulated design.
+#
+# `write_verilog` emits the techmapped netlist. That netlist is what gets
+# simulated (with simlib.v), so cells and correctness describe one artifact.
 {reads}
+{chparams}
 hierarchy -check -top {top}
 synth -top {top} -flatten -noabc
 stat
+write_verilog -noattr netlist.v

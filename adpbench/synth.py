@@ -2,12 +2,18 @@
 
 The flow is pinned in `flows/synth.ys` so that cell counts are comparable
 across submissions. Changing the flow invalidates every stored baseline.
+
+Synthesis is where the problem's parameters are fixed: every parameter in
+`INTERFACE["params"]` is applied with `chparam` before elaboration. The
+resulting netlist is the artifact that gets simulated, so the design whose
+cells are counted is the design whose behaviour is checked.
 """
 
 from __future__ import annotations
 
 import re
 import subprocess
+from functools import lru_cache
 from pathlib import Path
 
 from .problem import Problem, repo_root
@@ -19,6 +25,7 @@ CELL_RES = (
 )
 STATS_MARKER = re.compile(r"Printing statistics", re.MULTILINE)
 FLOW = repo_root() / "flows" / "synth.ys"
+NETLIST = "netlist.v"
 
 
 def _parse_cells(log: str) -> int | None:
@@ -40,8 +47,13 @@ def _parse_cells(log: str) -> int | None:
 
 def _build_script(problem: Problem, rtl_paths: list[Path], workdir: Path) -> Path:
     reads = "\n".join(f"read_verilog -sv {Path(p).resolve()}" for p in rtl_paths)
+    chparams = "\n".join(
+        f"chparam -set {name} {value} {problem.top}"
+        for name, value in problem.params.items()
+    )
     script = FLOW.read_text().format(
         reads=reads,
+        chparams=chparams,
         top=problem.top,
     )
     path = Path(workdir).resolve() / "synth.ys"
@@ -50,10 +62,17 @@ def _build_script(problem: Problem, rtl_paths: list[Path], workdir: Path) -> Pat
 
 
 def synthesize(problem: Problem, rtl_paths: list[Path], workdir: Path) -> dict:
-    """Returns {ok, cells, log}."""
+    """Returns {ok, cells, netlist, log}.
+
+    `ok` means the design elaborated at the problem's parameters, synthesized,
+    and produced the netlist used for simulation.
+    """
     workdir = Path(workdir).resolve()
     workdir.mkdir(parents=True, exist_ok=True)
     script = _build_script(problem, rtl_paths, workdir)
+    netlist = workdir / NETLIST
+    if netlist.exists():
+        netlist.unlink()
     try:
         proc = subprocess.run(
             ["yosys", str(script)],
@@ -66,19 +85,40 @@ def synthesize(problem: Problem, rtl_paths: list[Path], workdir: Path) -> dict:
         return {
             "ok": False,
             "cells": -1,
+            "netlist": None,
             "log": f"[adpbench] yosys exceeded its time limit\n{exc}",
         }
     log = proc.stdout + proc.stderr
 
     if proc.returncode != 0:
-        return {"ok": False, "cells": -1, "log": log}
+        return {"ok": False, "cells": -1, "netlist": None, "log": log}
 
     cells = _parse_cells(log)
     if cells is None:
         return {
             "ok": False,
             "cells": -1,
+            "netlist": None,
             "log": log + "\n[adpbench] no cell count in yosys stat output",
         }
+    if not netlist.is_file():
+        return {
+            "ok": False,
+            "cells": -1,
+            "netlist": None,
+            "log": log + f"\n[adpbench] flow produced no {NETLIST}",
+        }
 
-    return {"ok": True, "cells": cells, "log": log}
+    return {"ok": True, "cells": cells, "netlist": netlist, "log": log}
+
+
+@lru_cache(maxsize=1)
+def tool_version() -> str:
+    try:
+        proc = subprocess.run(
+            ["yosys", "-V"], capture_output=True, text=True, timeout=30
+        )
+    except (OSError, subprocess.TimeoutExpired):
+        return "unknown"
+    output = (proc.stdout + proc.stderr).strip().splitlines()
+    return output[0] if output else "unknown"

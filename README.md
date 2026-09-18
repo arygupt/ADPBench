@@ -49,14 +49,27 @@ Element `j` of a beat occupies bits `[j*DATA_W +: DATA_W]`, element 0 lowest.
 
 ```
 submission.v
-  -> synthesize   yosys, pinned flow        -> cells      (area proxy)
+  -> synthesize   yosys, pinned flow        -> netlist + cells   (area proxy)
   -> vectors      numpy golden model        -> inputs + expected outputs
-  -> simulate     icarus + generated tb     -> cycles, bit-exact pass/fail
+  -> simulate     icarus, gate-level        -> cycles, bit-exact pass/fail
   -> score        baseline_adp / adp
 ```
 
-Correctness is exact integer equality. There is no floating point tolerance,
-because the problem fixes the arithmetic completely.
+Synthesis applies the problem's parameters with `chparam` before elaboration
+and writes the resulting netlist. Simulation runs that netlist - not the RTL -
+so the cells that are counted and the behaviour that is checked describe one
+artifact. Comparison is exact integer equality; there is no floating point
+tolerance, because the problem fixes the arithmetic completely.
+
+Each seed is simulated twice:
+
+- a **score** run with inputs back-to-back and `out_ready` held high, which is
+  the timing measurement, and
+- a **protocol** run with seeded input gaps, seeded output backpressure, and a
+  hold-stable check that fails a DUT which drops or changes an output while
+  stalled.
+
+A design must pass both.
 
 ## Scoring
 
@@ -84,6 +97,16 @@ uv venv && uv pip install -e .
 ```
 
 Requires `yosys` and `iverilog` on PATH.
+
+## Tests
+
+```bash
+.venv/bin/python -m unittest discover -s tests -v
+```
+
+The integration tests score the counterexamples from a scorer review through
+the real pipeline (see `tests/fixtures/README.md`), so they need `yosys` and
+`iverilog`.
 
 ## The agent layer
 
@@ -119,9 +142,14 @@ under simulation than under synthesis, or that let it read the expected
 answers: `initial`, `#delay`, `$readmemh`, `$display`, `force`, `` `include ``,
 testbench references. An untouched skeleton is also rejected.
 
-**Score in a clean room.** The submission is copied *alone* into a fresh
-directory and scored against pristine problem files on `EVAL_SEEDS`, which the
-agent never sees. Nothing else in the environment directory is trusted.
+**Score from a fresh copy.** The submission is copied *alone* into a fresh
+directory and scored against pristine problem files on `EVAL_SEEDS`, which are
+not in the environment. Nothing in the environment directory is trusted.
+
+This is not yet an enforced security boundary: the agent runs with the same
+user's shell, so it can read the repository and the grader. Until runs happen
+inside a container or VM, held-out seeds protect against accidental
+overfitting, not against a determined agent.
 
 A run record lands in `runs/<problem>/<timestamp>/`:
 
@@ -142,9 +170,16 @@ held-out seed. Hardcoding the visible dev answers buys nothing.
 ## The pinned substrate
 
 KernelBench is meaningful because everyone runs on the same GPU. The equivalent
-here is a frozen toolchain: `flows/synth.ys`, the yosys version, and the cell
-counting convention. Changing any of them invalidates every stored baseline and
-requires re-running `adpbench baseline` for every problem.
+here is a frozen toolchain: `flows/synth.ys`, the yosys version, the cell
+counting convention, and the simulation models for the synthesized cells.
+Changing any of them invalidates every stored baseline and requires re-running
+`adpbench baseline` for every problem.
+
+The flow applies `chparam` for every parameter in `INTERFACE["params"]` before
+`hierarchy`, synthesizes to gates, and writes `netlist.v`. That netlist is
+simulated against the `simlib.v` shipped with the same yosys release, so the
+simulation models are pinned alongside the synthesizer. `ADPBENCH_SIMLIB`
+overrides discovery of that file.
 
 `flows/synth.ys` runs `synth -noabc`. ABC's generic-gate optimisation is
 superlinear on wide arithmetic (a 32-multiplier datapath exceeded 180s), which
@@ -163,11 +198,23 @@ solutions/parallel.v        18598 cells      9 cycles    167382 adp    3.35x
 
 Known gaps:
 
-- Only one problem, and only two input ports are modelled in the testbench.
+- Only one problem, and vector I/O is one-dimensional per port; matrix
+  problems need an explicit layout and transaction-framing contract.
+- Repeated transactions are outside the contract: the testbench drives one
+  transaction, and `solutions/parallel.v` still fails a second one without
+  reset (`tests/fixtures/two_transactions.v`).
 - Failure attribution for combinational loops is a simulation timeout rather
   than a synthesis-time diagnosis.
-- No timing analysis (OpenSTA) and no power. `cells * cycles` is a proxy.
-- The testbench applies fixed 3-in-4 output backpressure, not randomised.
+- No timing feasibility check. A 100 MHz testbench clock does not prove the
+  netlist closes at 100 MHz, and `cells * cycles` counts generic cells before
+  ABC, so it is a proxy, not physical area or silicon performance.
+- No directed arithmetic cases yet (zeros, extreme signed values); coverage is
+  seeded random vectors plus the protocol runs.
+- Aggregation is correctness-gated geometric mean only. Published rankings
+  must also report correctness rate and the fraction of attempts that beat the
+  baseline, and separate infrastructure failures from wrong RTL.
+- Agent runs share the host user; final scoring is not an enforced boundary
+  until runs are containerised.
 - No prompt harness or leaderboard yet. The harness scores Verilog; producing
   that Verilog is out of scope so far.
 
