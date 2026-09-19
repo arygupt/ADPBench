@@ -21,17 +21,8 @@
   const ratio = (n) => (n > 0 ? `${n.toFixed(2)}×` : "—");
   const short = (label) =>
     label.replace(/^opencode\//, "").replace(/-free$/, "");
-  const colors = [
-    "#7958bb",
-    "#398268",
-    "#b67c38",
-    "#577dba",
-    "#a66683",
-    "#528d91",
-  ];
   const symbols = ["a·b", "Ax", "AB", "f∗g"];
   let data, dialog, returnFocus;
-  const color = (model) => colors[data.models.indexOf(model) % colors.length];
   const title = (name) =>
     data.problems.find((p) => p.name === name)?.title || name;
   const ranked = (models) =>
@@ -53,8 +44,8 @@
       ["no result", "no_result"].includes(run.stage) ||
       (run.timed_out && !run.stage)
     )
-      return { cls: "infra", label: "Infrastructure", value: "Infra" };
-    return { cls: "fail", label: "Incorrect RTL", value: "Failed" };
+      return { cls: "infra", label: "Infrastructure", value: "infra" };
+    return { cls: "fail", label: "Incorrect RTL", value: "wrong" };
   }
   function wilson(k, n) {
     if (!n) return [0, 0];
@@ -68,193 +59,174 @@
   function fill(selector, text) {
     $$(selector).forEach((el) => (el.textContent = text));
   }
-  function modelName(model) {
-    return `<span class="model-name" title="${esc(model.label)}"><span class="model-symbol" style="--model-color:${color(model)}">${esc(short(model.label).slice(0, 2).toUpperCase())}</span><span><strong>${esc(short(model.label))}</strong><small>${esc(model.label.split("/")[0])}${model.label.endsWith("-free") ? " · free tier" : ""}</small></span></span>`;
-  }
-  function renderStats() {
-    const runs = data.models.flatMap((m) => m.runs),
-      correct = runs.filter((r) => r.correct),
-      best = Math.max(0, ...correct.map((r) => r.ratio));
-    const stats = [
-      [data.problems.length, "Numeric operators"],
-      [data.models.length, "Evaluated models"],
-      [runs.length, "Recorded attempts"],
-      [ratio(best), "Best ADP improvement"],
-    ];
-    if ($("#stat-strip"))
-      $("#stat-strip").innerHTML = stats
-        .map(
-          ([v, l]) =>
-            `<div class="stat"><div class="stat-value">${v}</div><div class="stat-label">${l}</div></div>`,
-        )
-        .join("");
-    fill("#dataset-pilot", data.meta.pilot || "Published pilot");
-    fill(
-      "#dataset-summary",
-      `${data.meta.repetitions || 1} attempt${data.meta.repetitions > 1 ? "s" : ""} / pair · ${data.meta.budget_s ? data.meta.budget_s / 60 + " min budget" : "budget not reported"} · ${data.meta.sandbox?.mode || "sandbox not reported"}`,
-    );
-    fill(
-      "#dataset-date",
-      `Snapshot ${data.meta.generated?.slice(0, 10) || "undated"}`,
-    );
+
+  let scoreMetric = "beat_rate",
+    operatorMetric = "ratio";
+  const names = {
+    "opencode/mimo-v2.5-free": "MiMo v2.5",
+    "opencode/muse-spark-1.3-contributor-free": "Muse Spark 1.3",
+    "opencode/nemotron-3-ultra-free": "Nemotron 3 Ultra",
+    "opencode/nemotron-3.5-lightning-free": "Nemotron 3.5 Lightning",
+    "opencode/ling-3.0-flash-fin-free": "Ling 3.0 Flash Fin",
+  };
+  const displayName = (model) => names[model.label] || short(model.label);
+  function modelButton(model) {
+    return `<button class="model-button" data-model="${esc(model.label)}" title="${esc(model.label)}" aria-label="Inspect ${esc(displayName(model))} runs"><span class="model-icon" aria-hidden="true">${esc(displayName(model).slice(0, 1))}</span><span class="model-label">${esc(displayName(model))}</span></button>`;
   }
   function renderResults() {
-    if (!$("#leaderboard-rows")) return;
-    const query = $("#model-search").value.trim().toLowerCase(),
-      sort = $("#model-sort").value;
-    const all = ranked(data.models).sort((a, b) => b[sort] - a[sort]);
-    const models = all.filter((m) => m.label.toLowerCase().includes(query));
+    if (!$("#leaderboard-rows") || !data) return;
+    const query = $("#model-search").value.trim().toLowerCase();
+    const all = ranked(data.models).sort(
+      (a, b) => b[scoreMetric] - a[scoreMetric],
+    );
+    const models = all.filter((m) =>
+      `${m.label} ${displayName(m)}`.toLowerCase().includes(query),
+    );
+    const best = Math.max(0, ...all.map((m) => m[scoreMetric]));
+    const isRate = scoreMetric !== "geomean";
+    const label = {
+      beat_rate: "Correct & better than baseline",
+      correctness_rate: "Passed all correctness checks",
+      geomean: "Geometric mean ADP ratio · correct runs only",
+    }[scoreMetric];
+    fill("#score-heading", label);
+    fill(
+      "#score-note",
+      isRate
+        ? "Share of all recorded attempts · hover or inspect for 95% Wilson intervals."
+        : "Correct-run geometric mean · bar = share of best · failures excluded from this secondary metric.",
+    );
     fill(
       "#leaderboard-count",
-      `${models.length} of ${data.models.length} models · sorted by ${$("#model-sort").selectedOptions[0].textContent.toLowerCase()}`,
+      `${models.length} / ${data.models.length} models`,
     );
     $("#leaderboard-rows").innerHTML =
       models
-        .map((model) => {
-          const [low, high] = wilson(model.beating, model.attempts);
-          return `<tr style="--model-color:${color(model)}"><td class="lb-rank">${String(all.indexOf(model) + 1).padStart(2, "0")}</td><td>${modelName(model)}</td><td><div class="score-top"><strong>${pct(model.beat_rate)}</strong><small title="95% Wilson confidence interval">${pct(low)}–${pct(high)} CI</small></div><span class="score-track" aria-hidden="true"><span class="score-fill" style="width:${model.beat_rate * 100}%"></span><span class="score-interval" style="left:${low * 100}%;width:${(high - low) * 100}%"></span></span></td><td><span class="metric-value">${pct(model.correctness_rate)}</span><span class="metric-caption">${model.correct} / ${model.attempts} attempts</span></td><td><span class="metric-value">${ratio(model.geomean)}</span><span class="metric-caption">${model.correct ? "correct-run geomean" : "no correct runs"}</span></td><td><button class="row-open" data-model="${esc(model.label)}" aria-label="Inspect ${esc(short(model.label))} runs">↗</button></td></tr>`;
+        .map((m) => {
+          const value = m[scoreMetric],
+            [low, high] = wilson(
+              scoreMetric === "beat_rate" ? m.beating : m.correct,
+              m.attempts,
+            );
+          const text = isRate ? pct(value) : ratio(value);
+          const width = isRate
+            ? value * 100
+            : best > 0
+              ? (Math.max(0, value) / best) * 100
+              : 0;
+          const tooltip = isRate
+            ? `${label}: ${text}; 95% Wilson interval ${pct(low)}–${pct(high)}. ${m.correct}/${m.attempts} correct attempts.`
+            : `${text} geometric mean across ${m.correct} correct attempts; ${m.attempts} total attempts.`;
+          return `<tr><td>${modelButton(m)}</td><td><button class="result-bar ${value === best && value > 0 ? "best" : ""}" style="--fill:${width}%" data-model="${esc(m.label)}" title="${esc(tooltip)}" aria-label="${esc(displayName(m))}: ${esc(tooltip)}">${text}${value === best && value > 0 ? '<span class="star" aria-hidden="true">★</span>' : ""}</button></td><td><span class="correct-count" aria-label="${m.correct} of ${m.attempts} attempts correct" title="${m.correct}/${m.attempts} correct">${m.attempts <= 12 ? Array.from({ length: m.attempts }, (_, i) => `<i class="${i < m.correct ? "passed" : ""}" aria-hidden="true"></i>`).join("") : `<span>${m.correct}/${m.attempts}</span>`}</span></td></tr>`;
         })
         .join("") ||
-      '<tr><td colspan="6" class="empty-state">No models match this search. Try a different name.</td></tr>';
+      '<tr><td colspan="3" class="empty-state">No matching models.</td></tr>';
+    const bestByProblem = new Map(
+      data.problems.map((p) => {
+        const values = data.models
+          .flatMap((m) => m.runs)
+          .filter(
+            (r) => r.problem === p.name && r.correct && r[operatorMetric] > 0,
+          )
+          .map((r) => r[operatorMetric]);
+        return [
+          p.name,
+          values.length
+            ? operatorMetric === "ratio"
+              ? Math.max(...values)
+              : Math.min(...values)
+            : 0,
+        ];
+      }),
+    );
     $("#heatmap").innerHTML =
-      `<table><thead><tr><th scope="col">Evaluated model</th>${data.problems.map((p) => `<th scope="col">${esc(p.title)}</th>`).join("")}</tr></thead><tbody>${
+      `<table class="results-table matrix-table"><thead><tr><th scope="col">Model</th>${data.problems.map((p) => `<th scope="col"><a href="problems.html#${esc(p.name)}">${esc(p.title)}</a></th>`).join("")}<th scope="col" class="correct-heading">Correct</th></tr></thead><tbody>${
         models
           .map(
-            (model) =>
-              `<tr><th scope="row">${esc(short(model.label))}</th>${data.problems
+            (m) =>
+              `<tr><td>${modelButton(m)}</td>${data.problems
                 .map((p) => {
-                  const runs = model.runs.filter((r) => r.problem === p.name);
+                  const runs = m.runs
+                    .filter((r) => r.problem === p.name)
+                    .sort((a, b) => a.attempt - b.attempt);
                   return `<td>${
                     runs.length
                       ? runs
                           .map((r) => {
-                            const s = state(r);
-                            return `<button class="hm-cell ${s.cls}" data-model="${esc(model.label)}" data-problem="${esc(p.name)}" aria-label="${esc(short(model.label))}, ${esc(p.title)}, attempt ${r.attempt}: ${s.label}, ${s.value}">${s.value}${runs.length > 1 ? ` <small>#${r.attempt}</small>` : ""}</button>`;
+                            const s = state(r),
+                              value = r[operatorMetric],
+                              best = bestByProblem.get(p.name);
+                            const valid = r.correct && value > 0,
+                              width =
+                                valid && best > 0
+                                  ? (operatorMetric === "ratio"
+                                      ? value / best
+                                      : best / value) * 100
+                                  : 0;
+                            const text = valid
+                              ? operatorMetric === "ratio"
+                                ? ratio(value)
+                                : int(value)
+                              : r.correct
+                                ? "—"
+                                : s.value;
+                            const tooltip = `${displayName(m)} · ${p.title} · attempt ${r.attempt}: ${s.label}. ${valid ? text + " " + operatorMetric : "No valid score"}`;
+                            return `<button class="result-bar ${s.cls} ${valid && value === best ? "best" : ""}" style="--fill:${width}%" data-model="${esc(m.label)}" data-problem="${esc(p.name)}" data-attempt="${r.attempt}" title="${esc(tooltip)}" aria-label="${esc(tooltip)}">${text}${runs.length > 1 ? ` <small> · #${r.attempt}</small>` : ""}${valid && value === best ? '<span class="star" aria-hidden="true">★</span>' : ""}</button>`;
                           })
                           .join("")
-                      : '<span class="hm-cell none">Not run</span>'
+                      : '<span class="result-bar none" aria-label="Not run">—</span>'
                   }</td>`;
                 })
-                .join("")}</tr>`,
+                .join(
+                  "",
+                )}<td><span class="correct-count" title="${m.correct}/${m.attempts} correct"><span>${m.correct}/${m.attempts}</span></span></td></tr>`,
           )
           .join("") ||
-        '<tr><td colspan="5" class="empty-state">No models match this search.</td></tr>'
-      }</tbody></table><div class="legend"><span>● ADP ratio &gt; 1×: beats baseline</span><span>≤ 1×: correct, no improvement</span><span>Failed: incorrect RTL</span><span>Infra: no scored result</span></div>`;
-  }
-  function renderOutcomes() {
-    if (!$("#outcomes")) return;
-    const runs = data.models.flatMap((m) => m.runs);
-    const groups = [
-      ["beat", "Beat baseline", "var(--green)"],
-      ["correct", "Correct, no ADP improvement", "var(--orange)"],
-      ["fail", "Incorrect RTL", "var(--red)"],
-      ["infra", "Infrastructure failure", "var(--faint)"],
-    ].map(([key, label, c]) => ({
-      key,
-      label,
-      c,
-      n: runs.filter((r) => state(r).cls === key).length,
-    }));
-    $("#outcomes").innerHTML =
-      `<div class="outcome-bar" aria-hidden="true">${groups
-        .filter((g) => g.n)
-        .map((g) => `<span style="flex:${g.n};background:${g.c}"></span>`)
-        .join(
-          "",
-        )}</div>${groups.map((g) => `<div class="outcome-row"><span class="swatch" style="background:${g.c}"></span><span>${g.label}</span><strong>${g.n}<small>${pct(runs.length ? g.n / runs.length : 0)}</small></strong></div>`).join("")}<p class="outcome-foot">${runs.filter((r) => r.correct).length} correct designs across ${runs.length} recorded attempts. Timeouts with a scored design retain that design’s outcome.</p>`;
-  }
-  function renderChart() {
-    const root = $("#tradeoff-chart");
-    if (!root) return;
-    const p = data.problems.find((p) => p.name === $("#chart-problem").value);
-    if (!p || !(p.baseline?.cells > 0 && p.baseline?.cycles > 0)) {
-      root.innerHTML =
-        '<p class="empty-state">No baseline available for comparison.</p>';
-      fill("#chart-legend", "");
-      return;
-    }
-    const points = data.models.flatMap((m) =>
-      m.runs
-        .filter(
-          (r) =>
-            r.problem === p.name && r.correct && r.cells > 0 && r.cycles > 0,
-        )
-        .map((r) => ({
-          model: m,
-          run: r,
-          x: r.cells / p.baseline.cells,
-          y: r.cycles / p.baseline.cycles,
-        })),
+        `<tr><td colspan="${data.problems.length + 2}" class="empty-state">No matching models.</td></tr>`
+      }</tbody></table>`;
+    fill(
+      "#matrix-note",
+      operatorMetric === "ratio"
+        ? "ADP ratio = baseline / design · higher is better · bar = share of best correct result per operator."
+        : `${operatorMetric === "cells" ? "Cell count" : "Cycle count"} · lower is better · bar = best / value among correct results per operator. Incorrect designs receive no bar.`,
     );
-    if (!points.length) {
-      root.innerHTML =
-        '<div class="empty-state"><strong>No correct designs yet.</strong><p>No correct, scored runs are available for this operator. Explore the problem matrix for run details.</p></div>';
-      fill("#chart-legend", "");
-      return;
-    }
-    const xmin = Math.min(
-        -1,
-        Math.floor(Math.log10(Math.min(1, ...points.map((p) => p.x)))),
-      ),
-      xmax = Math.max(
-        1,
-        Math.ceil(Math.log10(Math.max(1, ...points.map((p) => p.x)))),
-      );
-    const ymin = Math.min(
-        -1,
-        Math.floor(Math.log10(Math.min(1, ...points.map((p) => p.y)))),
-      ),
-      ymax = Math.max(
-        0,
-        Math.ceil(Math.log10(Math.max(1, ...points.map((p) => p.y)))),
-      );
-    const X = (n) => 55 + ((Math.log10(n) - xmin) / (xmax - xmin)) * 395,
-      Y = (n) => 210 - ((Math.log10(n) - ymin) / (ymax - ymin)) * 185;
-    let grid = "";
-    for (let i = xmin; i <= xmax; i++) {
-      const x = X(10 ** i);
-      grid += `<line x1="${x}" y1="25" x2="${x}" y2="210" class="${i === 0 ? "chart-baseline" : "chart-grid"}"/><text x="${x}" y="230" text-anchor="middle">${10 ** i}×</text>`;
-    }
-    for (let i = ymin; i <= ymax; i++) {
-      const y = Y(10 ** i);
-      grid += `<line x1="55" y1="${y}" x2="450" y2="${y}" class="${i === 0 ? "chart-baseline" : "chart-grid"}"/><text x="45" y="${y + 3}" text-anchor="end">${10 ** i}×</text>`;
-    }
-    root.innerHTML = `<svg class="chart" viewBox="0 0 490 270" role="group" aria-label="${esc(p.title)}: cell count and cycles relative to baseline"><text x="55" y="12">CYCLES / BASELINE</text>${grid}<text x="255" y="258" text-anchor="middle">CELLS / BASELINE →</text><path d="M${X(1) - 4} ${Y(1) - 4}l8 8m0-8l-8 8" stroke="var(--text)" stroke-width="2"/><text x="${X(1) + 10}" y="${Y(1) + 12}">Baseline</text>${points.map((pt, i) => `<g class="chart-point" role="button" tabindex="0" data-model="${esc(pt.model.label)}" data-problem="${esc(p.name)}" aria-label="${esc(short(pt.model.label))}, attempt ${pt.run.attempt}: ${ratio(pt.run.ratio)} ADP improvement, ${ratio(pt.x)} cells, ${ratio(pt.y)} cycles"><title>${esc(short(pt.model.label))}: ${int(pt.run.cells)} cells · ${int(pt.run.cycles)} cycles · ${ratio(pt.run.ratio)} ADP improvement</title><circle cx="${X(pt.x)}" cy="${Y(pt.y)}" r="7" fill="${color(pt.model)}" stroke="var(--surface)" stroke-width="2"/><text x="${X(pt.x) + 10}" y="${Y(pt.y) + (i % 2 ? 17 : -9)}">${i + 1}</text></g>`).join("")}</svg>`;
-    $("#chart-legend").innerHTML = points
-      .map(
-        (pt, i) =>
-          `<button class="chart-legend-button" data-model="${esc(pt.model.label)}" data-problem="${esc(p.name)}" aria-label="Inspect ${esc(short(pt.model.label))} on ${esc(p.title)}"><i class="swatch" style="background:${color(pt.model)}"></i>${i + 1}. ${esc(short(pt.model.label))}</button>`,
-      )
-      .join("");
   }
-  function openRuns(label, problem) {
+  function openRuns(label, problem, attempt) {
     const model = data.models.find((m) => m.label === label);
     if (!model) return;
     returnFocus = document.activeElement;
-    const runs = model.runs.filter((r) => !problem || r.problem === problem);
-    dialog.innerHTML = `<div class="dialog-head"><div><p class="eyebrow">FROZEN RUN RECORDS · ${esc(data.meta.pilot)}</p><h2 id="dialog-title">${esc(short(label))}</h2></div><button class="dialog-close" aria-label="Close run details" autofocus>×</button></div><div class="dialog-body"><div class="dialog-summary"><span class="badge">${model.beating}/${model.attempts} beat baseline</span><span class="badge">${model.correct}/${model.attempts} correct</span><span class="badge">${model.wrong_rtl} wrong RTL</span><span class="badge">${model.infra} infrastructure</span></div><div class="run-grid">${runs
+    const runs = model.runs.filter(
+      (r) =>
+        (!problem || r.problem === problem) &&
+        (!attempt || r.attempt === attempt),
+    );
+    dialog.innerHTML = `<div class="dialog-head"><div><p class="eyebrow">FROZEN RUN RECORDS · ${esc(data.meta.pilot)}</p><h2 id="dialog-title">${esc(displayName(model))}</h2></div><button class="dialog-close" aria-label="Close run details" autofocus>×</button></div><div class="dialog-body"><div class="dialog-summary"><span class="badge">${model.beating}/${model.attempts} beat baseline</span><span class="badge">${model.correct}/${model.attempts} correct</span><span class="badge">${model.wrong_rtl} wrong RTL</span><span class="badge">${model.infra} infrastructure</span></div><div class="run-grid">${runs
       .map((r) => {
         const s = state(r);
-        return `<article class="run-card"><div class="rc-head"><strong>${esc(title(r.problem))}</strong><span class="rc-status ${s.cls}">${s.label}</span></div><p class="rc-meta">Attempt ${r.attempt} · ${int(Math.round(r.duration_s))}s · ${int(r.history)} checks${r.timed_out ? " · agent timed out" : ""}</p><div class="rc-ratio">${r.correct ? ratio(r.ratio) : "—"}</div><p class="metric-caption">${r.correct ? "baseline ADP / design ADP" : "No valid ADP score"}</p><p class="rc-meta">${int(r.cells)} cells × ${int(r.cycles)} cycles<br>ADP ${int(r.adp)}<br>Stage: ${esc(r.stage || "not reported")} · audit ${r.audit_ok ? "passed" : "not passed"}</p>${r.correctness || r.error ? `<p class="rc-detail">${esc(r.correctness || r.error)}</p>` : ""}<details><summary>Inspect artifact hashes</summary><p>Submission SHA-256</p><p class="hash-value">${esc(r.submission_sha256 || "Not recorded")}</p><p>Netlist SHA-256</p><p class="hash-value">${esc(r.netlist_sha256 || "Not recorded")}</p></details></article>`;
+        return `<article class="run-card"><div class="rc-head"><strong>${esc(title(r.problem))}</strong><span class="rc-status ${s.cls}">${s.label}</span></div><p class="rc-meta">Attempt ${r.attempt} · ${int(Math.round(r.duration_s))}s · ${int(r.history)} check${r.history === 1 ? "" : "s"}${r.timed_out ? " · agent timed out" : ""}</p><div class="rc-ratio">${r.correct ? ratio(r.ratio) : "—"}</div><p class="metric-caption">${r.correct ? "baseline ADP / design ADP" : "No valid ADP score"}</p><p class="rc-meta">${int(r.cells)} cells × ${int(r.cycles)} cycles<br>ADP ${int(r.adp)}<br>Stage: ${esc(r.stage || "not reported")} · audit ${r.audit_ok ? "passed" : "not passed"}</p>${[
+          r.correctness,
+          r.error,
+        ]
+          .filter(Boolean)
+          .map((text) => `<p class="rc-detail">${esc(text)}</p>`)
+          .join(
+            "",
+          )}<details><summary>Inspect artifact hashes</summary><p>Submission SHA-256</p><p class="hash-value">${esc(r.submission_sha256 || "Not recorded")}</p><p>Netlist SHA-256</p><p class="hash-value">${esc(r.netlist_sha256 || "Not recorded")}</p></details></article>`;
       })
       .join(
         "",
       )}</div><p class="pilot-note">Ratios are area–delay improvements, not clock-speed measurements. <a href="data/leaderboard.json">Read the source records ↗</a></p></div>`;
+    const interval = (count) =>
+      wilson(count, model.attempts).map(pct).join("–");
+    $(".dialog-summary", dialog).insertAdjacentHTML(
+      "afterend",
+      `<p class="rc-meta">${esc(model.label)}<br>95% Wilson intervals · beat baseline ${interval(model.beating)} · correctness ${interval(model.correct)}</p>`,
+    );
     $(".dialog-close", dialog).addEventListener("click", () => dialog.close());
     dialog.showModal();
     document.body.style.overflow = "hidden";
   }
   function renderProblems() {
-    if ($("#problem-previews"))
-      $("#problem-previews").innerHTML = data.problems
-        .map((p, i) => {
-          const runs = data.models
-              .flatMap((m) => m.runs)
-              .filter((r) => r.problem === p.name),
-            correct = runs.filter((r) => r.correct).length;
-          return `<a class="problem-preview" href="problems.html#${esc(p.name)}"><span class="preview-symbol">${symbols[i] || "ƒ"}</span><h3>${esc(p.title)}</h3><p>${p.params.DATA_W}-bit inputs · ${p.params.LANES} lanes</p><span class="preview-foot"><span>${correct}/${runs.length} correct attempts</span><span aria-hidden="true">↗</span></span></a>`;
-        })
-        .join("");
     if (!$("#problem-grid")) return;
     $("#problem-grid").innerHTML = data.problems
       .map((p, i) => {
@@ -300,74 +272,22 @@
     );
     if (target) target.scrollIntoView();
   }
+
   function renderMeta() {
-    const m = data.meta;
+    const m = data.meta,
+      runs = data.models.flatMap((m) => m.runs);
     fill("#meta-generated", m.generated?.slice(0, 10) || "—");
     fill("#meta-commit", m.git_commit?.slice(0, 10) || "—");
-    fill("#meta-pilot", m.pilot || "—");
-    fill("#meta-budget", m.budget_s ? `${m.budget_s}s` : "—");
-    fill("#meta-yosys", m.tools?.yosys || "—");
-    fill("#meta-iverilog", m.tools?.iverilog || "—");
     fill(
-      "#meta-seeds",
-      `Held-out seeds: ${(m.cases?.seeds || []).join(", ")} · ${m.cases?.transactions || "—"} transactions`,
+      "#dataset-summary",
+      `${m.pilot || "published pilot"} · ${data.models.length} models · ${data.problems.length} operators · ${runs.length} attempts`,
+    );
+    fill(
+      "#pilot-note",
+      `${m.repetitions || 1} attempt(s) per model–problem pair · ${m.budget_s ? m.budget_s / 60 + " min budget" : "budget unreported"} · ${m.sandbox?.mode || "sandbox unreported"}. Cells × cycles is an area–delay proxy, not a power or physical-timing measurement. Small pilot; model variance is not yet established.`,
     );
   }
   function setupShell() {
-    const main = $("main");
-    if (main) {
-      main.id = "main";
-      const skip = document.createElement("a");
-      skip.href = "#main";
-      skip.className = "skip-link";
-      skip.textContent = "Skip to content";
-      document.body.prepend(skip);
-    }
-    const actions = $(".header-actions");
-    if (actions) {
-      const button = document.createElement("button");
-      button.className = "theme-toggle";
-      button.type = "button";
-      const update = () => {
-        const dark = document.documentElement.dataset.theme === "dark";
-        button.textContent = dark ? "☼" : "◐";
-        button.setAttribute(
-          "aria-label",
-          dark ? "Switch to light theme" : "Switch to dark theme",
-        );
-      };
-      update();
-      button.addEventListener("click", () => {
-        const theme =
-          document.documentElement.dataset.theme === "dark" ? "light" : "dark";
-        document.documentElement.dataset.theme = theme;
-        try {
-          localStorage.setItem("adpbench-theme", theme);
-        } catch (_) {}
-        update();
-      });
-      actions.append(button);
-    }
-    $$(".site-nav a.active").forEach((a) =>
-      a.setAttribute("aria-current", "page"),
-    );
-    $$(".prose pre").forEach((pre) => {
-      const text = pre.textContent,
-        button = document.createElement("button");
-      button.className = "copy-button";
-      button.textContent = "Copy";
-      button.setAttribute("aria-label", "Copy code block");
-      button.addEventListener("click", async () => {
-        try {
-          await navigator.clipboard.writeText(text);
-          button.textContent = "Copied";
-        } catch (_) {
-          button.textContent = "Select code to copy";
-        }
-        setTimeout(() => (button.textContent = "Copy"), 2000);
-      });
-      pre.before(button);
-    });
     dialog = document.createElement("dialog");
     dialog.setAttribute("aria-labelledby", "dialog-title");
     document.body.append(dialog);
@@ -377,31 +297,38 @@
     });
     document.addEventListener("click", (e) => {
       const button = e.target.closest("[data-model]");
-      if (button) openRuns(button.dataset.model, button.dataset.problem);
+      if (button && data)
+        openRuns(
+          button.dataset.model,
+          button.dataset.problem,
+          Number(button.dataset.attempt) || undefined,
+        );
     });
-    document.addEventListener("keydown", (e) => {
-      if (e.target.matches(".chart-point") && ["Enter", " "].includes(e.key)) {
-        e.preventDefault();
-        openRuns(e.target.dataset.model, e.target.dataset.problem);
-      }
-    });
-    $$("[data-view]").forEach((button) =>
+    $$("[data-score]").forEach((button) =>
       button.addEventListener("click", () => {
-        $$("[data-view]").forEach((b) => {
-          const selected = b === button;
-          b.setAttribute("aria-pressed", String(selected));
-          $(`#${b.dataset.view}-view`).hidden = !selected;
-        });
+        scoreMetric = button.dataset.score;
+        $$("[data-score]").forEach((b) =>
+          b.setAttribute("aria-pressed", String(b === button)),
+        );
+        renderResults();
+      }),
+    );
+    $$("[data-metric]").forEach((button) =>
+      button.addEventListener("click", () => {
+        operatorMetric = button.dataset.metric;
+        $$("[data-metric]").forEach((b) =>
+          b.setAttribute("aria-pressed", String(b === button)),
+        );
+        renderResults();
       }),
     );
     $("#model-search")?.addEventListener("input", renderResults);
-    $("#model-sort")?.addEventListener("change", renderResults);
-    $("#chart-problem")?.addEventListener("change", renderChart);
   }
   async function getJSON(path) {
-    const r = await fetch(path);
-    if (!r.ok) throw new Error(`Could not load ${path} (${r.status})`);
-    return r.json();
+    const response = await fetch(path);
+    if (!response.ok)
+      throw new Error(`Could not load ${path} (${response.status})`);
+    return response.json();
   }
   document.addEventListener("DOMContentLoaded", async () => {
     setupShell();
@@ -420,25 +347,16 @@
         meta: leaderboard.meta || {},
         problems: problems?.problems || leaderboard.problems,
       };
-      data.models = ranked(data.models);
-      renderStats();
       renderResults();
-      renderOutcomes();
       renderProblems();
       renderMeta();
-      if ($("#chart-problem")) {
-        $("#chart-problem").innerHTML = data.problems
-          .map((p) => `<option value="${esc(p.name)}">${esc(p.title)}</option>`)
-          .join("");
-        renderChart();
-      }
     } catch (error) {
-      const root = $("#stat-strip") || $("#problem-grid") || $("main");
-      root.insertAdjacentHTML(
+      $("#main").insertAdjacentHTML(
         "afterbegin",
-        '<div class="error-state" role="alert"><strong>Published results couldn’t load.</strong><p>Refresh to try again, or <a href="data/report.json">open the report directly</a>.</p></div>',
+        '<div class="error-state" role="alert"><strong>Published results could not load.</strong><p>Refresh to retry or <a href="data/report.json">open the report</a>.</p></div>',
       );
       $$(".loading").forEach((el) => el.remove());
+      fill("#dataset-summary", "Results unavailable");
       console.error(error);
     }
   });

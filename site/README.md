@@ -21,25 +21,24 @@ variable is set. GitHub Pages is free for public repositories; a private
 repository needs a paid plan, in which case deploy the artifact to any static
 host instead.
 
-Design reference: [DeepSWE](https://deepswe.datacurve.ai/), adapted around
-ADPBench's hardware metrics. The interface uses neutral surfaces, restrained
-violet accents, Inter and JetBrains Mono, and a persistent light/dark preference.
+Design reference: [kernelbench.com](https://kernelbench.com/). A compact dark
+results board with green bars, a minimal header, and no landing-page hero or
+methodology page. The first board ranks models by beat-baseline rate,
+correctness, or correct-run geometric mean. The operator board switches between
+ADP ratio, cells, and cycles. Search filters both boards.
 
-The results view includes model search, sorting, a problem matrix, and a native
-modal run inspector with complete artifact hashes. All repetitions are visible
-in matrix cells. Confidence intervals display the actual 95% Wilson lower and
-upper bounds, rather than a symmetric ± around an asymmetric interval.
+Rate bars use the full 0–100% scale; Wilson confidence bounds are available in
+the hover text. Geomean and operator ratio bars show each result as a share of
+the best correct result. Cells/cycles bars use best/value (lower is better).
+Stars identify ties for the best value, computed across the full dataset so
+filtering never changes the reference. Failed runs are labeled, never plotted
+as valid measurements. Every repetition is independently inspectable.
 
-The area/latency chart compares only correct runs against the selected problem's
-baseline on logarithmic axes. Chart points and legend buttons open run details;
-the legend also makes nearly overlapping points independently accessible.
-Infrastructure failures and incorrect RTL follow the report's classification.
-ADP improvements are never labeled as speedups. Data and metadata come from the
-committed JSON; no benchmark jobs run in the browser.
+A native modal displays run metrics, outcomes, and complete artifact hashes.
+The problem catalog exposes interfaces, arithmetic, edge cases, and reference
+source links. No build step or runtime dependencies. Published JSON and scoring
+code are unchanged.
 
-The catalog exposes numeric contracts, edge cases, reference RTL, and baseline
-versus sanity ADP. Methodology has section navigation and copyable code blocks.
-There is no package installation or frontend build step. Check changes with the
-site/report unit tests and browser checks at desktop and phone widths, including
-search, sorting, matrix cells, chart selection, dialog keyboard behavior, and
-both themes.
+Validate with the site/report unit tests, JavaScript syntax checks, and desktop
+and phone browser checks for search, metric switches, matrix cells, and dialog
+keyboard behavior.

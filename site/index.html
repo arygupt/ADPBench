@@ -2,323 +2,145 @@
 <html lang="en">
   <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>ADPBench — Can AI design better hardware?</title>
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Hardware agent results — ADPBench</title>
     <meta
       name="description"
-      content="An open benchmark for AI-generated Verilog. Explore correctness, silicon cost, and reproducible results across numeric operators."
+      content="AI-generated RTL benchmark results. Compare area-delay product, correctness, and individual hardware agent runs."
     />
     <link rel="icon" href="favicon.svg" type="image/svg+xml" />
-    <script src="assets/theme.js"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
-      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;450;500;550;600;650;700&family=JetBrains+Mono:wght@400;500&display=swap"
+      href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&display=swap"
       rel="stylesheet"
     />
     <link rel="stylesheet" href="assets/style.css" />
   </head>
   <body>
+    <a class="skip-link" href="#main">Skip to results</a>
     <header class="site-header">
-      <a class="brand" href="index.html" aria-label="ADPBench home"
-        ><svg class="mark" viewBox="0 0 32 32" fill="none" aria-hidden="true">
-          <rect
-            x="7"
-            y="7"
-            width="18"
-            height="18"
-            rx="3"
-            stroke="currentColor"
-            stroke-width="2"
-          />
-          <path
-            d="M12 1v6m8-6v6M12 25v6m8-6v6M1 12h6m-6 8h6m18-8h6m-6 8h6M12 20l4-8 4 8m-6-3h4"
-            stroke="currentColor"
-            stroke-width="2"
-          /></svg
-        >ADPBench <span class="brand-sub">Research / 001</span></a
-      >
-      <nav class="site-nav" aria-label="Primary">
-        <a href="index.html" class="active" aria-current="page">Leaderboard</a
-        ><a href="problems.html">Problems</a
-        ><a href="methodology.html">Methodology</a>
-      </nav>
-      <div class="header-actions">
-        <a
-          class="github-link"
-          href="https://github.com/arygupt/ADPBench"
-          target="_blank"
-          rel="noopener"
-          >GitHub <span aria-hidden="true">↗</span></a
+      <div class="header-inner">
+        <a class="brand" href="index.html" aria-label="ADPBench home"
+          ><svg viewBox="0 0 20 20" aria-hidden="true">
+            <path
+              d="M2 12h4v6H2zm6-5h4v11H8zm6-5h4v16h-4z"
+              fill="currentColor"
+            /></svg
+          >adpbench<span>.rtl</span></a
         >
+        <nav aria-label="Primary">
+          <a href="index.html" aria-current="page">Models</a
+          ><a href="problems.html">Problems</a
+          ><a
+            href="https://github.com/arygupt/ADPBench"
+            target="_blank"
+            rel="noopener"
+            aria-label="GitHub repository"
+            ><svg
+              viewBox="0 0 24 24"
+              width="17"
+              height="17"
+              fill="currentColor"
+              aria-hidden="true"
+            >
+              <path
+                d="M12 2a10 10 0 0 0-3.16 19.49c.5.09.68-.22.68-.48v-1.86c-2.78.61-3.37-1.18-3.37-1.18-.46-1.16-1.11-1.47-1.11-1.47-.91-.62.07-.61.07-.61 1 .07 1.53 1.03 1.53 1.03.89 1.53 2.34 1.09 2.91.83.09-.65.35-1.09.64-1.34-2.22-.25-4.55-1.11-4.55-4.94 0-1.09.39-1.99 1.03-2.69-.1-.25-.45-1.27.1-2.65 0 0 .84-.27 2.75 1.03a9.55 9.55 0 0 1 5 0c1.91-1.3 2.75-1.03 2.75-1.03.55 1.38.2 2.4.1 2.65.64.7 1.03 1.6 1.03 2.69 0 3.84-2.33 4.69-4.56 4.94.36.31.68.92.68 1.85v2.75c0 .26.18.58.69.48A10 10 0 0 0 12 2z"
+              /></svg
+          ></a>
+        </nav>
       </div>
     </header>
-    <main class="wrap" id="main">
-      <section class="hero home-hero">
-        <div>
-          <p class="eyebrow">
-            <span class="status-dot"></span> An open benchmark for hardware
-            agents
-          </p>
+    <main id="main" class="wrap">
+      <section class="benchmark-section" id="models">
+        <div class="section-heading">
           <h1>
-            Can AI design<br /><span class="accent-text">better hardware?</span>
+            <span class="section-prefix">ADPBENCH</span
+            ><i class="section-dot" aria-hidden="true"></i>Models
           </h1>
-          <p class="lede">
-            From a numeric operator to working silicon logic. We measure whether
-            coding agents can write correct Verilog that does more with fewer
-            <strong>cells × cycles.</strong>
-          </p>
-          <div class="hero-actions">
-            <a class="btn btn-primary" href="#leaderboard"
-              >Explore the results <span aria-hidden="true">↓</span></a
-            ><a class="text-link" href="methodology.html#run-it-yourself"
-              >Run the benchmark <span aria-hidden="true">↗</span></a
-            >
+          <div class="segmented" role="group" aria-label="Rank models by">
+            <button data-score="beat_rate" aria-pressed="true">
+              Beat baseline</button
+            ><button data-score="correctness_rate" aria-pressed="false">
+              Correctness</button
+            ><button data-score="geomean" aria-pressed="false">ADP gain</button>
           </div>
         </div>
-        <div
-          class="silicon-card"
-          aria-label="Evaluation: numeric operator to Verilog to verified netlist, scored on area-delay product"
-        >
-          <div class="diagram-label">
-            <span>THE EVALUATION LOOP</span><span>01 → 04</span>
-          </div>
-          <div class="pipeline-input">
-            <span class="file-icon">ƒ</span>
-            <div>
-              <strong>Numeric operator</strong
-              ><span>dut.py · executable specification</span>
-            </div>
-            <span class="mono">01</span>
-          </div>
-          <div class="trace-line"></div>
-          <div class="chip-diagram">
-            <div class="chip-core">
-              <span>AI → RTL</span><strong>dut.v</strong
-              ><span>SYNTHESIZE + VERIFY</span>
-            </div>
-            <span class="diagram-tag tag-left">cells</span
-            ><span class="diagram-tag tag-right">cycles</span>
-          </div>
-          <div class="trace-line"></div>
-          <div class="formula">
-            <span>AREA–DELAY PRODUCT</span
-            ><strong>fewer gates. fewer cycles.</strong
-            ><code>score = baseline ADP / design ADP</code>
-          </div>
-          <div class="diagram-foot">
-            <span class="status-dot"></span> Bit-exact correctness comes first.
-          </div>
+        <div class="board-meta">
+          <span id="dataset-summary">Loading published results…</span
+          ><input
+            type="search"
+            id="model-search"
+            aria-label="Find a model"
+            placeholder="Filter models…"
+          />
+        </div>
+        <div class="board-scroll">
+          <table class="results-table overview-table">
+            <thead>
+              <tr>
+                <th scope="col">Model</th>
+                <th scope="col" id="score-heading">
+                  Correct &amp; better than baseline
+                </th>
+                <th scope="col" class="correct-heading">Correct</th>
+              </tr>
+            </thead>
+            <tbody id="leaderboard-rows"></tbody>
+          </table>
+        </div>
+        <div class="board-caption">
+          <span id="score-note"
+            >Beat-baseline rate across all recorded attempts. Higher is
+            better.</span
+          ><span id="leaderboard-count" role="status" aria-live="polite"></span>
         </div>
       </section>
-      <div class="stats" id="stat-strip" aria-label="Pilot overview">
-        <p class="loading">Loading published results…</p>
+      <section class="benchmark-section" id="operators">
+        <div class="section-heading">
+          <h2>
+            <span class="section-prefix">ADPBENCH</span
+            ><i class="section-dot blue" aria-hidden="true"></i>Operators
+          </h2>
+          <div class="segmented" role="group" aria-label="Operator metric">
+            <button data-metric="ratio" aria-pressed="true">ADP ratio</button
+            ><button data-metric="cells" aria-pressed="false">Cells</button
+            ><button data-metric="cycles" aria-pressed="false">Cycles</button>
+          </div>
+        </div>
+        <div class="board-scroll" id="heatmap"></div>
+        <p class="board-caption" id="matrix-note">
+          ADP ratio = baseline / design. Bars show each result as a share of the
+          best correct result for that operator.
+        </p>
+      </section>
+      <div class="outcome-legend" aria-label="Result legend">
+        <span><b class="legend-pass">pass</b> correct result</span
+        ><span><b class="legend-wrong">wrong</b> incorrect RTL</span
+        ><span><b class="legend-infra">infra</b> infrastructure failure</span
+        ><span><b class="legend-best">★</b> best value in column</span
+        ><span>click a model or result to inspect its runs</span>
       </div>
-      <section class="section" id="leaderboard">
-        <div class="section-header">
-          <div>
-            <p class="eyebrow">THE RESULTS</p>
-            <h2>Hardware starts with correctness.</h2>
-          </div>
-          <a class="text-link small" href="data/leaderboard.json" download
-            >Download data <span aria-hidden="true">↓</span></a
-          >
-        </div>
-        <p class="section-description">
-          Ranked by the share of attempts that pass every check and improve on
-          the baseline’s area–delay product.
-        </p>
-        <div class="dataset-line">
-          <span class="badge" id="dataset-pilot">Pilot</span
-          ><span id="dataset-summary"></span><span id="dataset-date"></span>
-        </div>
-        <div class="results-card">
-          <div class="toolbar">
-            <div class="segmented" role="group" aria-label="Results view">
-              <button type="button" data-view="rankings" aria-pressed="true">
-                Rankings</button
-              ><button type="button" data-view="matrix" aria-pressed="false">
-                Problem matrix
-              </button>
-            </div>
-            <div class="table-controls">
-              <label class="search-field"
-                ><span aria-hidden="true">⌕</span
-                ><input
-                  id="model-search"
-                  type="search"
-                  placeholder="Find a model…"
-                  aria-label="Find a model" /></label
-              ><label
-                ><span class="sr-only">Sort models</span
-                ><select id="model-sort">
-                  <option value="beat_rate">Beat baseline</option>
-                  <option value="correctness_rate">Correctness</option>
-                  <option value="geomean">ADP improvement</option>
-                </select></label
-              >
-            </div>
-          </div>
-          <div id="rankings-view">
-            <div class="table-scroll">
-              <table class="leaderboard-table">
-                <thead>
-                  <tr>
-                    <th scope="col">#</th>
-                    <th scope="col">Evaluated model</th>
-                    <th scope="col">
-                      Beat baseline
-                      <span
-                        title="Correct runs with an ADP ratio greater than one, divided by all attempts"
-                        >ⓘ</span
-                      >
-                    </th>
-                    <th scope="col">Correct</th>
-                    <th scope="col">
-                      Improvement
-                      <span
-                        title="Geometric mean ADP ratio among correct attempts only"
-                        >ⓘ</span
-                      >
-                    </th>
-                    <th scope="col">
-                      <span class="sr-only">Run details</span>
-                    </th>
-                  </tr>
-                </thead>
-                <tbody id="leaderboard-rows"></tbody>
-              </table>
-            </div>
-          </div>
-          <div id="matrix-view" hidden>
-            <div id="heatmap" class="heatmap"></div>
-          </div>
-          <div class="table-footer">
-            <span id="leaderboard-count" role="status" aria-live="polite"></span
-            ><span
-              >All attempts count.
-              <a href="methodology.html#reporting">How scoring works ↗</a></span
-            >
-          </div>
-        </div>
-        <p class="pilot-note">
-          <span aria-hidden="true">ⓘ</span> An early signal, not a definitive
-          ranking. This pilot has one attempt per model–problem pair. Ranges
-          show 95% Wilson intervals; improvement is measured only among correct
-          runs.
-        </p>
-      </section>
-      <section class="analysis-grid section" aria-label="Results analysis">
-        <div class="analysis-card">
-          <div class="section-header">
-            <div>
-              <p class="eyebrow">THE TRADEOFF</p>
-              <h2>Area meets latency.</h2>
-            </div>
-            <label
-              ><span class="sr-only">Chart problem</span
-              ><select id="chart-problem"></select
-            ></label>
-          </div>
-          <p class="section-description">
-            Correct designs relative to the serial baseline. Lower and further
-            left is better.
-          </p>
-          <div id="tradeoff-chart"></div>
-          <div id="chart-legend" class="legend"></div>
-          <p class="chart-note">
-            Logarithmic axes · 1× is the baseline · select a point to inspect
-            the run
-          </p>
-        </div>
-        <div class="analysis-card outcomes-card">
-          <p class="eyebrow">BEHIND THE HEADLINE</p>
-          <h2>Every attempt accounted for.</h2>
-          <p class="section-description">
-            A useful design must be correct before it can be efficient.
-          </p>
-          <div id="outcomes"></div>
-          <a class="text-link small" href="methodology.html#the-contract"
-            >Explore the verification contract
-            <span aria-hidden="true">↗</span></a
-          >
-        </div>
-      </section>
-      <section class="section">
-        <div class="section-header">
-          <div>
-            <p class="eyebrow">THE WORKLOADS</p>
-            <h2>Small operators. Real tradeoffs.</h2>
-          </div>
-          <a class="text-link small" href="problems.html"
-            >Explore all problems <span aria-hidden="true">→</span></a
-          >
-        </div>
-        <div class="problem-previews" id="problem-previews"></div>
-      </section>
-      <section class="method-strip">
-        <div>
-          <p class="eyebrow">BUILT TO BE CHECKED</p>
-          <h2>One netlist. Every number.</h2>
-          <p>
-            We count and simulate the same synthesized artifact. Frozen
-            submissions, held-out cases, and pinned tools make the result
-            reproducible.
-          </p>
-          <a class="text-link" href="methodology.html"
-            >Read the methodology ↗</a
-          >
-        </div>
-        <ol class="method-steps">
-          <li>
-            <span>01</span>
-            <div>
-              <strong>Specify</strong>
-              <p>Executable NumPy reference. Exact integers.</p>
-            </div>
-          </li>
-          <li>
-            <span>02</span>
-            <div>
-              <strong>Synthesize & verify</strong>
-              <p>Gate-level checks. Stalls. Back-to-back transactions.</p>
-            </div>
-          </li>
-          <li>
-            <span>03</span>
-            <div>
-              <strong>Freeze & replay</strong>
-              <p>Hashed artifacts. Auditable scores.</p>
-            </div>
-          </li>
-        </ol>
-      </section>
+      <p class="dataset-note" id="pilot-note"></p>
+      <noscript
+        ><p>
+          Enable JavaScript to explore the results, or
+          <a href="data/report.json">read the report</a>.
+        </p></noscript
+      >
     </main>
     <footer class="site-footer">
-      <div class="wrap cols">
-        <div>
-          <a class="footer-brand" href="index.html">ADPBench</a>
-          <p>An open measure of hardware intelligence.</p>
-        </div>
-        <div>
-          <span
-            >Snapshot <span id="meta-generated">—</span> ·
-            <code id="meta-commit">—</code></span
-          >
-          <p>
-            <a href="data/leaderboard.json">Leaderboard JSON</a>
-            <a href="data/report.json">Full report</a>
-            <a href="data/problems.json">Problem data</a>
-          </p>
-        </div>
+      <div>
+        <a href="https://github.com/arygupt/ADPBench">source</a><span>·</span
+        ><a href="data/leaderboard.json" download>results.json</a><span>·</span
+        ><a href="data/report.json">report</a><span>·</span
+        ><a href="data/problems.json">problems.json</a>
       </div>
+      <p>
+        snapshot <span id="meta-generated">—</span> ·
+        <code id="meta-commit">—</code>
+      </p>
     </footer>
-    <noscript
-      ><p class="wrap">
-        Enable JavaScript to explore the results, or
-        <a href="data/report.json">read the published report</a>.
-      </p></noscript
-    >
     <script src="assets/app.js"></script>
   </body>
 </html>
