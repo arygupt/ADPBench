@@ -88,15 +88,14 @@
       correctness_rate: "Passed all correctness checks",
       geomean: "Geometric mean ADP ratio · correct runs only",
     }[scoreMetric];
-    fill("#score-heading", label);
     fill("#rank-metric-label", {beat_rate: "Beat baseline", correctness_rate: "Correctness", geomean: "ADP gain"}[scoreMetric]);
     fill("#interval-label", isRate ? "/ 95% confidence interval" : "/ correct runs only");
     $("#chart-axis").innerHTML = [0, .25, .5, .75, 1].map((n) => `<span>${isRate ? pct(n) : `${(n * best).toFixed(1)}×`}</span>`).join("");
     fill(
       "#score-note",
       isRate
-        ? "Bars use a fixed 0–100% scale. Whiskers and ranges show 95% Wilson confidence intervals."
-        : "Correct-run geometric mean · bar = share of best · failures excluded from this secondary metric.",
+        ? "White lines: 95% confidence intervals."
+        : "Geometric mean · correct runs only · higher is better.",
     );
     fill(
       "#leaderboard-count",
@@ -189,8 +188,8 @@
     fill(
       "#matrix-note",
       operatorMetric === "ratio"
-        ? "ADP ratio = baseline / design · higher is better · bar = share of best correct result per operator."
-        : `${operatorMetric === "cells" ? "Cell count" : "Cycle count"} · lower is better · bar = best / value among correct results per operator. Incorrect designs receive no bar.`,
+        ? "ADP ratio = baseline / design · higher is better."
+        : `${operatorMetric === "cells" ? "Cell count" : "Cycle count"} · lower is better.`,
     );
   }
   function openRuns(label, problem, attempt) {
@@ -286,10 +285,6 @@
   function renderMeta() {
     const m = data.meta,
       runs = data.models.flatMap((m) => m.runs);
-    fill("#summary-models", data.models.length);
-    fill("#summary-operators", data.problems.length);
-    fill("#summary-attempts", runs.length);
-    fill("#summary-beating", `${runs.filter((r) => r.correct && r.ratio > 1).length} / ${runs.length}`);
     fill("#meta-generated", m.generated?.slice(0, 10) || "—");
     fill("#meta-commit", m.git_commit?.slice(0, 10) || "—");
     fill(

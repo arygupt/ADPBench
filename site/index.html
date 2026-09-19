@@ -15,7 +15,7 @@
       href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
       rel="stylesheet"
     />
-    <link rel="stylesheet" href="assets/style.css?v=accordion4" />
+    <link rel="stylesheet" href="assets/style.css?v=compact5" />
   </head>
   <body class="workspace">
     <a class="skip-link" href="#main">Skip to results</a>
@@ -31,23 +31,16 @@
     </header>
     <main id="main" class="wrap">
       <div class="page-intro">
-        <div><p class="eyebrow">ADPBENCH / EXPERIMENT RESULTS</p><h1>Hardware agent leaderboard.</h1><p class="intro-copy">Correctness and area–delay efficiency across AI-generated circuits.</p></div>
+        <h1>Results</h1>
         <a class="download-link" href="data/leaderboard.json" download>Download results <span aria-hidden="true">↓</span></a>
       </div>
-      <div class="experiment-summary" aria-label="Experiment overview">
-        <div><span>Evaluated systems</span><strong id="summary-models">—</strong></div>
-        <div><span>Hardware operators</span><strong id="summary-operators">—</strong></div>
-        <div><span>Recorded attempts</span><strong id="summary-attempts">—</strong></div>
-        <div><span>Beat baseline</span><strong id="summary-beating">—</strong></div>
-      </div>
       <div class="workspace-toolbar">
-        <nav class="view-tabs" aria-label="Jump to results"><a href="#models">Model rankings <span aria-hidden="true">↓</span></a><a href="#operators">By operator <span aria-hidden="true">↓</span></a></nav>
+        <p class="dataset-summary" id="dataset-summary">Loading results…</p>
         <input type="search" id="model-search" aria-label="Find a model" placeholder="Find a model…" />
       </div>
-      <p class="dataset-summary" id="dataset-summary">Loading published results…</p>
       <section class="benchmark-section" id="models" aria-labelledby="model-view-title">
         <div class="section-heading">
-          <div><h2 id="model-view-title">Model rankings</h2><p id="score-heading">Correct &amp; better than baseline</p></div>
+          <h2 id="model-view-title">Models</h2>
           <div class="segmented" role="group" aria-label="Rank models by">
             <button data-score="beat_rate" aria-pressed="true">Beat baseline</button>
             <button data-score="correctness_rate" aria-pressed="false">Correctness</button>
@@ -62,12 +55,12 @@
             <tfoot><tr><td></td><td><div id="chart-axis" class="chart-axis" aria-hidden="true"></div></td><td colspan="4"></td></tr></tfoot>
           </table>
         </div>
-        <p class="scroll-hint">Scroll the table horizontally to see all metrics →</p>
+        <p class="scroll-hint">Scroll for all metrics →</p>
         <div class="board-caption"><span id="score-note">Beat-baseline rate across all recorded attempts.</span><span id="leaderboard-count" role="status" aria-live="polite"></span></div>
       </section>
       <section class="benchmark-section" id="operators" aria-labelledby="operator-view-title">
         <div class="section-heading">
-          <div><h2 id="operator-view-title">Operator comparison</h2><p>Inspect every model–operator result.</p></div>
+          <h2 id="operator-view-title">Operators</h2>
           <div class="segmented" role="group" aria-label="Operator metric">
             <button data-metric="ratio" aria-pressed="true">ADP ratio</button>
             <button data-metric="cells" aria-pressed="false">Cells</button>
@@ -75,17 +68,22 @@
           </div>
         </div>
         <div class="board-scroll" id="heatmap" tabindex="0" role="region" aria-label="Operator results table"></div>
-        <p class="scroll-hint">Scroll the table horizontally to compare all operators →</p>
+        <p class="scroll-hint">Scroll for all operators →</p>
         <p class="board-caption" id="matrix-note"></p>
       </section>
       <div class="outcome-legend" aria-label="Result legend">
         <span><b class="legend-pass">pass</b> correct result</span
         ><span><b class="legend-wrong">wrong</b> incorrect RTL</span
         ><span><b class="legend-infra">infra</b> infrastructure failure</span
-        ><span><b class="legend-best">★</b> best value for the metric</span
-        ><span>click a model or result to inspect its runs</span>
+        ><span><b class="legend-best">★</b> best</span
+        >
       </div>
-      <p class="dataset-note" id="pilot-note"></p>
+      <details class="evaluation-notes">
+        <summary>Metric definitions &amp; evaluation notes</summary>
+        <p>Beat baseline: correct attempts with lower cells × cycles than the baseline, divided by all attempts. Correctness: correct attempts divided by all attempts.</p>
+        <p>ADP = cells × cycles. ADP gain is the geometric mean of baseline ADP / design ADP across correct runs only. White lines show 95% Wilson confidence intervals. Operator bars are relative to the best correct result.</p>
+        <p id="pilot-note"></p>
+      </details>
       <noscript
         ><p>
           Enable JavaScript to explore the results, or
@@ -105,6 +103,6 @@
         <code id="meta-commit">—</code>
       </p>
     </footer>
-    <script src="assets/app.js?v=accordion4"></script>
+    <script src="assets/app.js?v=compact5"></script>
   </body>
 </html>

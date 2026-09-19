@@ -24,8 +24,9 @@ host instead.
 The interface uses compact leaderboard rows with horizontal performance bars,
 aligned metric columns, and a shared percentage axis. A slim top navigation and
 experiment summary lead into the rankings, with the operator matrix directly
-below. The problem library stacks specifications 1–4 in a single column, with
-a download-specs button above the cards.
+below. The problem library lists numbered, collapsed disclosure rows in a
+single column, with a download-specs button above. Clicking or using the
+keyboard expands one problem at a time; direct problem links open that row.
 Typography uses Inter; the palette retains `#1a1a1a` charcoal, `#e7e5e4`
 off-white, `#a8a29e` stone gray, and `#f97316` orange.
 Model rows rank by beat-baseline rate, correctness, or correct-run geometric

@@ -1107,3 +1107,8 @@ dialog::backdrop {
   .problem-toggle .badge { font-size: 8px; padding: 4px; }
   .problem-content { padding: 18px 14px; }
 }
+
+.workspace-toolbar .dataset-summary { margin: 0; }
+.evaluation-notes { color: var(--muted); font-size: 11px; line-height: 1.8; margin-top: 18px; }
+.evaluation-notes summary { cursor: pointer; }
+.evaluation-notes p { max-width: 920px; margin-top: 12px; }
