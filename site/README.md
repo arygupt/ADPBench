@@ -21,9 +21,11 @@ variable is set. GitHub Pages is free for public repositories; a private
 repository needs a paid plan, in which case deploy the artifact to any static
 host instead.
 
-Design reference: [kernelbench.com](https://kernelbench.com/). A compact dark
-results board with green bars, a minimal header, and no landing-page hero or
-methodology page. The first board ranks models by beat-baseline rate,
+Layout reference: [kernelbench.com](https://kernelbench.com/). Typography and
+colors match [Aryaman's personal site](https://www.aryamangupta.me/): Inter,
+`#1a1a1a` charcoal, `#e7e5e4` off-white, and `#a8a29e` stone gray. Warm neutral
+bars and labeled outcomes retain the compact results layout, minimal header,
+and absence of a landing-page hero or methodology page. The first board ranks models by beat-baseline rate,
 correctness, or correct-run geometric mean. The operator board switches between
 ADP ratio, cells, and cycles. Search filters both boards.
 

@@ -246,7 +246,7 @@
         ]
           .map(
             ([label, value]) =>
-              `<div class="bar-row"><span>${label}</span><span class="bar-track"><span class="bar-fill" style="width:${max > 0 && value > 0 ? (value / max) * 100 : 0}%;${label === "Sanity" ? "background:var(--green)" : ""}"></span></span><span class="bar-num">${int(value)}</span></div>`,
+              `<div class="bar-row"><span>${label}</span><span class="bar-track"><span class="bar-fill" style="width:${max > 0 && value > 0 ? (value / max) * 100 : 0}%;${label === "Sanity" ? "background:var(--muted)" : ""}"></span></span><span class="bar-num">${int(value)}</span></div>`,
           )
           .join(
             "",
