@@ -1,288 +1,372 @@
-/* ADPBench site renderer. Zero dependencies. Leaderboard bars follow
-   DeepSWE's design: rank-colored 6px bars, score + Wilson CI, badge chips. */
-(function () {
+/* Published records are the source of truth. No framework or build step. */
+(() => {
   "use strict";
+  const $ = (s, root = document) => root.querySelector(s);
+  const $$ = (s, root = document) => [...root.querySelectorAll(s)];
+  const esc = (v) =>
+    String(v ?? "").replace(
+      /[&<>"']/g,
+      (c) =>
+        ({
+          "&": "&amp;",
+          "<": "&lt;",
+          ">": "&gt;",
+          '"': "&quot;",
+          "'": "&#39;",
+        })[c],
+    );
+  const int = (n) =>
+    Number.isFinite(n) && n >= 0 ? n.toLocaleString("en-US") : "—";
+  const pct = (n) => (Number.isFinite(n) ? `${Math.round(n * 100)}%` : "—");
+  const ratio = (n) => (n > 0 ? `${n.toFixed(2)}×` : "—");
+  const short = (label) =>
+    label.replace(/^opencode\//, "").replace(/-free$/, "");
+  let data, dialog, returnFocus;
+  const title = (name) =>
+    data.problems.find((p) => p.name === name)?.title || name;
+  const ranked = (models) =>
+    [...models].sort(
+      (a, b) =>
+        b.beat_rate - a.beat_rate ||
+        b.correctness_rate - a.correctness_rate ||
+        b.geomean - a.geomean ||
+        a.label.localeCompare(b.label),
+    );
+  // Match report.RunSummary.kind, including a timeout with a scored wrong design.
+  function state(run) {
+    if (run.correct)
+      return run.ratio > 1
+        ? { cls: "beat", label: "Beat baseline", value: ratio(run.ratio) }
+        : { cls: "correct", label: "Correct, ≤ 1×", value: ratio(run.ratio) };
+    if (
+      run.error ||
+      ["no result", "no_result"].includes(run.stage) ||
+      (run.timed_out && !run.stage)
+    )
+      return { cls: "infra", label: "Infrastructure", value: "infra" };
+    return { cls: "fail", label: "Incorrect RTL", value: "wrong" };
+  }
+  function wilson(k, n) {
+    if (!n) return [0, 0];
+    const z2 = 1.96 ** 2,
+      p = k / n,
+      d = 1 + z2 / n,
+      c = (p + z2 / (2 * n)) / d,
+      h = (1.96 * Math.sqrt((p * (1 - p)) / n + z2 / (4 * n * n))) / d;
+    return [Math.max(0, c - h), Math.min(1, c + h)];
+  }
+  function fill(selector, text) {
+    $$(selector).forEach((el) => (el.textContent = text));
+  }
 
-  const $ = (sel, root) => (root || document).querySelector(sel);
-  const $$ = (sel, root) => Array.from((root || document).querySelectorAll(sel));
-
-  const MODEL_COLORS = ["#6366f1", "#22c55e", "#f59e0b", "#06b6d4", "#a78bfa",
-    "#f43f5e", "#84cc16", "#818cf8", "#14b8a6", "#c084fc"];
-  const PALETTE = new Map();
-
-  const fmt = {
-    int: (n) => n.toLocaleString("en-US"),
-    pct: (x) => `${Math.round(x * 100)}%`,
-    ratio: (x) => (x > 0 ? `${x.toFixed(2)}×` : "—"),
-    adp: (x) => (x > 0 ? fmt.int(Math.round(x)) : "—"),
-    sha: (s) => (s ? s.slice(0, 10) : ""),
-    secs: (s) => (s > 0 ? `${Math.round(s)}s` : ""),
+  let scoreMetric = "beat_rate",
+    operatorMetric = "ratio";
+  const names = {
+    "opencode/mimo-v2.5-free": "MiMo v2.5",
+    "opencode/muse-spark-1.3-contributor-free": "Muse Spark 1.3",
+    "opencode/nemotron-3-ultra-free": "Nemotron 3 Ultra",
+    "opencode/nemotron-3.5-lightning-free": "Nemotron 3.5 Lightning",
+    "opencode/ling-3.0-flash-fin-free": "Ling 3.0 Flash Fin",
   };
-
-  /* ------------------------------------------------------------ data */
-
-  async function loadData() {
-    const [leaderboard, problems] = await Promise.all([
-      fetch("data/leaderboard.json").then((r) => r.json()),
-      fetch("data/problems.json").then((r) => r.json()).catch(() => null),
-    ]);
-    return { leaderboard, problems };
+  const displayName = (model) => names[model.label] || short(model.label);
+  function modelButton(model) {
+    return `<button class="model-button" data-model="${esc(model.label)}" title="${esc(model.label)}" aria-label="Inspect ${esc(displayName(model))} runs"><span class="model-icon" aria-hidden="true">${esc(displayName(model).slice(0, 1))}</span><span class="model-label">${esc(displayName(model))}</span></button>`;
   }
-
-  function problemTitle(data, name) {
-    const problem = data.problems.find((p) => p.name === name);
-    return problem ? problem.title : name;
-  }
-
-  function colorFor(label) {
-    if (!PALETTE.has(label)) {
-      PALETTE.set(label, MODEL_COLORS[PALETTE.size % MODEL_COLORS.length]);
-    }
-    return PALETTE.get(label);
-  }
-
-  /* rank: beat-baseline rate, then correctness rate, then geomean */
-  function rankedModels(models) {
-    return [...models].sort((a, b) =>
-      b.beat_rate - a.beat_rate ||
-      b.correctness_rate - a.correctness_rate ||
-      b.geomean - a.geomean
+  function renderResults() {
+    if (!$("#leaderboard-rows") || !data) return;
+    const query = $("#model-search").value.trim().toLowerCase();
+    const all = ranked(data.models).sort(
+      (a, b) => b[scoreMetric] - a[scoreMetric],
+    );
+    const models = all.filter((m) =>
+      `${m.label} ${displayName(m)}`.toLowerCase().includes(query),
+    );
+    const best = Math.max(0, ...all.map((m) => m[scoreMetric]));
+    const isRate = scoreMetric !== "geomean";
+    const label = {
+      beat_rate: "Correct & better than baseline",
+      correctness_rate: "Passed all correctness checks",
+      geomean: "Geometric mean ADP ratio · correct runs only",
+    }[scoreMetric];
+    fill("#rank-metric-label", {beat_rate: "Beat baseline", correctness_rate: "Correctness", geomean: "ADP gain"}[scoreMetric]);
+    fill("#interval-label", isRate ? "/ 95% confidence interval" : "/ correct runs only");
+    $("#chart-axis").innerHTML = [0, .25, .5, .75, 1].map((n) => `<span>${isRate ? pct(n) : `${(n * best).toFixed(1)}×`}</span>`).join("");
+    fill(
+      "#score-note",
+      isRate
+        ? "White lines: 95% confidence intervals."
+        : "Geometric mean · correct runs only · higher is better.",
+    );
+    fill(
+      "#leaderboard-count",
+      `${models.length} / ${data.models.length} models`,
+    );
+    $("#leaderboard-rows").innerHTML =
+      models
+        .map((m) => {
+          const value = m[scoreMetric],
+            [low, high] = wilson(
+              scoreMetric === "beat_rate" ? m.beating : m.correct,
+              m.attempts,
+            );
+          const text = isRate ? pct(value) : ratio(value);
+          const width = isRate
+            ? value * 100
+            : best > 0
+              ? (Math.max(0, value) / best) * 100
+              : 0;
+          const tooltip = isRate
+            ? `${label}: ${text}; 95% Wilson interval ${pct(low)}–${pct(high)}. ${m.correct}/${m.attempts} correct attempts.`
+            : `${text} geometric mean across ${m.correct} correct attempts; ${m.attempts} total attempts.`;
+          return `<tr><th scope="row">${modelButton(m)}</th><td><button class="comparison-bar ${value === best && value > 0 ? "best" : ""}" data-model="${esc(m.label)}" title="${esc(tooltip)}" aria-label="${esc(displayName(m))}: ${esc(tooltip)}"><span class="comparison-track" aria-hidden="true"><span class="comparison-fill" style="width:${width}%"></span>${isRate ? `<span class="confidence-whisker" style="left:${low * 100}%;width:${(high - low) * 100}%"></span>` : ""}</span></button></td><td class="primary-stat"><strong>${text}</strong>${isRate ? `<span class="interval-range" title="95% Wilson confidence interval">${pct(low)}–${pct(high)}</span>` : ""}</td><td class="numeric-stat">${m.correct}/${m.attempts}</td><td class="numeric-stat">${ratio(m.geomean)}</td><td class="numeric-stat">${m.attempts}</td></tr>`;
+        })
+        .join("") ||
+      '<tr><td colspan="6" class="empty-state">No matching models. Try another name.</td></tr>';
+    const bestByProblem = new Map(
+      data.problems.map((p) => {
+        const values = data.models
+          .flatMap((m) => m.runs)
+          .filter(
+            (r) => r.problem === p.name && r.correct && r[operatorMetric] > 0,
+          )
+          .map((r) => r[operatorMetric]);
+        return [
+          p.name,
+          values.length
+            ? operatorMetric === "ratio"
+              ? Math.max(...values)
+              : Math.min(...values)
+            : 0,
+        ];
+      }),
+    );
+    $("#heatmap").innerHTML =
+      `<table class="results-table matrix-table"><thead><tr><th scope="col">Model</th>${data.problems.map((p) => `<th scope="col"><a href="problems.html#${esc(p.name)}">${esc(p.title)}</a></th>`).join("")}<th scope="col" class="correct-heading">Correct</th></tr></thead><tbody>${
+        models
+          .map(
+            (m) =>
+              `<tr><td>${modelButton(m)}</td>${data.problems
+                .map((p) => {
+                  const runs = m.runs
+                    .filter((r) => r.problem === p.name)
+                    .sort((a, b) => a.attempt - b.attempt);
+                  return `<td>${
+                    runs.length
+                      ? runs
+                          .map((r) => {
+                            const s = state(r),
+                              value = r[operatorMetric],
+                              best = bestByProblem.get(p.name);
+                            const valid = r.correct && value > 0,
+                              width =
+                                valid && best > 0
+                                  ? (operatorMetric === "ratio"
+                                      ? value / best
+                                      : best / value) * 100
+                                  : 0;
+                            const text = valid
+                              ? operatorMetric === "ratio"
+                                ? ratio(value)
+                                : int(value)
+                              : r.correct
+                                ? "—"
+                                : s.value;
+                            const tooltip = `${displayName(m)} · ${p.title} · attempt ${r.attempt}: ${s.label}. ${valid ? text + " " + operatorMetric : "No valid score"}`;
+                            return `<button class="result-bar ${s.cls} ${valid && value === best ? "best" : ""}" style="--fill:${width}%" data-model="${esc(m.label)}" data-problem="${esc(p.name)}" data-attempt="${r.attempt}" title="${esc(tooltip)}" aria-label="${esc(tooltip)}">${text}${runs.length > 1 ? ` <small> · #${r.attempt}</small>` : ""}${valid && value === best ? '<span class="star" aria-hidden="true">★</span>' : ""}</button>`;
+                          })
+                          .join("")
+                      : '<span class="result-bar none" aria-label="Not run">—</span>'
+                  }</td>`;
+                })
+                .join(
+                  "",
+                )}<td><span class="correct-count" title="${m.correct}/${m.attempts} correct"><span>${m.correct}/${m.attempts}</span></span></td></tr>`,
+          )
+          .join("") ||
+        `<tr><td colspan="${data.problems.length + 2}" class="empty-state">No matching models.</td></tr>`
+      }</tbody></table>`;
+    fill(
+      "#matrix-note",
+      operatorMetric === "ratio"
+        ? "ADP ratio = baseline / design · higher is better."
+        : `${operatorMetric === "cells" ? "Cell count" : "Cycle count"} · lower is better.`,
     );
   }
-
-  function cellState(run) {
-    if (run.correct && run.ratio > 1.0) return { cls: "beat", text: fmt.ratio(run.ratio) };
-    if (run.correct) return { cls: "correct", text: fmt.ratio(run.ratio) };
-    if (run.error || run.stage === "no result" || (run.timed_out && !run.stage))
-      return { cls: "correct", text: "⚠" };
-    if (run.stage) return { cls: "fail", text: "✗" };
-    return { cls: "none", text: "—" };
-  }
-
-  function cellTitle(run) {
-    const parts = [];
-    if (run.correct) parts.push(`correct, ${fmt.ratio(run.ratio)}`);
-    else if (run.error) parts.push(`infrastructure: ${run.error.slice(0, 60)}`);
-    else if (run.correctness) parts.push(run.correctness.slice(0, 80));
-    else parts.push("no submission");
-    if (run.cells > 0) parts.push(`${fmt.int(run.cells)} cells × ${fmt.int(run.cycles)} cycles`);
-    if (run.timed_out) parts.push("agent timed out");
-    return parts.join(" · ");
-  }
-
-  /* ------------------------------------------------------------ stats */
-
-  function renderStatStrip(data) {
-    const strip = $("#stat-strip");
-    if (!strip) return;
-    const models = data.models;
-    const runs = models.flatMap((m) => m.runs);
-    const correct = runs.filter((r) => r.correct).length;
-    const best = Math.max(0, ...runs.map((r) => r.ratio || 0));
-    const geomeans = models.map((m) => m.geomean).filter((g) => g > 0);
-    const geomean = geomeans.length
-      ? Math.exp(geomeans.reduce((s, g) => s + Math.log(g), 0) / geomeans.length)
-      : 0;
-    const stats = [
-      { value: String(data.problems.length), label: "Problems" },
-      { value: String(models.length), label: "Evaluated systems" },
-      { value: String(runs.length), label: "Sandboxed runs" },
-      { value: fmt.pct(correct / runs.length), label: "Correct" },
-      { value: fmt.ratio(best), label: "Best speedup" },
-      { value: fmt.ratio(geomean), label: "Geomean, successful" },
-    ];
-    strip.innerHTML = stats.map(
-      (s) => `<div class="stat"><div class="stat-value">${s.value}</div><div class="stat-label">${s.label}</div></div>`
-    ).join("");
-  }
-
-  /* ------------------------------------------------------------ leaderboard */
-
-  function renderLeaderboard(data) {
-    const tbody = $("#leaderboard-rows");
-    const count = $("#leaderboard-count");
-    if (!tbody) return;
-    if (count) count.textContent = `${data.models.length} / ${data.models.length} models`;
-    const ranked = rankedModels(data.models);
-    tbody.innerHTML = ranked.map((model, index) => {
-      const color = colorFor(model.label);
-      const rankCls = index === 0 ? "lb-rank-1" : index === 1 ? "lb-rank-2" : index === 2 ? "lb-rank-3" : "lb-other";
-      const scorePct = Math.round(model.beat_rate * 100);
-      const tier = /free/.test(model.label) ? "free" : "";
-      const geomean = model.geomean > 0 ? fmt.ratio(model.geomean) : "";
-      return `<div class="leaderboard-row ${rankCls}" data-model="${escapeHtml(model.label)}">
-        <span class="lb-rank${index < 3 ? " top" : ""}">${index + 1}</span>
-        <span class="lb-model">
-          <span class="model-dot" style="background:${color}"></span>
-          ${escapeHtml(model.label)}
-          ${tier ? `<span class="badge">${tier}</span>` : ""}
-        </span>
-        <span class="lb-score">${scorePct}% <span class="lb-ci">${model.score_ci || ""}</span></span>
-        <span class="lb-bar-wrap"><span class="lb-bar"><span class="lb-bar-fill" style="width:${scorePct}%"></span></span></span>
-      </div>
-      <div class="detail-panel hidden" data-detail="${escapeHtml(model.label)}">
-        <div class="panel-title">${escapeHtml(model.label)} — per-problem runs · correct ${model.correct}/${model.attempts} · ${geomean ? "geomean " + geomean : "no successful runs"} · ${model.wrong_rtl} wrong · ${model.infra} infra</div>
-        <div class="run-grid">${renderRunCards(model, data)}</div>
-      </div>`;
-    }).join("");
-
-    tbody.querySelectorAll(".leaderboard-row").forEach((row) => {
-      row.addEventListener("click", () => toggleDetail(row.dataset.model));
-    });
-    $$(".hm-cell", document).forEach((el) => {
-      el.addEventListener("click", () => openDetail(el.dataset.model));
-    });
-  }
-
-  function renderRunCards(model, data) {
-    const order = data.problems.map((p) => p.name);
-    const runs = [...model.runs].sort(
-      (a, b) => order.indexOf(a.problem) - order.indexOf(b.problem)
+  function openRuns(label, problem, attempt) {
+    const model = data.models.find((m) => m.label === label);
+    if (!model) return;
+    returnFocus = document.activeElement;
+    const runs = model.runs.filter(
+      (r) =>
+        (!problem || r.problem === problem) &&
+        (!attempt || r.attempt === attempt),
     );
-    return runs.map((run) => {
-      const state = cellState(run);
-      const badge = run.correct
-        ? `<span class="rc-status ok">correct</span>`
-        : run.error || run.stage === "no result" || (run.timed_out && !run.stage)
-          ? `<span class="rc-status inf">infra</span>`
-          : run.stage
-            ? `<span class="rc-status fail">failed</span>`
-            : `<span class="rc-status none">no submission</span>`;
-      const meta = run.cells > 0
-        ? `${fmt.int(run.cells)} cells × ${fmt.int(run.cycles)} cycles = ${fmt.adp(run.adp)} adp`
-        : run.timed_out ? "agent timed out" : "—";
-      const hash = run.submission_sha256
-        ? `submission ${fmt.sha(run.submission_sha256)} · netlist ${fmt.sha(run.netlist_sha256)}`
-        : "";
-      const detail = run.correctness ? escapeHtml(run.correctness.slice(0, 110)) : "";
-      return `<div class="run-card">
-        <div class="rc-head">
-          <span class="rc-problem">${escapeHtml(problemTitle(data, run.problem))}</span>
-          <span class="rc-ratio" style="color:${run.correct && run.ratio > 1 ? "var(--green)" : "var(--text)"}">${state.text}</span>
-        </div>
-        <div class="rc-meta">${meta}${hash ? `<br>${hash}` : ""}</div>
-        <div style="display:flex;justify-content:space-between;align-items:center;gap:8px">
-          ${badge}
-          <span style="color:var(--text-tertiary);font-size:11.5px">${fmt.secs(run.duration_s)} · ${run.history} tested</span>
-        </div>
-        ${detail ? `<div style="color:var(--text-tertiary);font-size:11.5px;margin-top:8px">${detail}</div>` : ""}
-      </div>`;
-    }).join("");
+    dialog.innerHTML = `<div class="dialog-head"><div><p class="eyebrow">FROZEN RUN RECORDS · ${esc(data.meta.pilot)}</p><h2 id="dialog-title">${esc(displayName(model))}</h2></div><button class="dialog-close" aria-label="Close run details" autofocus>×</button></div><div class="dialog-body"><div class="dialog-summary"><span class="badge">${model.beating}/${model.attempts} beat baseline</span><span class="badge">${model.correct}/${model.attempts} correct</span><span class="badge">${model.wrong_rtl} wrong RTL</span><span class="badge">${model.infra} infrastructure</span></div><div class="run-grid">${runs
+      .map((r) => {
+        const s = state(r);
+        return `<article class="run-card"><div class="rc-head"><strong>${esc(title(r.problem))}</strong><span class="rc-status ${s.cls}">${s.label}</span></div><p class="rc-meta">Attempt ${r.attempt} · ${int(Math.round(r.duration_s))}s · ${int(r.history)} check${r.history === 1 ? "" : "s"}${r.timed_out ? " · agent timed out" : ""}</p><div class="rc-ratio">${r.correct ? ratio(r.ratio) : "—"}</div><p class="metric-caption">${r.correct ? "baseline ADP / design ADP" : "No valid ADP score"}</p><p class="rc-meta">${int(r.cells)} cells × ${int(r.cycles)} cycles<br>ADP ${int(r.adp)}<br>Stage: ${esc(r.stage || "not reported")} · audit ${r.audit_ok ? "passed" : "not passed"}</p>${[
+          r.correctness,
+          r.error,
+        ]
+          .filter(Boolean)
+          .map((text) => `<p class="rc-detail">${esc(text)}</p>`)
+          .join(
+            "",
+          )}<details><summary>Inspect artifact hashes</summary><p>Submission SHA-256</p><p class="hash-value">${esc(r.submission_sha256 || "Not recorded")}</p><p>Netlist SHA-256</p><p class="hash-value">${esc(r.netlist_sha256 || "Not recorded")}</p></details></article>`;
+      })
+      .join(
+        "",
+      )}</div><p class="pilot-note">Ratios are area–delay improvements, not clock-speed measurements. <a href="data/leaderboard.json">Read the source records ↗</a></p></div>`;
+    const interval = (count) =>
+      wilson(count, model.attempts).map(pct).join("–");
+    $(".dialog-summary", dialog).insertAdjacentHTML(
+      "afterend",
+      `<p class="rc-meta">${esc(model.label)}<br>95% Wilson intervals · beat baseline ${interval(model.beating)} · correctness ${interval(model.correct)}</p>`,
+    );
+    $(".dialog-close", dialog).addEventListener("click", () => dialog.close());
+    dialog.showModal();
+    document.body.style.overflow = "hidden";
+  }
+  function renderProblems() {
+    if (!$("#problem-grid")) return;
+    $("#problem-grid").innerHTML = data.problems
+      .map((p, i) => {
+        const b = p.baseline || {},
+          s = p.sanity || {},
+          max = Math.max(b.adp || 0, s.adp || 0),
+          src = `https://github.com/arygupt/ADPBench/blob/main/problems/level${p.level}/${encodeURIComponent(p.name)}`;
+        return `<details class="problem-card problem-accordion" name="problems" id="${esc(p.name)}"><summary class="problem-toggle"><span class="problem-number">${String(i + 1).padStart(2, "0")}</span><span class="problem-title">${esc(p.title)}</span><span class="badge">LEVEL ${p.level}</span><span class="problem-chevron" aria-hidden="true">+</span></summary><div class="problem-content"><p class="pc-desc">${p.transactions} back-to-back transactions · ${p.out_len} output word${p.out_len === 1 ? "" : "s"} per transaction. Exact integer arithmetic, with no reset between transactions.</p><div class="chip-row">${Object.entries(
+          p.params || {},
+        )
+          .map(([k, v]) => `<span class="chip">${esc(k)} ${esc(v)}</span>`)
+          .join(
+            "",
+          )}</div><div class="pc-metrics"><div><strong>${int(b.cells)}</strong><span>baseline cells</span></div><div><strong>${int(b.cycles)}</strong><span>baseline cycles</span></div><div><strong>${ratio(s.correct ? s.ratio : 0)}</strong><span>sanity ADP improvement</span></div></div><p class="eyebrow">AREA–DELAY PRODUCT · LOWER IS BETTER</p><div class="bar-pair">${[
+          ["Baseline", b.adp],
+          ["Sanity", s.correct ? s.adp : null],
+        ]
+          .map(
+            ([label, value]) =>
+              `<div class="bar-row"><span>${label}</span><span class="bar-track"><span class="bar-fill" style="width:${max > 0 && value > 0 ? (value / max) * 100 : 0}%;${label === "Sanity" ? "background:var(--muted)" : ""}"></span></span><span class="bar-num">${int(value)}</span></div>`,
+          )
+          .join(
+            "",
+          )}</div><details><summary>Interface, arithmetic & edge cases</summary><table class="contract-table"><tbody>${Object.entries(
+          p.input_lens || {},
+        )
+          .map(
+            ([k, v]) =>
+              `<tr><th scope="row">${esc(k)}</th><td>${v} elements / transaction</td></tr>`,
+          )
+          .join("")}${Object.entries(p.quant || {})
+          .map(
+            ([k, v]) =>
+              `<tr><th scope="row">${esc(k)}</th><td>${esc(v)}</td></tr>`,
+          )
+          .join(
+            "",
+          )}</tbody></table><div class="chip-row">${(p.directed || []).map((d) => `<span class="chip">${esc(d)}</span>`).join("")}</div></details><div class="pc-links"><a href="${src}/dut.py" target="_blank" rel="noopener">View executable spec ↗</a><a href="${src}/baseline.v" target="_blank" rel="noopener">Baseline RTL ↗</a></div></div></details>`;
+      })
+      .join("");
+    const revealProblem = () => {
+      let id;
+      try { id = decodeURIComponent(location.hash.slice(1)); }
+      catch { return; }
+      const target = document.getElementById(id);
+      if (target?.classList.contains("problem-accordion")) {
+        target.open = true;
+        target.scrollIntoView();
+      }
+    };
+    revealProblem();
+    window.addEventListener("hashchange", revealProblem);
   }
 
-  function toggleDetail(modelLabel) {
-    const panel = document.querySelector(`.detail-panel[data-detail="${cssEscape(modelLabel)}"]`);
-    const row = document.querySelector(`.leaderboard-row[data-model="${cssEscape(modelLabel)}"]`);
-    if (!panel || !row) return;
-    const open = panel.classList.toggle("hidden");
-    row.classList.toggle("open", !open);
+  function renderMeta() {
+    const m = data.meta,
+      runs = data.models.flatMap((m) => m.runs);
+    fill("#meta-generated", m.generated?.slice(0, 10) || "—");
+    fill("#meta-commit", m.git_commit?.slice(0, 10) || "—");
+    fill(
+      "#dataset-summary",
+      `${m.pilot || "published pilot"} · ${data.models.length} models · ${data.problems.length} operators · ${runs.length} attempts`,
+    );
+    fill(
+      "#pilot-note",
+      `${m.repetitions || 1} attempt(s) per model–problem pair · ${m.budget_s ? m.budget_s / 60 + " min budget" : "budget unreported"} · ${m.sandbox?.mode || "sandbox unreported"}. Cells × cycles is an area–delay proxy, not a power or physical-timing measurement. Small pilot; model variance is not yet established.`,
+    );
   }
-
-  function openDetail(modelLabel) {
-    const panel = document.querySelector(`.detail-panel[data-detail="${cssEscape(modelLabel)}"]`);
-    if (panel && panel.classList.contains("hidden")) toggleDetail(modelLabel);
-    const row = document.querySelector(`.leaderboard-row[data-model="${cssEscape(modelLabel)}"]`);
-    if (row) row.scrollIntoView({ behavior: "smooth", block: "center" });
-  }
-
-  function renderHeatmap(data) {
-    const wrap = $("#heatmap");
-    if (!wrap) return;
-    const problems = data.problems.map((p) => p.name);
-    const ranked = rankedModels(data.models);
-    const head = `<tr><th></th>${problems.map((p) => `<th>${escapeHtml(problemTitle(data, p))}</th>`).join("")}</tr>`;
-    const body = ranked.map((model) => {
-      const cells = problems.map((name) => {
-        const run = model.runs.find((r) => r.problem === name);
-        const state = run ? cellState(run) : { cls: "none", text: "—" };
-        return `<td><div class="hm-cell ${state.cls}" title="${run ? cellTitle(run) : "not run"}" data-model="${model.label}" data-problem="${name}">${state.text}</div></td>`;
-      }).join("");
-      return `<tr><th><span class="lb-model"><span class="model-dot" style="background:${colorFor(model.label)}"></span>${escapeHtml(model.label)}</span></th>${cells}</tr>`;
-    }).join("");
-    wrap.innerHTML = `<table>${head}${body}</table>
-      <div class="legend">
-        <span><span class="swatch" style="background:var(--green)"></span>beat baseline (&gt;1×)</span>
-        <span><span class="swatch" style="background:var(--orange)"></span>correct ≤ 1× / infra</span>
-        <span><span class="swatch" style="background:var(--red)"></span>incorrect</span>
-        <span><span class="swatch" style="background:var(--text-tertiary)"></span>no submission</span>
-      </div>`;
-    wrap.querySelectorAll(".hm-cell").forEach((el) => {
-      el.addEventListener("click", () => openDetail(el.dataset.model));
+  function setupShell() {
+    dialog = document.createElement("dialog");
+    dialog.setAttribute("aria-labelledby", "dialog-title");
+    document.body.append(dialog);
+    dialog.addEventListener("close", () => {
+      document.body.style.overflow = "";
+      returnFocus?.focus();
     });
+    document.addEventListener("click", (e) => {
+      const button = e.target.closest("[data-model]");
+      if (button && data)
+        openRuns(
+          button.dataset.model,
+          button.dataset.problem,
+          Number(button.dataset.attempt) || undefined,
+        );
+    });
+    $$("[data-score]").forEach((button) =>
+      button.addEventListener("click", () => {
+        scoreMetric = button.dataset.score;
+        $$("[data-score]").forEach((b) =>
+          b.setAttribute("aria-pressed", String(b === button)),
+        );
+        renderResults();
+      }),
+    );
+    $$("[data-metric]").forEach((button) =>
+      button.addEventListener("click", () => {
+        operatorMetric = button.dataset.metric;
+        $$("[data-metric]").forEach((b) =>
+          b.setAttribute("aria-pressed", String(b === button)),
+        );
+        renderResults();
+      }),
+    );
+    $("#model-search")?.addEventListener("input", renderResults);
   }
-
-  /* ------------------------------------------------------------ problems */
-
-  function renderProblems(data) {
-    const grid = $("#problem-grid");
-    if (!grid) return;
-    grid.innerHTML = data.problems.map((p) => {
-      const baseline = p.baseline || {};
-      const sanity = p.sanity || {};
-      const ports = Object.entries(p.input_lens || {})
-        .map(([port, len]) => `<span class="chip"><b>${escapeHtml(port)}</b> ${len}</span>`)
-        .join("");
-      const sanityWidth = sanity.ratio ? Math.round((1 / sanity.ratio) * 100) : 0;
-      const quant = Object.entries(p.quant || {})
-        .filter(([k]) => k !== "tolerance")
-        .map(([k, v]) => `<span class="chip" title="${escapeHtml(v)}">${escapeHtml(k)}</span>`)
-        .join("");
-      const directed = (p.directed || []).map((d) => `<span class="chip">${escapeHtml(d)}</span>`).join("");
-      return `<div class="problem-card">
-        <h3>${escapeHtml(p.title)} <span class="badge">${escapeHtml(p.name)}</span><span class="badge" style="background:var(--bg-hover);color:var(--text-tertiary)">level ${p.level}</span></h3>
-        <div class="chip-row">${ports}</div>
-        <div class="pc-desc">${fmt.int(p.transactions)} back-to-back transactions · ${fmt.int(p.out_len)} output word${p.out_len === 1 ? "" : "s"} per transaction · lanes = ${p.params.LANES}, data = ${p.params.DATA_W} bit, acc = ${p.params.ACC_W} bit</div>
-        <div class="chip-row">${quant}</div>
-        <div class="chip-row">${directed ? `<span class="chip">directed: ${directed}</span>` : ""}</div>
-        <div class="bar-pair">
-          <div class="bar-row"><span>baseline</span><span class="bar-track"><span class="bar-fill" style="width:100%;background:var(--text-tertiary)"></span></span><span class="bar-num">${fmt.int(baseline.cells || 0)}c · ${fmt.int(baseline.cycles || 0)}cy</span></div>
-          <div class="bar-row"><span>sanity</span><span class="bar-track"><span class="bar-fill" style="width:${sanityWidth}%;background:var(--green)"></span></span><span class="bar-num">${sanity.ratio ? fmt.ratio(sanity.ratio) : "—"}</span></div>
-        </div>
-      </div>`;
-    }).join("");
+  async function getJSON(path) {
+    const response = await fetch(path);
+    if (!response.ok)
+      throw new Error(`Could not load ${path} (${response.status})`);
+    return response.json();
   }
-
-  /* ------------------------------------------------------------ meta */
-
-  function renderMeta(data) {
-    const meta = data.meta || {};
-    const fill = (sel, value) => { const el = $(sel); if (el) el.textContent = value; };
-    fill("#meta-commit", meta.git_commit ? meta.git_commit.slice(0, 12) : "—");
-    fill("#meta-pilot", meta.pilot || "—");
-    fill("#meta-yosys", (meta.tools && meta.tools.yosys) || "—");
-    fill("#meta-iverilog", (meta.tools && meta.tools.iverilog) || "—");
-    fill("#meta-generated", meta.generated || "—");
-    fill("#meta-budget", meta.budget_s ? `${meta.budget_s}s per run` : "—");
-    const seeds = $("#meta-seeds");
-    if (seeds && meta.cases) {
-      seeds.innerHTML = `<span class="chip">seeds ${(meta.cases.seeds || []).join(", ")}</span>
-        <span class="chip">${meta.cases.transactions} transactions</span>`;
-    }
-  }
-
-  /* ------------------------------------------------------------ helpers */
-
-  function escapeHtml(text) {
-    return String(text).replace(/[&<>"']/g, (ch) => ({
-      "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;",
-    })[ch]);
-  }
-
-  function cssEscape(value) {
-    return typeof CSS !== "undefined" && CSS.escape
-      ? CSS.escape(value)
-      : String(value).replace(/[^a-zA-Z0-9_-]/g, "\\$&");
-  }
-
-  /* ------------------------------------------------------------ boot */
-
   document.addEventListener("DOMContentLoaded", async () => {
-    const { leaderboard, problems } = await loadData();
-    const data = { ...leaderboard, problems: problems ? problems.problems : leaderboard.problems };
-    renderStatStrip(data);
-    renderLeaderboard(data);
-    renderHeatmap(data);
-    renderProblems(data);
-    renderMeta(data);
+    setupShell();
+    try {
+      const [leaderboard, problems] = await Promise.all([
+        getJSON("data/leaderboard.json"),
+        getJSON("data/problems.json").catch(() => null),
+      ]);
+      if (
+        !Array.isArray(leaderboard.models) ||
+        !Array.isArray(problems?.problems || leaderboard.problems)
+      )
+        throw new Error("Invalid published dataset");
+      data = {
+        ...leaderboard,
+        meta: leaderboard.meta || {},
+        problems: problems?.problems || leaderboard.problems,
+      };
+      renderResults();
+      renderProblems();
+      renderMeta();
+    } catch (error) {
+      $("#main").insertAdjacentHTML(
+        "afterbegin",
+        '<div class="error-state" role="alert"><strong>Published results could not load.</strong><p>Refresh to retry or <a href="data/report.json">open the report</a>.</p></div>',
+      );
+      $$(".loading").forEach((el) => el.remove());
+      fill("#dataset-summary", "Results unavailable");
+      console.error(error);
+    }
   });
 })();

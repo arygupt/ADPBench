@@ -1,122 +1,108 @@
 <!doctype html>
 <html lang="en">
-<head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>ADPBench — silicon-cost leaderboard for AI-written RTL</title>
-  <meta name="description" content="ADPBench: a KernelBench-shaped benchmark for AI-generated Verilog, scored on area-delay product (cells × cycles)." />
-  <link rel="icon" href="favicon.svg" type="image/svg+xml" />
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;450;500;550;600;650;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="assets/style.css" />
-</head>
-<body>
-  <header class="site-header">
-    <a class="brand" href="index.html">
-      <svg class="mark" viewBox="0 0 26 26" fill="none" aria-hidden="true">
-        <rect x="1" y="1" width="24" height="24" rx="6" stroke="#6366f1" stroke-width="2"/>
-        <path d="M7 9h12M7 13h12M7 17h7" stroke="#6366f1" stroke-width="2" stroke-linecap="round"/>
-      </svg>
-      ADPBench <span class="brand-sub">· cells × cycles</span>
-    </a>
-    <nav class="site-nav" aria-label="Primary">
-      <a href="index.html" class="active">Leaderboard</a>
-      <a href="problems.html">Problems</a>
-      <a href="methodology.html">Methodology</a>
-    </nav>
-    <div class="header-actions">
-      <a class="icon-btn" href="https://github.com/arygupt/ADPBench" target="_blank" rel="noopener" aria-label="GitHub repository" title="GitHub repository">
-        <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27s1.36.09 2 .27c1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8Z"/></svg>
-      </a>
-    </div>
-  </header>
-
-  <main class="wrap">
-    <section class="hero">
-      <p class="eyebrow">Area · Delay · Product — hardware-agent leaderboard</p>
-      <h1>Can models write <span class="grad">cheap, fast</span> silicon?</h1>
-      <p class="lede">
-        ADPBench gives a model a numeric operator and asks for synthesizable
-        Verilog. Designs are scored on silicon cost — <code>cells × cycles</code> —
-        checked bit-exactly on held-out cases, and every run is sandboxed,
-        hashed, and replayable.
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Hardware agent results — ADPBench</title>
+    <meta
+      name="description"
+      content="AI-generated RTL benchmark results. Compare area-delay product, correctness, and individual hardware agent runs."
+    />
+    <link rel="icon" href="favicon.svg" type="image/svg+xml" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="assets/style.css?v=compact5" />
+  </head>
+  <body class="workspace">
+    <a class="skip-link" href="#main">Skip to results</a>
+    <header class="site-header">
+      <div class="header-inner">
+        <a class="brand" href="index.html" aria-label="ADPBench home"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 7h10v10H7zM9 2v5m6-5v5M9 17v5m6-5v5M2 9h5m-5 6h5m10-6h5m-5 6h5" fill="none" stroke="currentColor" stroke-width="1.5"/></svg>ADPBench</a>
+        <nav aria-label="Primary">
+          <a href="index.html" aria-current="page"><span aria-hidden="true">01</span> Results</a>
+          <a href="problems.html" ><span aria-hidden="true">02</span> Problem library</a>
+          <a href="https://github.com/arygupt/ADPBench" target="_blank" rel="noopener"><span aria-hidden="true">↗</span> Source code</a>
+        </nav>
+      </div>
+    </header>
+    <main id="main" class="wrap">
+      <div class="page-intro">
+        <h1>Results</h1>
+        <a class="download-link" href="data/leaderboard.json" download>Download results <span aria-hidden="true">↓</span></a>
+      </div>
+      <div class="workspace-toolbar">
+        <p class="dataset-summary" id="dataset-summary">Loading results…</p>
+        <input type="search" id="model-search" aria-label="Find a model" placeholder="Find a model…" />
+      </div>
+      <section class="benchmark-section" id="models" aria-labelledby="model-view-title">
+        <div class="section-heading">
+          <h2 id="model-view-title">Models</h2>
+          <div class="segmented" role="group" aria-label="Rank models by">
+            <button data-score="beat_rate" aria-pressed="true">Beat baseline</button>
+            <button data-score="correctness_rate" aria-pressed="false">Correctness</button>
+            <button data-score="geomean" aria-pressed="false">ADP gain</button>
+          </div>
+        </div>
+        <div class="board-scroll ranking-scroll" tabindex="0" role="region" aria-label="Model ranking table">
+          <table class="ranking-table">
+            <colgroup><col class="model-col"><col class="chart-col"><col class="score-col"><col class="stat-col"><col class="stat-col"><col class="attempt-col"></colgroup>
+            <thead><tr><th scope="col">Model</th><th scope="col" class="chart-heading">Performance <span id="interval-label">/ 95% confidence interval</span></th><th scope="col" id="rank-metric-label">Beat baseline</th><th scope="col">Correct</th><th scope="col">ADP gain</th><th scope="col">Attempts</th></tr></thead>
+            <tbody id="leaderboard-rows"></tbody>
+            <tfoot><tr><td></td><td><div id="chart-axis" class="chart-axis" aria-hidden="true"></div></td><td colspan="4"></td></tr></tfoot>
+          </table>
+        </div>
+        <p class="scroll-hint">Scroll for all metrics →</p>
+        <div class="board-caption"><span id="score-note">Beat-baseline rate across all recorded attempts.</span><span id="leaderboard-count" role="status" aria-live="polite"></span></div>
+      </section>
+      <section class="benchmark-section" id="operators" aria-labelledby="operator-view-title">
+        <div class="section-heading">
+          <h2 id="operator-view-title">Operators</h2>
+          <div class="segmented" role="group" aria-label="Operator metric">
+            <button data-metric="ratio" aria-pressed="true">ADP ratio</button>
+            <button data-metric="cells" aria-pressed="false">Cells</button>
+            <button data-metric="cycles" aria-pressed="false">Cycles</button>
+          </div>
+        </div>
+        <div class="board-scroll" id="heatmap" tabindex="0" role="region" aria-label="Operator results table"></div>
+        <p class="scroll-hint">Scroll for all operators →</p>
+        <p class="board-caption" id="matrix-note"></p>
+      </section>
+      <div class="outcome-legend" aria-label="Result legend">
+        <span><b class="legend-pass">pass</b> correct result</span
+        ><span><b class="legend-wrong">wrong</b> incorrect RTL</span
+        ><span><b class="legend-infra">infra</b> infrastructure failure</span
+        ><span><b class="legend-best">★</b> best</span
+        >
+      </div>
+      <details class="evaluation-notes">
+        <summary>Metric definitions &amp; evaluation notes</summary>
+        <p>Beat baseline: correct attempts with lower cells × cycles than the baseline, divided by all attempts. Correctness: correct attempts divided by all attempts.</p>
+        <p>ADP = cells × cycles. ADP gain is the geometric mean of baseline ADP / design ADP across correct runs only. White lines show 95% Wilson confidence intervals. Operator bars are relative to the best correct result.</p>
+        <p id="pilot-note"></p>
+      </details>
+      <noscript
+        ><p>
+          Enable JavaScript to explore the results, or
+          <a href="data/report.json">read the report</a>.
+        </p></noscript
+      >
+    </main>
+    <footer class="site-footer">
+      <div>
+        <a href="https://github.com/arygupt/ADPBench">source</a><span>·</span
+        ><a href="data/leaderboard.json" download>results.json</a><span>·</span
+        ><a href="data/report.json">report</a><span>·</span
+        ><a href="data/problems.json">problems.json</a>
+      </div>
+      <p>
+        snapshot <span id="meta-generated">—</span> ·
+        <code id="meta-commit">—</code>
       </p>
-      <div class="hero-actions">
-        <a href="#leaderboard" class="btn btn-primary">View leaderboard</a>
-        <a href="methodology.html" class="btn btn-secondary">Run it yourself</a>
-      </div>
-    </section>
-
-    <div class="stats" id="stat-strip"></div>
-
-    <section class="section">
-      <div class="section-header"><h2>Why ADPBench</h2></div>
-      <div class="features">
-        <div class="feature-card">
-          <div class="icon icon-accent">E</div>
-          <h3>Executable spec</h3>
-          <p>Each problem is a numpy golden reference plus a frozen interface — no English spec to game, exact integer arithmetic.</p>
-        </div>
-        <div class="feature-card">
-          <div class="icon icon-green">S</div>
-          <h3>Silicon-scored</h3>
-          <p>Gate-level simulation of the exact counted netlist. <code>score = baseline_adp / adp</code>, a documented proxy, never claimed as signoff.</p>
-        </div>
-        <div class="feature-card">
-          <div class="icon icon-orange">R</div>
-          <h3>Replayable</h3>
-          <p>Submissions are frozen, hashed, and scored outside the sandbox. <code>adpbench replay</code> reproduces every published number.</p>
-        </div>
-        <div class="feature-card">
-          <div class="icon icon-accent">B</div>
-          <h3>Bounded</h3>
-          <p>Agents run in a pinned Docker substrate with held-out seeds redacted. Leaked state, blackboxes, and lookups are rejected by design.</p>
-        </div>
-      </div>
-    </section>
-
-    <section class="section" id="leaderboard">
-      <div class="section-header">
-        <h2>Leaderboard</h2>
-        <span class="count" id="leaderboard-count"></span>
-      </div>
-      <div class="card">
-        <div class="leaderboard-header">
-          <span>#</span>
-          <span>Model</span>
-          <span>Beat baseline</span>
-          <span></span>
-        </div>
-        <div id="leaderboard-rows"></div>
-        <p class="table-note">
-          Score is the fraction of planned attempts that end correct and faster
-          than the baseline; ± is the 95% Wilson interval. Ranked by that rate,
-          then correctness, then geomean. Click a row for per-run detail —
-          cells, cycles, hashes, and status.
-        </p>
-      </div>
-    </section>
-
-    <section class="section">
-      <div class="section-header">
-        <h2>Model × problem matrix</h2>
-        <span class="count">one attempt per cell, pilot-001</span>
-      </div>
-      <div class="card">
-        <div class="heatmap" id="heatmap"></div>
-      </div>
-    </section>
-  </main>
-
-  <footer class="site-footer">
-    <div class="wrap cols">
-      <span>ADPBench · generated <span id="meta-generated">—</span> · commit <code id="meta-commit">—</code></span>
-      <span>yosys <span id="meta-yosys">—</span> · iverilog <span id="meta-iverilog">—</span></span>
-      <span><a href="data/leaderboard.json">raw leaderboard</a> · <a href="data/report.json">report</a> · <a href="data/problems.json">problems</a></span>
-    </div>
-  </footer>
-
-  <script src="assets/app.js"></script>
-</body>
+    </footer>
+    <script src="assets/app.js?v=compact5"></script>
+  </body>
 </html>
