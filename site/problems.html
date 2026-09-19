@@ -15,57 +15,26 @@
       href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
       rel="stylesheet"
     />
-    <link rel="stylesheet" href="assets/style.css" />
+    <link rel="stylesheet" href="assets/style.css?v=accordion4" />
   </head>
-  <body>
+  <body class="workspace">
     <a class="skip-link" href="#main">Skip to results</a>
     <header class="site-header">
       <div class="header-inner">
-        <a class="brand" href="index.html" aria-label="ADPBench home"
-          ><svg viewBox="0 0 20 20" aria-hidden="true">
-            <path
-              d="M2 12h4v6H2zm6-5h4v11H8zm6-5h4v16h-4z"
-              fill="currentColor"
-            /></svg
-          >adpbench<span>.rtl</span></a
-        >
+        <a class="brand" href="index.html" aria-label="ADPBench home"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 7h10v10H7zM9 2v5m6-5v5M9 17v5m6-5v5M2 9h5m-5 6h5m10-6h5m-5 6h5" fill="none" stroke="currentColor" stroke-width="1.5"/></svg>ADPBench</a>
         <nav aria-label="Primary">
-          <a href="index.html">Models</a
-          ><a href="problems.html" aria-current="page">Problems</a
-          ><a
-            href="https://github.com/arygupt/ADPBench"
-            target="_blank"
-            rel="noopener"
-            aria-label="GitHub repository"
-            ><svg
-              viewBox="0 0 24 24"
-              width="17"
-              height="17"
-              fill="currentColor"
-              aria-hidden="true"
-            >
-              <path
-                d="M12 2a10 10 0 0 0-3.16 19.49c.5.09.68-.22.68-.48v-1.86c-2.78.61-3.37-1.18-3.37-1.18-.46-1.16-1.11-1.47-1.11-1.47-.91-.62.07-.61.07-.61 1 .07 1.53 1.03 1.53 1.03.89 1.53 2.34 1.09 2.91.83.09-.65.35-1.09.64-1.34-2.22-.25-4.55-1.11-4.55-4.94 0-1.09.39-1.99 1.03-2.69-.1-.25-.45-1.27.1-2.65 0 0 .84-.27 2.75 1.03a9.55 9.55 0 0 1 5 0c1.91-1.3 2.75-1.03 2.75-1.03.55 1.38.2 2.4.1 2.65.64.7 1.03 1.6 1.03 2.69 0 3.84-2.33 4.69-4.56 4.94.36.31.68.92.68 1.85v2.75c0 .26.18.58.69.48A10 10 0 0 0 12 2z"
-              /></svg
-          ></a>
+          <a href="index.html" ><span aria-hidden="true">01</span> Results</a>
+          <a href="problems.html" aria-current="page"><span aria-hidden="true">02</span> Problem library</a>
+          <a href="https://github.com/arygupt/ADPBench" target="_blank" rel="noopener"><span aria-hidden="true">↗</span> Source code</a>
         </nav>
       </div>
     </header>
     <main id="main" class="wrap">
-      <section class="benchmark-section">
-        <div class="section-heading">
-          <h1>
-            <span class="section-prefix">ADPBENCH</span
-            ><i class="section-dot blue" aria-hidden="true"></i>Problems
-          </h1>
-          <a class="source-link" href="data/problems.json" download
-            >download specs ↗</a
-          >
-        </div>
-        <p class="catalog-intro">
-          Executable NumPy specifications. Synthesizable Verilog. Exact integer
-          arithmetic.
-        </p>
+      <h1 class="sr-only">Problem library</h1>
+      <div class="library-toolbar">
+        <a class="download-link" href="data/problems.json" download>Download specs <span aria-hidden="true">↓</span></a>
+      </div>
+      <section class="benchmark-section" aria-label="Problem specifications">
         <div class="problem-grid" id="problem-grid">
           <p class="loading">Loading problem specifications…</p>
         </div>
@@ -83,6 +52,6 @@
         <code id="meta-commit">—</code>
       </p>
     </footer>
-    <script src="assets/app.js"></script>
+    <script src="assets/app.js?v=accordion4"></script>
   </body>
 </html>

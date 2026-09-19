@@ -1,111 +1,122 @@
 # ADPBench
 
-A KernelBench-shaped benchmark for ASIC/RTL generation, scored on silicon cost.
+AI agents write synthesizable Verilog. ADPBench checks whether the result is
+correct, synthesizes the exact design to gates, simulates it at gate level, and
+scores the area–delay product: `cells × cycles`.
 
-The name is the metric: **A**rea **D**elay **P**roduct, `cells x cycles` — the
-number a design is actually graded on. We do not claim power or timing
-signoff, because we do not measure them.
+The benchmark is KernelBench-shaped, one level below GPU kernels: given a
+numeric operator and an executable reference, can an agent produce hardware
+that is both correct and cheap? ADP is an explicit proxy. It does not claim
+physical area, timing closure, or power signoff.
 
-KernelBench asks: given a PyTorch operator, can a model write a fast CUDA
-kernel? ADPBench asks the same question one level down: given a numeric
-operator, can a model write synthesizable Verilog that is *cheap* in gates and
-*fast* in cycles?
+Live results: [`site/`](site/) · preview with `python3 -m http.server 8000 --directory site`
 
-## How a problem is defined
+## Benchmarks
 
-There is no English spec. `dut.py` is the specification:
+| bench | path | what | published view |
+|---|---|---|---|
+| dot product | `problems/level1/001_dot_product/` | lane-parallel vector reduction | leaderboard |
+| GEMV | `problems/level1/002_gemv/` | matrix–vector multiply | leaderboard |
+| matrix multiply | `problems/level1/003_matmul/` | tiled integer matmul | leaderboard |
+| 1-D convolution | `problems/level1/004_conv1d/` | streaming convolution | leaderboard |
 
-- `Model.forward(...)` — a numpy golden reference
-- `get_inputs()` — seeded random input generation
-- `INTERFACE` — module name, parameters, ports, per-port lengths, transactions
-- `QUANT` — the numeric contract (fixed point, accumulator width, no tolerance)
-- `DIRECTED` — named edge-case generators (zeros, extreme signed values)
+Each problem owns its executable spec, baseline, directed cases, and verified
+solutions. The spec is `dut.py`, not a prose prompt:
 
-Submissions are Verilog modules named `dut` implementing that interface.
+- `Model.forward(...)` — NumPy golden reference
+- `get_inputs()` — seeded input generation
+- `INTERFACE` — module name, parameters, ports, stream lengths, transactions
+- `QUANT` — exact integer widths and arithmetic contract
+- `DIRECTED` — named edge cases such as zeros and extreme signed values
 
-## The contract
+The submission is a Verilog module named `dut`. Input streams use independent
+`valid`/`ready` handshakes; transactions run back-to-back without reset. A DUT
+must hold output data stable while stalled and clear all transaction state
+before the next transaction.
 
-Every problem uses the same streaming handshake. Each input port has its own
-`valid`/`ready` pair and its own element count per transaction; streams of
-different lengths run independently. The DUT may apply backpressure by
-lowering any `ready`.
+## Evaluation
 
-```verilog
-module dut #(
-  parameter ...
-)(
-  input  wire clk, rst_n,
-  input  wire [LANES*DATA_W-1:0] in_a_flat,   // per problem
-  input  wire                    in_a_flat_valid,
-  output wire                    in_a_flat_ready,
-  ...                                          // one triple per input port
-  output wire                    out_valid,
-  input  wire                    out_ready,
-  output wire [ACC_W-1:0]        out_c
-);
-```
-
-Element `j` of a beat occupies bits `[j*DATA_W +: DATA_W]`, element 0 lowest.
-Arrays are row-major. The testbench drives **back-to-back transactions without
-an intervening reset**: a transaction ends when its last output word is
-accepted, and any per-transaction state must be cleared before the next one.
-
-## Pipeline
-
-```
+```text
 submission.v
-  -> synthesize   yosys, pinned flow        -> netlist + cells   (area proxy)
-  -> vectors      numpy golden model        -> inputs + expected outputs
-  -> simulate     icarus, gate-level        -> cycles, bit-exact pass/fail
-  -> score        baseline_adp / adp
+  → audit         reject reward-hacking constructs and untouched skeletons
+  → synthesize    pinned Yosys flow       → gate netlist + cell count
+  → vectors       NumPy reference         → inputs + expected outputs
+  → simulate      Icarus, gate level       → cycles + exact pass/fail
+  → score         baseline_adp / adp       → published ratio
 ```
 
-Synthesis applies the problem's parameters with `chparam` before elaboration
-and writes the resulting netlist. Simulation runs that netlist - not the RTL -
-so the cells that are counted and the behaviour that is checked describe one
-artifact. Comparison is exact integer equality; there is no floating point
-tolerance, because the problem fixes the arithmetic completely.
+Every case runs twice: a score run with back-to-back inputs and ready output,
+and a protocol run with seeded input gaps, output backpressure, and hold-stable
+checks. A design must pass both. Synthesis parameters and simulation use the
+same netlist, so the counted artifact is the checked artifact.
 
-Every case (a held-out random seed or a directed pattern) is simulated twice:
+## Scoring and records
 
-- a **score** run with inputs back-to-back and `out_ready` held high, which is
-  the timing measurement, and
-- a **protocol** run with seeded input gaps, seeded output backpressure, and a
-  hold-stable check that fails a DUT which drops or changes an output while
-  stalled.
-
-A design must pass both, on every case.
-
-## Scoring
-
-With the clock pinned, time is proportional to cycles, so
-
-```
-adp   = cells * cycles
-score = baseline_adp / submission_adp      // higher is better
+```text
+adp   = cells × cycles
+score = baseline_adp / submission_adp     # higher is better
 ```
 
-A design cannot buy score by simply widening its datapath: duplicating hardware
-doubles cells to halve cycles. Score comes from doing less work per result —
-exploiting structure, narrowing datapaths, reusing hardware across beats.
+The primary published number is beat-baseline rate: correct, faster-than-
+baseline attempts divided by all planned attempts. Correctness rate, successful
+geometric mean, wrong RTL, infrastructure failures, repetitions, hashes, tool
+versions, and case manifests remain visible. `adpbench replay` re-scores a
+frozen submission and verifies the recorded ratio.
 
-`score.py` has the correctness-gated geometric mean, and `report.py` builds the
-published view: correctness rate, the fraction of planned attempts that
-correctly beat the baseline (the primary number), improvement among successful
-attempts (secondary), and a split between wrong RTL and infrastructure
-failures. Attempts and repetitions are disclosed, never averaged away.
+The current pilot is a 20-run matrix across four operators and five free-tier
+agent configurations. Results are committed under `pilot/results/` and rendered
+into `site/data/` from frozen records.
 
-## Usage
+## Local usage
+
+Requires Python 3.10+, Yosys, and Icarus Verilog. The repository uses a local
+virtualenv; install the package with `uv`:
 
 ```bash
-uv venv && uv pip install -e .
+uv venv
+uv pip install -e .
 .venv/bin/python -m adpbench list
-.venv/bin/python -m adpbench baseline 001_dot_product        # freeze the denominator
+.venv/bin/python -m adpbench baseline 001_dot_product
 .venv/bin/python -m adpbench run 001_dot_product -f submission.v
-.venv/bin/python -m adpbench seeds --out seeds.json          # publish the case manifest
 ```
 
-Requires `yosys` and `iverilog` on PATH.
+Run an agent through the sandbox and record its trajectory:
+
+```bash
+adpbench agent 001_dot_product --label "my-model" \
+  --cmd "opencode run -m opencode/mimo-v2.5-free 'Read PROBLEM.md and write dut.v.'" \
+  --sandbox docker
+```
+
+Pilot and reporting commands:
+
+```bash
+adpbench pilot --config pilot/pilot_free_models.json --jobs 4
+adpbench report --runs runs/
+adpbench replay runs/<pilot>/<model>/<problem>/rep1
+```
+
+The agent-writable directory is not trusted. Submissions are copied
+symlink-free, hashed, audited, and scored in a host-only directory. Docker is
+recommended for untrusted agents; host mode executes the supplied command
+directly.
+
+## Layout
+
+```text
+adpbench/                 Python harness, scoring, agents, reports, site export
+problems/level1/          executable operator problems and baselines
+solutions/                reference implementations used for sanity checks
+flows/                    pinned synthesis and simulation substrate
+sandbox/                  Docker boundary and agent image definitions
+pilot/                    configs plus published pilot results
+site/                     zero-dependency static leaderboard
+tests/                    pipeline, protocol, audit, report, and site tests
+```
+
+Methodology lives with the implementation in the problem specs and harness
+modules. The published site is a static copy of frozen records; it never runs
+the toolchain in the browser.
 
 ## Tests
 
@@ -113,193 +124,5 @@ Requires `yosys` and `iverilog` on PATH.
 .venv/bin/python -m unittest discover -s tests -v
 ```
 
-The integration tests score the counterexamples from a scorer review through
-the real pipeline (see `tests/fixtures/README.md`), so they need `yosys` and
-`iverilog`.
-
-## The agent layer
-
-The harness above judges a finished file. The agent layer gives a model a loop
-to produce one, runs it behind an optional container boundary, and records what
-it did.
-
-```bash
-adpbench agent 001_dot_product --label "my-model" \
-  --cmd "opencode run -m opencode/mimo-v2.5-free 'Read PROBLEM.md and write dut.v.'"
-```
-
-A run does four things:
-
-**Build an environment.** A fresh directory containing `PROBLEM.md` (the task,
-interface, transactions, numeric contract, rules), `dut.py` (the golden model),
-`dut.v` (the skeleton), and `check.sh` (the dev-seed feedback loop). The agent
-is expected to run `./check.sh` repeatedly. It is agent-agnostic by
-construction — anything with a shell can be dropped in.
-
-**Run the agent, optionally in Docker.** `--sandbox docker` mounts the task
-directory read-write at `/work` and a per-run harness bundle read-only at
-`/adpbench`, with the held-out seeds redacted. See `sandbox/README.md`; the
-shipped image pins the same yosys commit and iverilog release as the host, so
-dev feedback and final scoring agree on cell counts.
-
-**Audit.** The submission is scanned for constructs that behave differently
-under simulation than under synthesis, or that let it read the expected
-answers: `initial`, `#delay`, `$readmemh`, `$display`, `force`, `` `include ``,
-testbench references. An untouched skeleton is also rejected. Comments and
-string literals are masked first, so naming a construct in a comment is fine.
-
-**Freeze and score.** Nothing in the agent-writable task directory is trusted:
-the submission is read symlink-free and copied into a host-only directory next
-to the run, hashed, and scored there on the held-out cases.
-
-A run record lands in `runs/<problem>/<timestamp>/`:
-
-```
-record.json          duration, exit code, audit, per-case scores, label, attempt
-manifest.json        hashes, seeds, tool versions, git commit, sandbox config
-trajectory.md        readable index of the run: outcome, artifacts, check.sh log
-terminal.log         raw recording of the agent's full TTY session
-agent.log            the same session, ANSI-stripped
-dut.v                final submission (agent-written)
-.history/            every version the agent tested, plus the check.sh feedback log
-../<run>_frozen/     the frozen copy that was actually scored
-../<run>_pkg/        read-only harness bundle mounted in the container
-```
-
-The agent session is recorded under `script`, so interactive agent UIs are
-captured in full, not just stdout; every `./check.sh` invocation is appended
-to `.history/check.log` with a timestamp and exit status.
-
-Re-score a frozen run to check the number reproduces; replay compares the
-manifest's submission hash and the ratio, not just cells and cycles:
-
-```bash
-adpbench replay runs/001_dot_product/<timestamp>      # prints MATCH or MISMATCH
-adpbench report --runs runs/                          # scoreboard by label
-```
-
-## The pilot
-
-The pilot is a model x problem x repetition matrix under one budget:
-
-```json
-{
-  "name": "pilot-001",
-  "problems": ["001_dot_product", "002_gemv", "003_matmul", "004_conv1d"],
-  "repetitions": 1,
-  "sandbox": {"mode": "docker", "image": "adpbench-agent", "network": "bridge"},
-  "agents": [
-    {"label": "opencode/mimo-v2.5-free", "cmd": "opencode run -m opencode/mimo-v2.5-free 'Read PROBLEM.md and write dut.v.'", "timeout_s": 1200}
-  ]
-}
-```
-
-```bash
-adpbench pilot --config pilot.json
-```
-
-`plan.json`, every run record, `report.json`, and `REPORT.md` are written under
-`runs/pilot_<timestamp>_<name>/`. The report is built from the frozen records,
-so publishing is a copy, not a re-computation. `--publish DIR` copies the plan
-and report into the repository.
-
-### Pilot-001 results
-
-Five free OpenCode models, four problems, one attempt each, all inside the
-Docker sandbox under a shared prompt and budget. Published at
-`pilot/results/pilot-001/`.
-
-| model | attempts | correct | correctness | beat baseline | geomean (successful) |
-|---|---:|---:|---:|---:|---:|
-| `opencode/mimo-v2.5-free` | 4 | 2 | 50% | 2 | 3.27x |
-| `opencode/muse-spark-1.3-contributor-free` | 4 | 2 | 50% | 2 | 2.77x |
-| `opencode/nemotron-3-ultra-free` | 4 | 2 | 50% | 1 | 0.91x |
-| `opencode/nemotron-3.5-lightning-free` | 4 | 0 | 0% | 0 | - |
-| `opencode/ling-3.0-flash-fin-free` | 4 | 0 | 0% | 0 | - |
-| **all** | 20 | 6 | 30% | 5 | 2.02x |
-
-Best individual results: dot product 3.39x (mimo-v2.5-free), GEMV 3.17x
-(mimo-v2.5-free), matmul 2.28x (muse-spark), conv1d unsolved. The task
-difficulty gradient - every problem solved by at least one model except
-conv1d - is the interesting signal for the next iteration.
-
-> Running an agent with shell access executes arbitrary code. Use
-> `--sandbox docker` for untrusted models; host mode trusts the command.
-
-## The pinned substrate
-
-KernelBench is meaningful because everyone runs on the same GPU. The equivalent
-here is a frozen toolchain: `flows/synth.ys`, the yosys version, the cell
-counting convention, and the simulation models for the synthesized cells.
-Changing any of them invalidates every stored baseline and requires re-running
-`adpbench baseline` for every problem.
-
-The flow applies `chparam` for every parameter in `INTERFACE["params"]` before
-`hierarchy`, synthesizes to gates, and writes `netlist.v`. That netlist is
-simulated against the `simlib.v` shipped with the same yosys release, so the
-simulation models are pinned alongside the synthesizer. `ADPBENCH_SIMLIB`
-overrides discovery of that file.
-
-`flows/synth.ys` runs `synth -noabc`. ABC's generic-gate optimisation is
-superlinear on wide arithmetic (a 32-multiplier datapath exceeded 180s), which
-is unusable in a fast eval tier. Cell counts are therefore post-techmap and
-pre-optimisation: a deterministic, comparable proxy for area, not an absolute
-gate count. A slow tier using ABC or OpenROAD is future work.
-
-## Status
-
-v0.2. Four problems, zero-dependency Python harness, pilot harness ready.
-
-```
-problem                      baseline                       sanity solution
-001_dot_product              2142 cells    546 cycles 1.00x   2.89x (lane-parallel)
-002_gemv                     3295 cells   2216 cycles 1.00x   2.10x (beat-parallel)
-003_matmul                   6253 cells   2194 cycles 1.00x   6.06x (K-parallel)
-004_conv1d                   4565 cells   5018 cycles 1.00x   2.82x (output-bound)
-```
-
-Each problem ships a sanity solution under `solutions/parallel.v` that passes
-the full gate and beats the baseline, so the baseline is provably beatable.
-
-Known gaps:
-
-- Only one sanity solution so far; the other problems have no proof that a
-  better design is reachable, only that the baseline is beatable in principle.
-- Failure attribution for combinational loops is a simulation timeout rather
-  than a synthesis-time diagnosis.
-- No timing feasibility check. A 100 MHz testbench clock does not prove the
-  netlist closes at 100 MHz, and `cells * cycles` counts generic cells before
-  ABC, so it is a proxy, not physical area or silicon performance.
-- No published pilot yet: the 20-run matrix has not been executed at scale.
-- Per-port data widths are shared (`DATA_W`); mixed-width ports need an
-  explicit map.
-
-## The site
-
-`site/` is a zero-dependency static leaderboard rendered from committed JSON.
-Regenerate its data from a frozen pilot and preview:
-
-```bash
-.venv/bin/python -m adpbench site sanity --out pilot/sanity.json
-.venv/bin/python -m adpbench site export --pilot runs/<pilot> --out site/data --sanity pilot/sanity.json
-python3 -m http.server 8000 --directory site
-```
-
-`.github/workflows/deploy-site.yml` publishes it to GitHub Pages on push.
-The page never touches the toolchain: the published numbers are the frozen
-records, re-rendered.
-
-## Related work
-
-The module-level generation benchmarks: VerilogEval, RTLLM, CVDP, ChipBench,
-ChipVerilog, HWE-Bench.
-
-The synthesis-scored ones ADPBench sits beside: **HQI** (Synthesis-in-the-Loop
-Evaluation, GLSVLSI '26) scores post-synthesis area and delay against expert
-references on VerilogEval/RTLLM tasks, and **HINT** optimises area-delay product
-directly.
-
-The gap ADPBench aims at: those tasks are module-shaped ("write a FIFO") with
-fixed testbenches. ADPBench tasks are operator-shaped, with a runnable numeric
-reference, randomised multi-trial correctness, and a frozen quantization
-contract — KernelBench's structure, scored on silicon.
+The integration tests exercise real synthesis and gate-level simulation when
+Yosys and Icarus are available.

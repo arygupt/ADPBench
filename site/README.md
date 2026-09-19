@@ -21,16 +21,21 @@ variable is set. GitHub Pages is free for public repositories; a private
 repository needs a paid plan, in which case deploy the artifact to any static
 host instead.
 
-Layout reference: [kernelbench.com](https://kernelbench.com/). Typography and
-colors match [Aryaman's personal site](https://www.aryamangupta.me/): Inter,
-`#1a1a1a` charcoal, `#e7e5e4` off-white, and `#a8a29e` stone gray. Warm neutral
-bars and labeled outcomes retain the compact results layout, minimal header,
-and absence of a landing-page hero or methodology page. The first board ranks models by beat-baseline rate,
-correctness, or correct-run geometric mean. The operator board switches between
-ADP ratio, cells, and cycles. Search filters both boards.
+The interface uses compact leaderboard rows with horizontal performance bars,
+aligned metric columns, and a shared percentage axis. A slim top navigation and
+experiment summary lead into the rankings, with the operator matrix directly
+below. The problem library stacks specifications 1–4 in a single column, with
+a download-specs button above the cards.
+Typography uses Inter; the palette retains `#1a1a1a` charcoal, `#e7e5e4`
+off-white, `#a8a29e` stone gray, and `#f97316` orange.
+Model rows rank by beat-baseline rate, correctness, or correct-run geometric
+mean. The operator matrix switches between ADP ratio, cells, and cycles. Search
+filters both tables. On phones, tables scroll independently and model names
+stay pinned while inspecting later columns.
 
-Rate bars use the full 0–100% scale; Wilson confidence bounds are available in
-the hover text. Geomean and operator ratio bars show each result as a share of
+Rate indicators use the full 0–100% scale; 95% Wilson confidence bounds appear
+as whiskers and numeric ranges, with details in the hover text. Geomean and
+operator ratio bars show each result as a share of
 the best correct result. Cells/cycles bars use best/value (lower is better).
 Stars identify ties for the best value, computed across the full dataset so
 filtering never changes the reference. Failed runs are labeled, never plotted

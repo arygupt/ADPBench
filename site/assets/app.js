@@ -21,7 +21,6 @@
   const ratio = (n) => (n > 0 ? `${n.toFixed(2)}×` : "—");
   const short = (label) =>
     label.replace(/^opencode\//, "").replace(/-free$/, "");
-  const symbols = ["a·b", "Ax", "AB", "f∗g"];
   let data, dialog, returnFocus;
   const title = (name) =>
     data.problems.find((p) => p.name === name)?.title || name;
@@ -90,10 +89,13 @@
       geomean: "Geometric mean ADP ratio · correct runs only",
     }[scoreMetric];
     fill("#score-heading", label);
+    fill("#rank-metric-label", {beat_rate: "Beat baseline", correctness_rate: "Correctness", geomean: "ADP gain"}[scoreMetric]);
+    fill("#interval-label", isRate ? "/ 95% confidence interval" : "/ correct runs only");
+    $("#chart-axis").innerHTML = [0, .25, .5, .75, 1].map((n) => `<span>${isRate ? pct(n) : `${(n * best).toFixed(1)}×`}</span>`).join("");
     fill(
       "#score-note",
       isRate
-        ? "Share of all recorded attempts · hover or inspect for 95% Wilson intervals."
+        ? "Bars use a fixed 0–100% scale. Whiskers and ranges show 95% Wilson confidence intervals."
         : "Correct-run geometric mean · bar = share of best · failures excluded from this secondary metric.",
     );
     fill(
@@ -117,10 +119,10 @@
           const tooltip = isRate
             ? `${label}: ${text}; 95% Wilson interval ${pct(low)}–${pct(high)}. ${m.correct}/${m.attempts} correct attempts.`
             : `${text} geometric mean across ${m.correct} correct attempts; ${m.attempts} total attempts.`;
-          return `<tr><td>${modelButton(m)}</td><td><button class="result-bar ${value === best && value > 0 ? "best" : ""}" style="--fill:${width}%" data-model="${esc(m.label)}" title="${esc(tooltip)}" aria-label="${esc(displayName(m))}: ${esc(tooltip)}">${text}${value === best && value > 0 ? '<span class="star" aria-hidden="true">★</span>' : ""}</button></td><td><span class="correct-count" aria-label="${m.correct} of ${m.attempts} attempts correct" title="${m.correct}/${m.attempts} correct">${m.attempts <= 12 ? Array.from({ length: m.attempts }, (_, i) => `<i class="${i < m.correct ? "passed" : ""}" aria-hidden="true"></i>`).join("") : `<span>${m.correct}/${m.attempts}</span>`}</span></td></tr>`;
+          return `<tr><th scope="row">${modelButton(m)}</th><td><button class="comparison-bar ${value === best && value > 0 ? "best" : ""}" data-model="${esc(m.label)}" title="${esc(tooltip)}" aria-label="${esc(displayName(m))}: ${esc(tooltip)}"><span class="comparison-track" aria-hidden="true"><span class="comparison-fill" style="width:${width}%"></span>${isRate ? `<span class="confidence-whisker" style="left:${low * 100}%;width:${(high - low) * 100}%"></span>` : ""}</span></button></td><td class="primary-stat"><strong>${text}</strong>${isRate ? `<span class="interval-range" title="95% Wilson confidence interval">${pct(low)}–${pct(high)}</span>` : ""}</td><td class="numeric-stat">${m.correct}/${m.attempts}</td><td class="numeric-stat">${ratio(m.geomean)}</td><td class="numeric-stat">${m.attempts}</td></tr>`;
         })
         .join("") ||
-      '<tr><td colspan="3" class="empty-state">No matching models.</td></tr>';
+      '<tr><td colspan="6" class="empty-state">No matching models. Try another name.</td></tr>';
     const bestByProblem = new Map(
       data.problems.map((p) => {
         const values = data.models
@@ -234,7 +236,7 @@
           s = p.sanity || {},
           max = Math.max(b.adp || 0, s.adp || 0),
           src = `https://github.com/arygupt/ADPBench/blob/main/problems/level${p.level}/${encodeURIComponent(p.name)}`;
-        return `<article class="problem-card" id="${esc(p.name)}"><div class="pc-top"><span class="pc-symbol">${symbols[i] || "ƒ"}</span><span class="badge">LEVEL ${p.level} / ${String(i + 1).padStart(3, "0")}</span></div><h3>${esc(p.title)}</h3><p class="pc-desc">${p.transactions} back-to-back transactions · ${p.out_len} output word${p.out_len === 1 ? "" : "s"} per transaction. Exact integer arithmetic, with no reset between transactions.</p><div class="chip-row">${Object.entries(
+        return `<details class="problem-card problem-accordion" name="problems" id="${esc(p.name)}"><summary class="problem-toggle"><span class="problem-number">${String(i + 1).padStart(2, "0")}</span><span class="problem-title">${esc(p.title)}</span><span class="badge">LEVEL ${p.level}</span><span class="problem-chevron" aria-hidden="true">+</span></summary><div class="problem-content"><p class="pc-desc">${p.transactions} back-to-back transactions · ${p.out_len} output word${p.out_len === 1 ? "" : "s"} per transaction. Exact integer arithmetic, with no reset between transactions.</p><div class="chip-row">${Object.entries(
           p.params || {},
         )
           .map(([k, v]) => `<span class="chip">${esc(k)} ${esc(v)}</span>`)
@@ -264,18 +266,30 @@
           )
           .join(
             "",
-          )}</tbody></table><div class="chip-row">${(p.directed || []).map((d) => `<span class="chip">${esc(d)}</span>`).join("")}</div></details><div class="pc-links"><a href="${src}/dut.py" target="_blank" rel="noopener">View executable spec ↗</a><a href="${src}/baseline.v" target="_blank" rel="noopener">Baseline RTL ↗</a></div></article>`;
+          )}</tbody></table><div class="chip-row">${(p.directed || []).map((d) => `<span class="chip">${esc(d)}</span>`).join("")}</div></details><div class="pc-links"><a href="${src}/dut.py" target="_blank" rel="noopener">View executable spec ↗</a><a href="${src}/baseline.v" target="_blank" rel="noopener">Baseline RTL ↗</a></div></div></details>`;
       })
       .join("");
-    const target = document.getElementById(
-      decodeURIComponent(location.hash.slice(1)),
-    );
-    if (target) target.scrollIntoView();
+    const revealProblem = () => {
+      let id;
+      try { id = decodeURIComponent(location.hash.slice(1)); }
+      catch { return; }
+      const target = document.getElementById(id);
+      if (target?.classList.contains("problem-accordion")) {
+        target.open = true;
+        target.scrollIntoView();
+      }
+    };
+    revealProblem();
+    window.addEventListener("hashchange", revealProblem);
   }
 
   function renderMeta() {
     const m = data.meta,
       runs = data.models.flatMap((m) => m.runs);
+    fill("#summary-models", data.models.length);
+    fill("#summary-operators", data.problems.length);
+    fill("#summary-attempts", runs.length);
+    fill("#summary-beating", `${runs.filter((r) => r.correct && r.ratio > 1).length} / ${runs.length}`);
     fill("#meta-generated", m.generated?.slice(0, 10) || "—");
     fill("#meta-commit", m.git_commit?.slice(0, 10) || "—");
     fill(

@@ -15,110 +15,74 @@
       href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
       rel="stylesheet"
     />
-    <link rel="stylesheet" href="assets/style.css" />
+    <link rel="stylesheet" href="assets/style.css?v=accordion4" />
   </head>
-  <body>
+  <body class="workspace">
     <a class="skip-link" href="#main">Skip to results</a>
     <header class="site-header">
       <div class="header-inner">
-        <a class="brand" href="index.html" aria-label="ADPBench home"
-          ><svg viewBox="0 0 20 20" aria-hidden="true">
-            <path
-              d="M2 12h4v6H2zm6-5h4v11H8zm6-5h4v16h-4z"
-              fill="currentColor"
-            /></svg
-          >adpbench<span>.rtl</span></a
-        >
+        <a class="brand" href="index.html" aria-label="ADPBench home"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 7h10v10H7zM9 2v5m6-5v5M9 17v5m6-5v5M2 9h5m-5 6h5m10-6h5m-5 6h5" fill="none" stroke="currentColor" stroke-width="1.5"/></svg>ADPBench</a>
         <nav aria-label="Primary">
-          <a href="index.html" aria-current="page">Models</a
-          ><a href="problems.html">Problems</a
-          ><a
-            href="https://github.com/arygupt/ADPBench"
-            target="_blank"
-            rel="noopener"
-            aria-label="GitHub repository"
-            ><svg
-              viewBox="0 0 24 24"
-              width="17"
-              height="17"
-              fill="currentColor"
-              aria-hidden="true"
-            >
-              <path
-                d="M12 2a10 10 0 0 0-3.16 19.49c.5.09.68-.22.68-.48v-1.86c-2.78.61-3.37-1.18-3.37-1.18-.46-1.16-1.11-1.47-1.11-1.47-.91-.62.07-.61.07-.61 1 .07 1.53 1.03 1.53 1.03.89 1.53 2.34 1.09 2.91.83.09-.65.35-1.09.64-1.34-2.22-.25-4.55-1.11-4.55-4.94 0-1.09.39-1.99 1.03-2.69-.1-.25-.45-1.27.1-2.65 0 0 .84-.27 2.75 1.03a9.55 9.55 0 0 1 5 0c1.91-1.3 2.75-1.03 2.75-1.03.55 1.38.2 2.4.1 2.65.64.7 1.03 1.6 1.03 2.69 0 3.84-2.33 4.69-4.56 4.94.36.31.68.92.68 1.85v2.75c0 .26.18.58.69.48A10 10 0 0 0 12 2z"
-              /></svg
-          ></a>
+          <a href="index.html" aria-current="page"><span aria-hidden="true">01</span> Results</a>
+          <a href="problems.html" ><span aria-hidden="true">02</span> Problem library</a>
+          <a href="https://github.com/arygupt/ADPBench" target="_blank" rel="noopener"><span aria-hidden="true">↗</span> Source code</a>
         </nav>
       </div>
     </header>
     <main id="main" class="wrap">
-      <section class="benchmark-section" id="models">
+      <div class="page-intro">
+        <div><p class="eyebrow">ADPBENCH / EXPERIMENT RESULTS</p><h1>Hardware agent leaderboard.</h1><p class="intro-copy">Correctness and area–delay efficiency across AI-generated circuits.</p></div>
+        <a class="download-link" href="data/leaderboard.json" download>Download results <span aria-hidden="true">↓</span></a>
+      </div>
+      <div class="experiment-summary" aria-label="Experiment overview">
+        <div><span>Evaluated systems</span><strong id="summary-models">—</strong></div>
+        <div><span>Hardware operators</span><strong id="summary-operators">—</strong></div>
+        <div><span>Recorded attempts</span><strong id="summary-attempts">—</strong></div>
+        <div><span>Beat baseline</span><strong id="summary-beating">—</strong></div>
+      </div>
+      <div class="workspace-toolbar">
+        <nav class="view-tabs" aria-label="Jump to results"><a href="#models">Model rankings <span aria-hidden="true">↓</span></a><a href="#operators">By operator <span aria-hidden="true">↓</span></a></nav>
+        <input type="search" id="model-search" aria-label="Find a model" placeholder="Find a model…" />
+      </div>
+      <p class="dataset-summary" id="dataset-summary">Loading published results…</p>
+      <section class="benchmark-section" id="models" aria-labelledby="model-view-title">
         <div class="section-heading">
-          <h1>
-            <span class="section-prefix">ADPBENCH</span
-            ><i class="section-dot" aria-hidden="true"></i>Models
-          </h1>
+          <div><h2 id="model-view-title">Model rankings</h2><p id="score-heading">Correct &amp; better than baseline</p></div>
           <div class="segmented" role="group" aria-label="Rank models by">
-            <button data-score="beat_rate" aria-pressed="true">
-              Beat baseline</button
-            ><button data-score="correctness_rate" aria-pressed="false">
-              Correctness</button
-            ><button data-score="geomean" aria-pressed="false">ADP gain</button>
+            <button data-score="beat_rate" aria-pressed="true">Beat baseline</button>
+            <button data-score="correctness_rate" aria-pressed="false">Correctness</button>
+            <button data-score="geomean" aria-pressed="false">ADP gain</button>
           </div>
         </div>
-        <div class="board-meta">
-          <span id="dataset-summary">Loading published results…</span
-          ><input
-            type="search"
-            id="model-search"
-            aria-label="Find a model"
-            placeholder="Filter models…"
-          />
-        </div>
-        <div class="board-scroll">
-          <table class="results-table overview-table">
-            <thead>
-              <tr>
-                <th scope="col">Model</th>
-                <th scope="col" id="score-heading">
-                  Correct &amp; better than baseline
-                </th>
-                <th scope="col" class="correct-heading">Correct</th>
-              </tr>
-            </thead>
+        <div class="board-scroll ranking-scroll" tabindex="0" role="region" aria-label="Model ranking table">
+          <table class="ranking-table">
+            <colgroup><col class="model-col"><col class="chart-col"><col class="score-col"><col class="stat-col"><col class="stat-col"><col class="attempt-col"></colgroup>
+            <thead><tr><th scope="col">Model</th><th scope="col" class="chart-heading">Performance <span id="interval-label">/ 95% confidence interval</span></th><th scope="col" id="rank-metric-label">Beat baseline</th><th scope="col">Correct</th><th scope="col">ADP gain</th><th scope="col">Attempts</th></tr></thead>
             <tbody id="leaderboard-rows"></tbody>
+            <tfoot><tr><td></td><td><div id="chart-axis" class="chart-axis" aria-hidden="true"></div></td><td colspan="4"></td></tr></tfoot>
           </table>
         </div>
-        <div class="board-caption">
-          <span id="score-note"
-            >Beat-baseline rate across all recorded attempts. Higher is
-            better.</span
-          ><span id="leaderboard-count" role="status" aria-live="polite"></span>
-        </div>
+        <p class="scroll-hint">Scroll the table horizontally to see all metrics →</p>
+        <div class="board-caption"><span id="score-note">Beat-baseline rate across all recorded attempts.</span><span id="leaderboard-count" role="status" aria-live="polite"></span></div>
       </section>
-      <section class="benchmark-section" id="operators">
+      <section class="benchmark-section" id="operators" aria-labelledby="operator-view-title">
         <div class="section-heading">
-          <h2>
-            <span class="section-prefix">ADPBENCH</span
-            ><i class="section-dot blue" aria-hidden="true"></i>Operators
-          </h2>
+          <div><h2 id="operator-view-title">Operator comparison</h2><p>Inspect every model–operator result.</p></div>
           <div class="segmented" role="group" aria-label="Operator metric">
-            <button data-metric="ratio" aria-pressed="true">ADP ratio</button
-            ><button data-metric="cells" aria-pressed="false">Cells</button
-            ><button data-metric="cycles" aria-pressed="false">Cycles</button>
+            <button data-metric="ratio" aria-pressed="true">ADP ratio</button>
+            <button data-metric="cells" aria-pressed="false">Cells</button>
+            <button data-metric="cycles" aria-pressed="false">Cycles</button>
           </div>
         </div>
-        <div class="board-scroll" id="heatmap"></div>
-        <p class="board-caption" id="matrix-note">
-          ADP ratio = baseline / design. Bars show each result as a share of the
-          best correct result for that operator.
-        </p>
+        <div class="board-scroll" id="heatmap" tabindex="0" role="region" aria-label="Operator results table"></div>
+        <p class="scroll-hint">Scroll the table horizontally to compare all operators →</p>
+        <p class="board-caption" id="matrix-note"></p>
       </section>
       <div class="outcome-legend" aria-label="Result legend">
         <span><b class="legend-pass">pass</b> correct result</span
         ><span><b class="legend-wrong">wrong</b> incorrect RTL</span
         ><span><b class="legend-infra">infra</b> infrastructure failure</span
-        ><span><b class="legend-best">★</b> best value in column</span
+        ><span><b class="legend-best">★</b> best value for the metric</span
         ><span>click a model or result to inspect its runs</span>
       </div>
       <p class="dataset-note" id="pilot-note"></p>
@@ -141,6 +105,6 @@
         <code id="meta-commit">—</code>
       </p>
     </footer>
-    <script src="assets/app.js"></script>
+    <script src="assets/app.js?v=accordion4"></script>
   </body>
 </html>
