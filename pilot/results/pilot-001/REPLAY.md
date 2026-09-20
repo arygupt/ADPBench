@@ -4,6 +4,11 @@ All six successful submissions from `pilot-001` were replayed on 2026-09-20
 with the current harness. Every replay matched its frozen record for
 correctness, synthesized cell count, cycle count, and ADP ratio.
 
+Run or inspect the same six replays in
+[GitHub Actions](https://github.com/arygupt/ADPBench/actions/workflows/replay-pilot-001.yml).
+Each submission is a separate job with its complete replay log and a
+downloadable evidence artifact.
+
 | evaluated system | problem | cells | cycles | ADP ratio | result |
 |---|---|---:|---:|---:|---|
 | `opencode/mimo-v2.5-free` | `001_dot_product` | 19,193 | 18 | 3.3853x | MATCH |
@@ -21,3 +26,5 @@ simulation tool versions.
 
 The machine-readable results, including submission hashes and full-precision
 ratios, are in [`replay.json`](replay.json).
+
+The exact frozen RTL files used by the workflow are under [`submissions/`](submissions/).
