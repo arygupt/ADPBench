@@ -1,4 +1,6 @@
 /* Published records are the source of truth. No framework or build step. */
+import { findReplay } from "./evidence.mjs";
+
 (() => {
   "use strict";
   const $ = (s, root = document) => root.querySelector(s);
@@ -21,7 +23,7 @@
   const ratio = (n) => (n > 0 ? `${n.toFixed(2)}×` : "—");
   const short = (label) =>
     label.replace(/^opencode\//, "").replace(/-free$/, "");
-  let data, dialog, returnFocus;
+  let data, dialog, returnFocus, evidence;
   const title = (name) =>
     data.problems.find((p) => p.name === name)?.title || name;
   const ranked = (models) =>
@@ -192,6 +194,14 @@
         : `${operatorMetric === "cells" ? "Cell count" : "Cycle count"} · lower is better.`,
     );
   }
+  function replayEvidence(run) {
+    if (!evidence)
+      return '<p class="rc-meta">Replay evidence unavailable. Scores are unaffected.</p>';
+    const replay = findReplay(evidence, data.meta.pilot, run);
+    if (!replay)
+      return '<p class="rc-meta">No verified GitHub replay linked to this submission.</p>';
+    return `<section class="run-evidence" aria-label="GitHub replay evidence"><p class="evidence-title">Replay verified <span>· ${esc(replay.date)}</span></p><p class="rc-meta">The frozen submission reproduced its correctness, cells, cycles and ratio. This is not a new model attempt.</p><div class="evidence-links"><a href="${esc(replay.job)}" target="_blank" rel="noopener">Replay job ↗</a><a href="${esc(replay.source)}" target="_blank" rel="noopener">Frozen Verilog ↗</a><a href="${esc(replay.workflow)}" target="_blank" rel="noopener">Workflow &amp; artifacts ↗</a></div><p class="evidence-retention">GitHub logs and artifacts may expire; the source is commit-pinned.</p></section>`;
+  }
   function openRuns(label, problem, attempt) {
     const model = data.models.find((m) => m.label === label);
     if (!model) return;
@@ -212,7 +222,7 @@
           .map((text) => `<p class="rc-detail">${esc(text)}</p>`)
           .join(
             "",
-          )}<details><summary>Inspect artifact hashes</summary><p>Submission SHA-256</p><p class="hash-value">${esc(r.submission_sha256 || "Not recorded")}</p><p>Netlist SHA-256</p><p class="hash-value">${esc(r.netlist_sha256 || "Not recorded")}</p></details></article>`;
+          )}${replayEvidence(r)}<details><summary>Inspect artifact hashes</summary><p>Submission SHA-256</p><p class="hash-value">${esc(r.submission_sha256 || "Not recorded")}</p><p>Netlist SHA-256</p><p class="hash-value">${esc(r.netlist_sha256 || "Not recorded")}</p></details></article>`;
       })
       .join(
         "",
@@ -292,6 +302,12 @@
       `${m.pilot || "published pilot"} · ${data.models.length} models · ${data.problems.length} operators · ${runs.length} attempts`,
     );
     fill(
+      "#replay-summary",
+      evidence
+        ? `${runs.filter((r) => findReplay(evidence, m.pilot, r)).length} submissions have verified GitHub replays. Select a model or result to inspect the evidence. Replays do not add attempts.`
+        : "Replay evidence unavailable. Select a model or result to inspect its recorded score.",
+    );
+    fill(
       "#pilot-note",
       `${m.repetitions || 1} attempt(s) per model–problem pair · ${m.budget_s ? m.budget_s / 60 + " min budget" : "budget unreported"} · ${m.sandbox?.mode || "sandbox unreported"}. Cells × cycles is an area–delay proxy, not a power or physical-timing measurement. Small pilot; model variance is not yet established.`,
     );
@@ -342,9 +358,10 @@
   document.addEventListener("DOMContentLoaded", async () => {
     setupShell();
     try {
-      const [leaderboard, problems] = await Promise.all([
+      const [leaderboard, problems, publishedEvidence] = await Promise.all([
         getJSON("data/leaderboard.json"),
         getJSON("data/problems.json").catch(() => null),
+        getJSON("data/evidence.json").catch(() => null),
       ]);
       if (
         !Array.isArray(leaderboard.models) ||
@@ -356,6 +373,8 @@
         meta: leaderboard.meta || {},
         problems: problems?.problems || leaderboard.problems,
       };
+      evidence = publishedEvidence?.schema_version === 1 && Array.isArray(publishedEvidence.runs)
+        ? publishedEvidence : null;
       renderResults();
       renderProblems();
       renderMeta();
