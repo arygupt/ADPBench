@@ -1,0 +1,121 @@
+name: Replay pilot-001
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/replay-pilot-001.yml"
+      - "adpbench/**"
+      - "flows/**"
+      - "problems/**"
+      - "pilot/results/pilot-001/replay.json"
+      - "pilot/results/pilot-001/submissions/**"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: replay-pilot-001-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  replay:
+    name: ${{ matrix.label }} / ${{ matrix.problem }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      # The first job populates the shared BuildKit cache with the pinned
+      # Yosys/Icarus image; later jobs then restore that image from the cache.
+      max-parallel: 1
+      matrix:
+        include:
+          - id: mimo-dot-product
+            label: opencode/mimo-v2.5-free
+            problem: 001_dot_product
+            submission: pilot/results/pilot-001/submissions/opencode-mimo-v2.5-free/001_dot_product.v
+          - id: mimo-gemv
+            label: opencode/mimo-v2.5-free
+            problem: 002_gemv
+            submission: pilot/results/pilot-001/submissions/opencode-mimo-v2.5-free/002_gemv.v
+          - id: muse-dot-product
+            label: opencode/muse-spark-1.3-contributor-free
+            problem: 001_dot_product
+            submission: pilot/results/pilot-001/submissions/opencode-muse-spark-1.3-contributor-free/001_dot_product.v
+          - id: muse-matmul
+            label: opencode/muse-spark-1.3-contributor-free
+            problem: 003_matmul
+            submission: pilot/results/pilot-001/submissions/opencode-muse-spark-1.3-contributor-free/003_matmul.v
+          - id: nemotron-dot-product
+            label: opencode/nemotron-3-ultra-free
+            problem: 001_dot_product
+            submission: pilot/results/pilot-001/submissions/opencode-nemotron-3-ultra-free/001_dot_product.v
+          - id: nemotron-gemv
+            label: opencode/nemotron-3-ultra-free
+            problem: 002_gemv
+            submission: pilot/results/pilot-001/submissions/opencode-nemotron-3-ultra-free/002_gemv.v
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Verify frozen submission and prepare record
+        env:
+          LABEL: ${{ matrix.label }}
+          PROBLEM: ${{ matrix.problem }}
+          SUBMISSION: ${{ matrix.submission }}
+        run: |
+          set -euo pipefail
+          expected="$(jq -er --arg label "$LABEL" --arg problem "$PROBLEM" \
+            'first(.replays[] | select(.label == $label and .problem == $problem)).submission_sha256' \
+            pilot/results/pilot-001/replay.json)"
+          actual="$(sha256sum "$SUBMISSION" | awk '{print $1}')"
+          test "$actual" = "$expected" || {
+            echo "submission hash mismatch: expected $expected, got $actual" >&2
+            exit 1
+          }
+
+          mkdir -p .action-replay/rep1 .action-replay/rep1_frozen
+          jq --arg label "$LABEL" --arg problem "$PROBLEM" \
+            '{problem: $problem, result: first(.replays[] | select(.label == $label and .problem == $problem)).recorded}' \
+            pilot/results/pilot-001/replay.json > .action-replay/rep1/record.json
+          jq --arg label "$LABEL" --arg problem "$PROBLEM" \
+            'first(.replays[] | select(.label == $label and .problem == $problem)) | {submission_sha256}' \
+            pilot/results/pilot-001/replay.json > .action-replay/rep1/manifest.json
+          cp "$SUBMISSION" .action-replay/rep1_frozen/dut.v
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Build pinned replay toolchain
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: sandbox/Dockerfile
+          load: true
+          tags: adpbench-replay:ci
+          cache-from: type=gha,scope=adpbench-replay-toolchain
+          cache-to: type=gha,mode=max,scope=adpbench-replay-toolchain
+
+      - name: Replay and compare score
+        run: |
+          set -euo pipefail
+          docker run --rm \
+            -e PYTHONPATH=/repo \
+            -e ADPBENCH_WORKDIR=/repo/.action-replay/work \
+            -v "$GITHUB_WORKSPACE:/repo" \
+            -w /repo \
+            adpbench-replay:ci \
+            python -m adpbench replay .action-replay/rep1 | tee .action-replay/replay.log
+
+      - name: Upload replay evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: replay-${{ matrix.id }}
+          path: |
+            .action-replay/replay.log
+            .action-replay/rep1/record.json
+            .action-replay/rep1/manifest.json
+            .action-replay/rep1_frozen/dut.v
+          if-no-files-found: warn
+          retention-days: 90
