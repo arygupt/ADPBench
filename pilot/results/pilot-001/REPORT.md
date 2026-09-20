@@ -10,3 +10,6 @@
 | **all** | 20 | 6 | 30% | 5 | 25% | 2.02x | 10 | 4 |
 
 Runs are frozen under this directory; `plan.json` lists what was planned.
+
+Replay verification: all 6 successful submissions reproduced their recorded
+scores. See [`REPLAY.md`](REPLAY.md) and [`replay.json`](replay.json).
