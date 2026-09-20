@@ -1,0 +1,138 @@
+name: Go pilot (one-shot DeepSeek)
+
+on:
+  schedule:
+    # 2026-09-20 20:07 America/New_York. The Python gate checks the year.
+    - cron: "7 0 21 9 *"
+  workflow_dispatch:
+    # Manual dispatch ONLY validates the offline pipeline; it never calls Go.
+
+permissions:
+  contents: read
+
+concurrency:
+  group: go-single-shot-20260921
+  cancel-in-progress: false
+
+jobs:
+  pilot:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    permissions:
+      contents: write # Durable at-most-once claim via a lightweight tag.
+      actions: write # Disable this one-off workflow after the scheduled run.
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install harness dependencies
+        run: python -m pip install 'numpy>=1.24'
+
+      - name: Check date and model allowlist
+        id: gate
+        env:
+          SCHEDULE: ${{ github.event.schedule }}
+        run: python -m scripts.go_pilot gate
+
+      - name: Test request limits and schedule guards (no model calls)
+        if: steps.gate.outputs.run == 'true' || github.event_name == 'workflow_dispatch'
+        run: python -m unittest discover -s tests -p test_go_pilot.py -v
+
+      - uses: docker/setup-buildx-action@v3
+        if: steps.gate.outputs.run == 'true' || github.event_name == 'workflow_dispatch'
+
+      - name: Build pinned scoring toolchain before spending Go quota
+        if: steps.gate.outputs.run == 'true' || github.event_name == 'workflow_dispatch'
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: sandbox/Dockerfile
+          load: true
+          tags: adpbench-go:ci
+          cache-from: type=gha,scope=adpbench-replay-toolchain
+          cache-to: type=gha,mode=max,scope=adpbench-replay-toolchain
+
+      - name: Validate all four baseline fixtures without Go
+        if: steps.gate.outputs.run == 'true' || github.event_name == 'workflow_dispatch'
+        run: |
+          mkdir -p runs/go-fixture
+          docker run --rm --network none --memory 5g --cpus 2 \
+            -e PYTHONPATH=/repo -e ADPBENCH_WORKDIR=/tmp/adpbench \
+            -v "$GITHUB_WORKSPACE:/repo:ro" \
+            -v "$GITHUB_WORKSPACE/runs/go-fixture:/output" \
+            -w /repo adpbench-go:ci \
+            python -m scripts.go_pilot fixture --out /output
+
+      - name: Claim this batch once (including failed or cancelled attempts)
+        if: steps.gate.outputs.run == 'true'
+        id: claim
+        env:
+          GH_TOKEN: ${{ github.token }}
+          OPENCODE_GO_API_KEY: ${{ secrets.OPENCODE_GO_API_KEY }}
+        run: |
+          set -euo pipefail
+          test -n "$OPENCODE_GO_API_KEY" || { echo 'Missing Go secret'; exit 1; }
+          ref='tags/go-single-shot-20260921-deepseek-v4.1-flash'
+          if gh api "repos/$GITHUB_REPOSITORY/git/ref/$ref" >/dev/null 2>&1; then
+            echo 'Batch already claimed; refusing duplicate model requests.'
+            echo 'claimed=false' >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          # Creation must succeed. An API error never permits generation.
+          gh api --method POST "repos/$GITHUB_REPOSITORY/git/refs" \
+            -f ref="refs/$ref" -f sha="$GITHUB_SHA" >/dev/null
+          echo 'claimed=true' >> "$GITHUB_OUTPUT"
+
+      - name: Generate DeepSeek RTL (four requests maximum, no retries)
+        if: steps.claim.outputs.claimed == 'true'
+        id: generate
+        timeout-minutes: 42
+        env:
+          OPENCODE_GO_API_KEY: ${{ secrets.OPENCODE_GO_API_KEY }}
+          MODEL: ${{ steps.gate.outputs.model }}
+        run: python -m scripts.go_pilot generate --model "$MODEL" --out runs/go
+
+      - name: Score generated RTL with held-out cases, offline
+        if: always() && steps.claim.outputs.claimed == 'true'
+        env:
+          MODEL: ${{ steps.gate.outputs.model }}
+        run: |
+          mkdir -p runs/go
+          docker run --rm --network none --memory 5g --cpus 2 \
+            -e PYTHONPATH=/repo -e ADPBENCH_WORKDIR=/tmp/adpbench \
+            -v "$GITHUB_WORKSPACE:/repo:ro" \
+            -v "$GITHUB_WORKSPACE/runs/go:/output" \
+            -w /repo adpbench-go:ci \
+            python -m scripts.go_pilot score --model "$MODEL" --out /output
+
+      - name: Add results to run summary
+        if: always()
+        run: |
+          if test -f runs/go/REPORT.md; then
+            cat runs/go/REPORT.md >> "$GITHUB_STEP_SUMMARY"
+          elif test -f runs/go-fixture/REPORT.md; then
+            echo 'Offline validation only; no Go requests made.' >> "$GITHUB_STEP_SUMMARY"
+            cat runs/go-fixture/REPORT.md >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Upload prompts, RTL, usage, reports, and replay evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: go-pilot-${{ github.run_id }}
+          path: |
+            runs/go/
+            runs/go-fixture/
+          if-no-files-found: warn
+          retention-days: 90
+
+      - name: Disable one-off schedule after its scheduled attempt
+        if: always() && github.event_name == 'schedule' && steps.gate.outputs.run == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh workflow disable go-pilot.yml --repo "$GITHUB_REPOSITORY"

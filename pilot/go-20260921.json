@@ -1,0 +1,16 @@
+{
+  "name": "go-single-shot-20260921",
+  "expires_at": "2026-09-22T00:00:00+00:00",
+  "max_output_tokens": 8192,
+  "max_prompt_bytes": 24000,
+  "request_timeout_s": 600,
+  "problems": ["001_dot_product", "002_gemv", "003_matmul", "004_conv1d"],
+  "models": [
+    {
+      "id": "deepseek-v4.1-flash",
+      "api": "chat/completions",
+      "not_before": "2026-09-21T00:07:00+00:00",
+      "cron": "7 0 21 9 *"
+    }
+  ]
+}
