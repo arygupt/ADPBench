@@ -1,0 +1,69 @@
+{
+  "pilot": "pilot-001",
+  "verified_at": "2026-09-20T12:15:45-04:00",
+  "original_harness_commit": "48004a3950baeeb79be31934a35bf89df6be1575",
+  "replay_harness_commit": "587d801969d109016432d17ae05d142a3b5f52d2",
+  "tools": {
+    "yosys": "Yosys 0.69+post (git sha1 143eb14f9cc55d6f8927e68523b0c9d2166ed02c, Release, AppleClang clang++ 21.0.0.21000101)",
+    "iverilog": "Icarus Verilog version 13.0 (stable) (v13_0)"
+  },
+  "successful_runs": 6,
+  "matches": 6,
+  "comparison": "correctness, cells, cycles, and ratio (ratio tolerance 1e-6)",
+  "replays": [
+    {
+      "label": "opencode/mimo-v2.5-free",
+      "problem": "001_dot_product",
+      "attempt": 1,
+      "submission_sha256": "7913a05754cd868723734c1ea2ab9ec2e6b8529acb3d391619ae8b75473db2b9",
+      "recorded": {"correct": true, "cells": 19193, "cycles": 18, "ratio": 3.3852967227635076},
+      "replayed": {"correct": true, "cells": 19193, "cycles": 18, "ratio": 3.3852967227635076},
+      "match": true
+    },
+    {
+      "label": "opencode/mimo-v2.5-free",
+      "problem": "002_gemv",
+      "attempt": 1,
+      "submission_sha256": "2735879f8a7678b7674c3ae24c24fb94d7607b2b544d390c391b321428dc243f",
+      "recorded": {"correct": true, "cells": 13725, "cycles": 168, "ratio": 3.166675340445832},
+      "replayed": {"correct": true, "cells": 13725, "cycles": 168, "ratio": 3.166675340445832},
+      "match": true
+    },
+    {
+      "label": "opencode/muse-spark-1.3-contributor-free",
+      "problem": "001_dot_product",
+      "attempt": 1,
+      "submission_sha256": "ffd7d67e3de2066d9f9906905f78ed57d64946b2044f0f27081a003ca2d9c18f",
+      "recorded": {"correct": true, "cells": 19272, "cycles": 18, "ratio": 3.3714196762141966},
+      "replayed": {"correct": true, "cells": 19272, "cycles": 18, "ratio": 3.3714196762141966},
+      "match": true
+    },
+    {
+      "label": "opencode/muse-spark-1.3-contributor-free",
+      "problem": "003_matmul",
+      "attempt": 1,
+      "submission_sha256": "a72079ea2181553624493b99d537a14a9ff5f07c08381cb0e33a4c136611e59b",
+      "recorded": {"correct": true, "cells": 14975, "cycles": 402, "ratio": 2.278936203789068},
+      "replayed": {"correct": true, "cells": 14975, "cycles": 402, "ratio": 2.278936203789068},
+      "match": true
+    },
+    {
+      "label": "opencode/nemotron-3-ultra-free",
+      "problem": "001_dot_product",
+      "attempt": 1,
+      "submission_sha256": "2a354773a2ca6ee8c66dfd12d25b2db55ae6a5b012f9bf6c8d69ae9bc4492550",
+      "recorded": {"correct": true, "cells": 7910, "cycles": 530, "ratio": 0.27897144765403237},
+      "replayed": {"correct": true, "cells": 7910, "cycles": 530, "ratio": 0.27897144765403237},
+      "match": true
+    },
+    {
+      "label": "opencode/nemotron-3-ultra-free",
+      "problem": "002_gemv",
+      "attempt": 1,
+      "submission_sha256": "1f8d6b883f19257bb147ec489f775834a8ab835647b0022d37a29ec5e7e38205",
+      "recorded": {"correct": true, "cells": 14490, "cycles": 170, "ratio": 2.9642024925912396},
+      "replayed": {"correct": true, "cells": 14490, "cycles": 170, "ratio": 2.9642024925912396},
+      "match": true
+    }
+  ]
+}
