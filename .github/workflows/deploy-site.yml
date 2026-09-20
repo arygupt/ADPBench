@@ -3,7 +3,9 @@ name: Site
 on:
   push:
     branches: [main]
-    paths: ["site/**", "pilot/results/**"]
+    paths: ["site/**", "pilot/results/**", "tests/test_site_evidence.mjs", ".github/workflows/deploy-site.yml"]
+  pull_request:
+    paths: ["site/**", "pilot/results/**", "tests/test_site_evidence.mjs", ".github/workflows/deploy-site.yml"]
   workflow_dispatch:
 
 permissions:
@@ -12,7 +14,7 @@ permissions:
   id-token: write
 
 concurrency:
-  group: pages
+  group: site-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -20,6 +22,13 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Validate site evidence and JavaScript
+        run: |
+          node --input-type=module --check < site/assets/app.js
+          node --test tests/test_site_evidence.mjs
       # Downloadable site bundle (deploy to any static host).
       - uses: actions/upload-artifact@v4
         with:
@@ -27,7 +36,9 @@ jobs:
           path: site
       # Pages artifact, used by the deploy job when Pages is enabled.
       - uses: actions/configure-pages@v5
+        if: ${{ github.ref == 'refs/heads/main' && vars.ENABLE_PAGES == 'true' }}
       - uses: actions/upload-pages-artifact@v3
+        if: ${{ github.ref == 'refs/heads/main' && vars.ENABLE_PAGES == 'true' }}
         with:
           path: site
 
@@ -36,7 +47,7 @@ jobs:
     # GitHub Pages is free for public repositories; for a private repository it
     # needs a paid plan. Once Pages is enabled in repo settings, set the
     # ENABLE_PAGES=true repository variable to switch this on.
-    if: ${{ vars.ENABLE_PAGES == 'true' }}
+    if: ${{ github.ref == 'refs/heads/main' && vars.ENABLE_PAGES == 'true' }}
     runs-on: ubuntu-latest
     environment:
       name: github-pages

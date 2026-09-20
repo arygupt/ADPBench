@@ -15,7 +15,7 @@
       href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
       rel="stylesheet"
     />
-    <link rel="stylesheet" href="assets/style.css?v=compact5" />
+    <link rel="stylesheet" href="assets/style.css?v=evidence1" />
   </head>
   <body class="workspace">
     <a class="skip-link" href="#main">Skip to results</a>
@@ -38,6 +38,7 @@
         <p class="dataset-summary" id="dataset-summary">Loading results…</p>
         <input type="search" id="model-search" aria-label="Find a model" placeholder="Find a model…" />
       </div>
+      <p class="replay-summary" id="replay-summary" role="status"></p>
       <section class="benchmark-section" id="models" aria-labelledby="model-view-title">
         <div class="section-heading">
           <h2 id="model-view-title">Models</h2>
@@ -97,12 +98,13 @@
         ><a href="data/leaderboard.json" download>results.json</a><span>·</span
         ><a href="data/report.json">report</a><span>·</span
         ><a href="data/problems.json">problems.json</a>
+        <span>·</span><a href="data/evidence.json">replay evidence</a>
       </div>
       <p>
         snapshot <span id="meta-generated">—</span> ·
         <code id="meta-commit">—</code>
       </p>
     </footer>
-    <script src="assets/app.js?v=compact5"></script>
+    <script type="module" src="assets/app.js?v=evidence1"></script>
   </body>
 </html>
