@@ -1,4 +1,4 @@
-"""Evaluation result record, modelled on KernelBench's KernelExecResult.
+"""Evaluation result record for RTL correctness and area-delay measurements.
 
 Stages are recorded independently so a failure tells you *where* it failed:
 `compiled` (parses and simulates), `synthesizable` (becomes gates), `correct`

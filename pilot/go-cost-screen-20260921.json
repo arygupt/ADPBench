@@ -1,0 +1,31 @@
+{
+  "name": "go-cost-screen-20260921",
+  "expires_at": "2026-09-23T00:00:00+00:00",
+  "max_output_tokens": 8192,
+  "max_prompt_bytes": 24000,
+  "request_timeout_s": 600,
+  "stop_on_invalid_output": true,
+  "problems": ["001_dot_product", "002_gemv"],
+  "models": [
+    {
+      "id": "mimo-v2.5",
+      "api": "chat/completions",
+      "token_limit_key": "max_completion_tokens",
+      "thinking": {"type": "disabled"},
+      "not_before": "2026-09-21T18:00:00+00:00"
+    },
+    {
+      "id": "qwen3.8-flash",
+      "api": "messages",
+      "thinking": {"type": "disabled"},
+      "not_before": "2026-09-21T18:00:00+00:00"
+    },
+    {
+      "id": "glm-5.3-flash",
+      "api": "chat/completions",
+      "thinking": {"type": "enabled"},
+      "reasoning_effort": "low",
+      "not_before": "2026-09-21T18:00:00+00:00"
+    }
+  ]
+}

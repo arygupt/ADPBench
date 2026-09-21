@@ -34,8 +34,41 @@ SYSTEM = (
 )
 
 
-def read_plan() -> dict:
-    return json.loads(PLAN.read_text())
+def read_plan(path: Path = PLAN) -> dict:
+    plan = json.loads(path.read_text())
+    validate_plan(plan)
+    return plan
+
+
+def validate_plan(plan: dict) -> None:
+    """Keep manually dispatched screens finite even if a plan is edited."""
+    problems, models = plan["problems"], plan["models"]
+    allowed = {"001_dot_product", "002_gemv", "003_matmul", "004_conv1d"}
+    if not problems or len(set(problems)) != len(problems) or not set(problems) <= allowed:
+        raise ValueError("invalid or duplicate problems")
+    if not 1 <= len(models) <= 3 or len(models) * len(problems) > 6:
+        raise ValueError("a batch may contain at most six requests across three models")
+    for key, cap in [("max_output_tokens", 8192), ("max_prompt_bytes", 24000), ("request_timeout_s", 600)]:
+        if type(plan[key]) is not int or not 0 < plan[key] <= cap:
+            raise ValueError(f"invalid {key}")
+    if not re.fullmatch(r"[a-z0-9][a-z0-9-]{0,79}", plan["name"]):
+        raise ValueError("invalid batch name")
+    ids = [m["id"] for m in models]
+    if len(set(ids)) != len(ids):
+        raise ValueError("duplicate model")
+    expires = datetime.fromisoformat(plan["expires_at"])
+    if expires.tzinfo is None:
+        raise ValueError("expiry must include a timezone")
+    for model in models:
+        if not re.fullmatch(r"[a-z0-9][a-z0-9.-]{0,79}", model["id"]):
+            raise ValueError("invalid model ID")
+        if model["api"] not in {"chat/completions", "messages"}:
+            raise ValueError("unsupported Go endpoint")
+        if model.get("token_limit_key", "max_tokens") not in {"max_tokens", "max_completion_tokens"}:
+            raise ValueError("invalid output limit field")
+        starts = datetime.fromisoformat(model["not_before"])
+        if starts.tzinfo is None or not 0 < (expires - starts).total_seconds() <= 172800:
+            raise ValueError("authorization window must be positive and at most two days")
 
 
 def now_utc() -> datetime:
@@ -68,8 +101,11 @@ def request_body(model: dict, prompt: str, plan: dict) -> dict:
     messages = [{"role": "user", "content": prompt}]
     body = {
         "model": model["id"], "messages": messages,
-        "max_tokens": plan["max_output_tokens"], "stream": False,
+        model.get("token_limit_key", "max_tokens"): plan["max_output_tokens"], "stream": False,
     }
+    for key in ("thinking", "reasoning_effort"):
+        if key in model:
+            body[key] = model[key]
     if model["api"] == "messages":
         body["system"] = SYSTEM
     else:
@@ -120,6 +156,9 @@ def call_model(model: dict, body: dict, key: str, session: str, timeout: int) ->
 
 
 def generate(plan: dict, model: dict, out: Path) -> None:
+    validate_plan(plan)
+    if model != select_model(plan, model["id"]):
+        raise ValueError("model must match the reviewed plan")
     if not due(plan, model, now_utc()):
         raise RuntimeError("outside the model's authorized schedule window")
     key = os.environ.get("OPENCODE_GO_API_KEY", "")
@@ -138,6 +177,8 @@ def generate(plan: dict, model: dict, out: Path) -> None:
             "model": model["id"], "problem": problem_id,
             "protocol": "single-shot", "started": now_utc().isoformat(),
             "max_output_tokens": plan["max_output_tokens"], "error": "",
+            "generation_settings": {k: model[k] for k in ("thinking", "reasoning_effort", "token_limit_key") if k in model},
+            "github": {k: os.environ.get(k, "") for k in ("GITHUB_REPOSITORY", "GITHUB_RUN_ID", "GITHUB_RUN_ATTEMPT", "GITHUB_SHA")},
         }
         if stop:
             record["error"] = "not requested: batch stopped after " + stop
@@ -155,12 +196,16 @@ def generate(plan: dict, model: dict, out: Path) -> None:
             if prompt_bytes > plan["max_prompt_bytes"]:
                 raise RuntimeError("prompt exceeds size cap")
             session = f"adpbench-{plan['name']}-{model['id']}-{problem_id}"
-            data = call_model(model, request_body(model, prompt, plan), key, session, plan["request_timeout_s"])
+            body = request_body(model, prompt, plan)
+            write_json(dest / "request.json", body)
+            data = call_model(model, body, key, session, plan["request_timeout_s"])
             text, finish, usage = parse_response(data, model["api"])
-            record.update({"finish_reason": finish, "usage": usage, "response_id": data.get("id", "")})
+            record.update({"finish_reason": finish, "usage": usage, "response_id": data.get("id", ""), "response_model": data.get("model", "")})
             (dest / "response.txt").write_text(text)
             if not usage:
-                stop = "missing provider token accounting"
+                stop = record["error"] = "missing provider token accounting"
+            elif not valid_usage(usage, model["api"], plan["max_output_tokens"]):
+                stop = record["error"] = "invalid provider token accounting or output cap exceeded"
             if finish in {"length", "max_tokens"}:
                 record["error"] = "generation reached output cap; no retry"
             else:
@@ -168,6 +213,8 @@ def generate(plan: dict, model: dict, out: Path) -> None:
                     (dest / "dut.v").write_text(extract_rtl(text))
                 except ValueError as exc:
                     record["invalid_rtl"] = str(exc)
+            if plan.get("stop_on_invalid_output") and (record["error"] or record.get("invalid_rtl")):
+                stop = record["error"] or record["invalid_rtl"]
         except urllib.error.HTTPError as exc:
             stop = record["error"] = f"provider HTTP {exc.code}; no retry or fallback"
         except Exception as exc:
@@ -178,6 +225,12 @@ def generate(plan: dict, model: dict, out: Path) -> None:
         print(f"{problem_id}: {record['error'] or record.get('invalid_rtl') or 'generated'}", flush=True)
     if stop:
         raise RuntimeError(stop)
+
+
+def valid_usage(usage: dict, api: str, cap: int) -> bool:
+    inputs = usage.get("input_tokens" if api == "messages" else "prompt_tokens")
+    outputs = usage.get("output_tokens" if api == "messages" else "completion_tokens")
+    return type(inputs) is int and inputs >= 0 and type(outputs) is int and 0 <= outputs <= cap
 
 
 def score(plan: dict, model: dict, out: Path) -> None:
@@ -225,11 +278,12 @@ def score(plan: dict, model: dict, out: Path) -> None:
     with (out / "REPORT.md").open("a") as handle:
         handle.write(f"\nProtocol: one generation per problem, no feedback or retries. Output cap: {plan['max_output_tokens']} tokens/request.\n")
         handle.write(f"\nProvider-reported input (including cache): {total_input}; output: {total_output} tokens.\n")
+        handle.write(f"\nGeneration settings: `{json.dumps({k: model[k] for k in ('thinking', 'reasoning_effort') if k in model})}`.\n")
         handle.write("\nThese single-shot results use a different generation budget from the iterative pilot-001.\n")
 
 
 def gate(plan: dict, cron: str, now: datetime) -> dict:
-    match = next((m for m in plan["models"] if m["cron"] == cron), None)
+    match = next((m for m in plan["models"] if m.get("cron") and m["cron"] == cron), None)
     return {"run": bool(match and due(plan, match, now)), "model": match["id"] if match else ""}
 
 
@@ -237,9 +291,10 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("mode", choices=["gate", "generate", "score", "fixture"])
     parser.add_argument("--model", default="deepseek-v4.1-flash")
+    parser.add_argument("--plan", type=Path, default=PLAN)
     parser.add_argument("--out", type=Path, default=Path("runs/go"))
     args = parser.parse_args()
-    plan = read_plan()
+    plan = read_plan(args.plan)
     if args.mode == "gate":
         result = gate(plan, os.environ.get("SCHEDULE", ""), now_utc())
         with open(os.environ["GITHUB_OUTPUT"], "a") as handle:
@@ -262,7 +317,7 @@ def main() -> None:
         report = json.loads((args.out / "report.json").read_text())
         if report["totals"]["correct"] != len(plan["problems"]):
             raise RuntimeError("offline baseline fixture failed")
-        print("All four offline baseline fixtures passed. No Go requests made.")
+        print(f"All {len(plan['problems'])} offline baseline fixtures passed. No Go requests made.")
 
 
 if __name__ == "__main__":

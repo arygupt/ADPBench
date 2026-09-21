@@ -1,4 +1,4 @@
-"""ADPBench: a KernelBench-shaped benchmark scored on silicon cost.
+"""ADPBench: an RTL generation benchmark scored on an area-delay product proxy.
 
 Problem = a runnable numeric reference (dut.py) + a port contract.
 Submission = synthesizable Verilog implementing that reference.

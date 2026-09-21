@@ -1,14 +1,12 @@
 """Scoring.
 
-KernelBench averages speed ratios across correct submissions. The silicon
-analogue is the area-delay product: with the clock pinned, time is proportional
-to cycles, so
+ADPBench uses cell count times cycle count as an area-delay product proxy:
 
-    adp = cells * cycles          (silicon cost x time)
+    adp = cells * cycles
 
-and a submission's score is `baseline_adp / adp`, higher is better. A design
-that merely widens the datapath cannot buy score this way: duplicating hardware
-doubles cells to halve cycles. Score comes from doing less work per result.
+A submission's score is `baseline_adp / adp`, higher is better. This balances
+cell count against cycle count, but does not measure physical area or verify
+that designs meet a common clock period.
 """
 
 from __future__ import annotations
@@ -33,7 +31,7 @@ def ratio(submission_adp: float, baseline_adp: float) -> float:
 def geometric_mean_ratio_correct_only(
     correct: np.ndarray, baseline_adp: np.ndarray, actual_adp: np.ndarray
 ) -> float:
-    """KernelBench's aggregation, applied to area-delay ratio."""
+    """Geometric mean of area-delay ratios across correct submissions."""
     mask = np.asarray(correct, dtype=bool)
     if mask.sum() == 0:
         return 0.0
