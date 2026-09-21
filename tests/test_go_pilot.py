@@ -9,6 +9,7 @@ from unittest.mock import patch
 
 from scripts.go_pilot import (
     due, extract_rtl, gate, generate, parse_response, read_plan, request_body,
+    validate_plan, valid_usage,
 )
 
 
@@ -90,6 +91,56 @@ class GoPilotTest(unittest.TestCase):
             with self.assertRaises(RuntimeError):
                 generate(self.plan, self.model, Path("unused"))
             call.assert_not_called()
+
+
+class CostScreenTest(unittest.TestCase):
+    def setUp(self):
+        self.plan = read_plan(Path(__file__).resolve().parent.parent / "pilot/go-cost-screen-20260921.json")
+        self.now = datetime.fromisoformat("2026-09-21T19:00:00+00:00")
+
+    def test_six_requests_with_explicit_reasoning_settings(self):
+        self.assertEqual(len(self.plan["models"]) * len(self.plan["problems"]), 6)
+        self.assertEqual([m["id"] for m in self.plan["models"]], ["mimo-v2.5", "qwen3.8-flash", "glm-5.3-flash"])
+        for model in self.plan["models"]:
+            body = request_body(model, "RTL coding task", self.plan)
+            self.assertEqual(body[model.get("token_limit_key", "max_tokens")], 8192)
+            self.assertNotIn("tools", body)
+            self.assertEqual(body["thinking"]["type"], "enabled" if model["id"].startswith("glm") else "disabled")
+        self.assertEqual(request_body(self.plan["models"][2], "task", self.plan)["reasoning_effort"], "low")
+        self.assertFalse(gate(self.plan, "", self.now)["run"])
+
+    def test_no_oversized_duplicate_or_unsafe_plans(self):
+        for change in [
+            {"max_output_tokens": 8193}, {"max_output_tokens": True},
+            {"request_timeout_s": 601}, {"max_prompt_bytes": 24001},
+            {"problems": ["001_dot_product"] * 2}, {"problems": ["../../secret"]},
+            {"models": self.plan["models"] * 2}, {"name": "../escape"},
+            {"expires_at": "2028-09-23T00:00:00+00:00"},
+            {"models": [{**self.plan["models"][0], "api": "https://example.invalid"}]},
+        ]:
+            with self.subTest(change=change), self.assertRaises(ValueError):
+                validate_plan({**self.plan, **change})
+
+    def test_stop_after_first_truncated_response(self):
+        response = {"choices": [{"message": {"content": ""}, "finish_reason": "length"}], "usage": {"prompt_tokens": 10, "completion_tokens": 8192}}
+        with tempfile.TemporaryDirectory() as tmp, patch.dict("os.environ", {"OPENCODE_GO_API_KEY": "fake"}), patch("scripts.go_pilot.now_utc", return_value=self.now), patch("scripts.go_pilot.call_model", return_value=response) as call:
+            with self.assertRaisesRegex(RuntimeError, "output cap"):
+                generate(self.plan, self.plan["models"][0], Path(tmp))
+            self.assertEqual(call.call_count, 1)
+            self.assertEqual(len(list(Path(tmp).glob("**/generation.json"))), 2)
+            self.assertFalse(list(Path(tmp).glob("**/dut.v")))
+            request = json.loads(next(Path(tmp).glob("**/request.json")).read_text())
+            self.assertEqual(request["thinking"], {"type": "disabled"})
+            self.assertNotIn("fake", json.dumps(request))
+
+    def test_messages_response_and_usage_limits(self):
+        response = {"content": [{"type": "text", "text": "module dut; endmodule"}], "stop_reason": "end_turn", "usage": {"input_tokens": 100, "output_tokens": 20}}
+        text, finish, usage = parse_response(response, "messages")
+        self.assertEqual(text, "module dut; endmodule")
+        self.assertEqual(finish, "end_turn")
+        self.assertTrue(valid_usage(usage, "messages", 8192))
+        for usage in [{}, {"prompt_tokens": 10, "completion_tokens": 8193}, {"prompt_tokens": 10, "completion_tokens": -1}, {"prompt_tokens": 10, "completion_tokens": True}]:
+            self.assertFalse(valid_usage(usage, "chat/completions", 8192))
 
 
 if __name__ == "__main__":

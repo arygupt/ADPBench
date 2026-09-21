@@ -1,5 +1,8 @@
 # Scheduled Go pilot
 
+This historical one-off schedule is complete and disabled. For the new bounded,
+manually dispatched subscription-only screen, see [GO_COST_SCREEN.md](GO_COST_SCREEN.md).
+
 The one-off GitHub Actions workflow `go-pilot.yml` schedules **DeepSeek V4.1
 Flash only**, using the user's existing OpenCode Go subscription. GLM and Qwen
 are not scheduled. No OpenAI or Anthropic model is selected.
