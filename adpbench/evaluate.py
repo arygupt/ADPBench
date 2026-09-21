@@ -1,4 +1,4 @@
-"""The evaluation pipeline: the `eval_kernel_against_ref` equivalent.
+"""The RTL evaluation pipeline: synthesis, reference checks, and scoring.
 
     dut.v
         -> synthesize (yosys)      fixed parameters, gate netlist, cell count

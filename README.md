@@ -4,10 +4,10 @@ AI agents write synthesizable Verilog. ADPBench checks whether the result is
 correct, synthesizes the exact design to gates, simulates it at gate level, and
 scores the area–delay product: `cells × cycles`.
 
-The benchmark is KernelBench-shaped, one level below GPU kernels: given a
-numeric operator and an executable reference, can an agent produce hardware
-that is both correct and cheap? ADP is an explicit proxy. It does not claim
-physical area, timing closure, or power signoff.
+Given a numeric operator and an executable reference, can an agent produce
+hardware that is both correct and cheap? ADPBench measures this with an
+area–delay proxy. It does not claim physical area, timing closure, or power
+signoff.
 
 Live results: [`site/`](site/) · preview with `python3 -m http.server 8000 --directory site`
 
