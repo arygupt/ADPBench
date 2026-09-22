@@ -1,0 +1,22 @@
+{
+  "model": "glm-5.3-flash",
+  "problem": "001_dot_product",
+  "protocol": "single-shot",
+  "started": "2026-09-22T00:28:49.941008+00:00",
+  "max_output_tokens": 8192,
+  "error": "provider HTTP 400; no retry or fallback",
+  "generation_settings": {
+    "thinking": {
+      "type": "enabled"
+    },
+    "reasoning_effort": "low"
+  },
+  "github": {
+    "GITHUB_REPOSITORY": "arygupt/ADPBench",
+    "GITHUB_RUN_ID": "35671789622",
+    "GITHUB_RUN_ATTEMPT": "1",
+    "GITHUB_SHA": "a03c6aaf7bbdaf811d34163b5fdb216c74c315ed"
+  },
+  "prompt_bytes": 6943,
+  "duration_s": 0.28
+}

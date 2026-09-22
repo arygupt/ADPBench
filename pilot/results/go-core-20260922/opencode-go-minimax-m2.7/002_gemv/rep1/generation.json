@@ -1,0 +1,30 @@
+{
+  "model": "minimax-m2.7",
+  "problem": "002_gemv",
+  "protocol": "single-shot",
+  "started": "2026-09-22T00:32:22.852803+00:00",
+  "max_output_tokens": 8192,
+  "error": "generation reached output cap; no retry",
+  "generation_settings": {},
+  "github": {
+    "GITHUB_REPOSITORY": "arygupt/ADPBench",
+    "GITHUB_RUN_ID": "35671789622",
+    "GITHUB_RUN_ATTEMPT": "1",
+    "GITHUB_SHA": "a03c6aaf7bbdaf811d34163b5fdb216c74c315ed"
+  },
+  "prompt_bytes": 7117,
+  "finish_reason": "max_tokens",
+  "usage": {
+    "input_tokens": 1913,
+    "output_tokens": 8192
+  },
+  "response_id": "0700ff9745bf434ca26a2e7644c9377c",
+  "response_model": "minimax-m2.7",
+  "response_diagnostics": {
+    "content_block_types": [
+      "thinking"
+    ],
+    "reasoning_chars": 33453
+  },
+  "duration_s": 132.82
+}

@@ -40,15 +40,15 @@ def publish(artifacts: Path, plan: dict, run: dict, jobs: list[dict], output: Pa
     for model in plan["models"]:
         model_id = model["id"]
         job = next(j for j in jobs if j["name"] == f"Evaluate {model_id} · dot product + GEMV")
-        if job["status"] != "completed" or job["conclusion"] not in {"success", "failure", "timed_out"}:
+        if job["status"] != "completed" or job["conclusion"] not in {"success", "failure", "timed_out", "cancelled"}:
             raise ValueError(f"model job not evaluated: {model_id}")
         artifact = artifacts / f"go-core-{model_id}-{run['id']}"
-        if not artifact.exists() and job["conclusion"] in {"failure", "timed_out"}:
+        if not artifact.exists() and job["conclusion"] in {"failure", "timed_out", "cancelled"}:
             # A job-level timeout can prevent always() artifact-upload steps.
             # Publish only the observed job status, never fabricated scores,
             # provider responses, token counts, or submission hashes.
             for problem in plan["problems"]:
-                outcome = "timed out" if job["conclusion"] == "timed_out" else "failed"
+                outcome = {"timed_out": "timed out", "cancelled": "was cancelled", "failure": "failed"}[job["conclusion"]]
                 error = f"GitHub job {outcome} before final artifacts were uploaded. Per-problem generation, scores, RTL and token usage are unavailable."
                 gen = {"model": model_id, "problem": problem, "protocol": "single-shot", "evidence_unavailable": True}
                 record = {
@@ -66,10 +66,8 @@ def publish(artifacts: Path, plan: dict, run: dict, jobs: list[dict], output: Pa
             raise ValueError("artifact plan differs from the reviewed plan")
         for problem in plan["problems"]:
             path = artifact / f"opencode-go-{model_id}" / problem / "rep1"
-            record = json.loads((path / "record.json").read_text())
             gen = json.loads((path / "generation.json").read_text())
-            if (record["problem"] != problem or record["label"] != f"opencode-go/{model_id} [single-shot]"
-                    or gen["model"] != model_id or gen["problem"] != problem or gen["protocol"] != "single-shot"):
+            if gen["model"] != model_id or gen["problem"] != problem or gen["protocol"] != "single-shot":
                 raise ValueError("record identity mismatch")
             meta = gen["github"]
             if (meta["GITHUB_REPOSITORY"].lower() != REPOSITORY.lower()
@@ -77,9 +75,26 @@ def publish(artifacts: Path, plan: dict, run: dict, jobs: list[dict], output: Pa
                     or int(meta["GITHUB_RUN_ATTEMPT"]) != run["run_attempt"]
                     or meta["GITHUB_SHA"] != run["head_sha"]):
                 raise ValueError("generation provenance mismatch")
+            source = path.parent / "rep1_frozen/dut.v"
+            if (path / "record.json").exists():
+                record = json.loads((path / "record.json").read_text())
+            elif job["conclusion"] in {"failure", "timed_out", "cancelled"}:
+                # Preserve verified generation evidence without inventing an
+                # interrupted scorer's result. This hash identifies the saved
+                # artifact only; it is not a claim of completed evaluation.
+                record = {
+                    "problem": problem, "label": f"opencode-go/{model_id} [single-shot]", "attempt": 1,
+                    "group": plan["name"], "record_origin": "github-generation-only",
+                    "error": f"GitHub job {job['conclusion']}; generation artifacts were saved but scoring did not produce a final record. Score is unknown.",
+                    "result": None,
+                    "manifest": {"generation": gen, "submission_sha256": hashlib.sha256(source.read_bytes()).hexdigest() if source.exists() else ""},
+                }
+            else:
+                raise ValueError("successful job has no scoring record")
+            if record["problem"] != problem or record["label"] != f"opencode-go/{model_id} [single-shot]":
+                raise ValueError("record identity mismatch")
             if record["manifest"]["generation"] != gen:
                 raise ValueError("manifest generation mismatch")
-            source = path.parent / "rep1_frozen/dut.v"
             expected = record["manifest"].get("submission_sha256")
             if source.exists():
                 if hashlib.sha256(source.read_bytes()).hexdigest() != expected:
@@ -113,7 +128,8 @@ def publish(artifacts: Path, plan: dict, run: dict, jobs: list[dict], output: Pa
         "git_commit": run["head_sha"], "protocol": "single-shot", "repetitions": 1,
         "max_output_tokens": plan["max_output_tokens"], "sandbox": {"mode": "docker · network disabled"},
         "workflow_url": run["html_url"], "generation_requests": sum(bool(g.get("response_id")) for _, _, _, g, _ in prepared),
-        "incomplete_evidence": any(g.get("evidence_unavailable") for _, _, _, g, _ in prepared),
+        "incomplete_evidence": any(r.get("record_origin", "scorer") != "scorer" for _, _, r, _, _ in prepared),
+        "incomplete_usage": any(g.get("evidence_unavailable") for _, _, _, g, _ in prepared),
         "output_tokens": sum(g.get("usage", {}).get("completion_tokens", g.get("usage", {}).get("output_tokens", 0)) for _, _, _, g, _ in prepared),
     })
     write_json(board_path, board)

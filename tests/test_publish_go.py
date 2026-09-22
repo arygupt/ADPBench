@@ -83,6 +83,29 @@ class PublishGoTest(unittest.TestCase):
             self.assertIsNone(run["generation"]["usage"])
             self.assertIn("unavailable", run["error"])
 
+    def test_interrupted_job_preserves_generation_but_never_invents_a_score(self):
+        path = self.artifact / "opencode-go-mimo-v2.5/002_gemv/rep1/record.json"
+        path.unlink()  # This test owns the temporary fixture only.
+        self.jobs[0]["conclusion"] = "cancelled"
+        board = self.publish()
+        self.assertTrue(board["meta"]["incomplete_evidence"])
+        self.assertFalse(board["meta"]["incomplete_usage"])
+        self.assertEqual(board["meta"]["output_tokens"], 60)
+        run = next(r for r in board["models"][0]["runs"] if r["problem"] == "002_gemv")
+        self.assertEqual(run["record_origin"], "github-generation-only")
+        self.assertFalse(run["correct"])
+        self.assertEqual(run["cells"], -1)
+        self.assertEqual(run["execution"]["job_conclusion"], "cancelled")
+        self.assertEqual(run["generation"]["usage"]["completion_tokens"], 30)
+        self.assertEqual(run["submission_sha256"], hashlib.sha256(self.sources[1].read_bytes()).hexdigest())
+
+    def test_successful_job_requires_all_scoring_records(self):
+        path = self.artifact / "opencode-go-mimo-v2.5/002_gemv/rep1/record.json"
+        path.unlink()  # This test owns the temporary fixture only.
+        with self.assertRaisesRegex(ValueError, "no scoring record"):
+            self.publish()
+        self.assertFalse((self.root / "published").exists())
+
 
 if __name__ == "__main__":
     unittest.main()

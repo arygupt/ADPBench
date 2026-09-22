@@ -1,0 +1,78 @@
+{
+  "run": {
+    "id": 35671789622,
+    "run_attempt": 1,
+    "head_sha": "a03c6aaf7bbdaf811d34163b5fdb216c74c315ed",
+    "html_url": "https://github.com/arygupt/ADPBench/actions/runs/35671789622",
+    "status": "completed",
+    "conclusion": "failure",
+    "event": "workflow_dispatch",
+    "path": ".github/workflows/go-core.yml"
+  },
+  "jobs": [
+    {
+      "id": 106569652670,
+      "name": "Offline request and accounting checks",
+      "status": "completed",
+      "conclusion": "success",
+      "started_at": "2026-09-22T00:24:03Z",
+      "completed_at": "2026-09-22T00:24:13Z"
+    },
+    {
+      "id": 106569701313,
+      "name": "Prepare toolchain and validate both baselines (no model calls)",
+      "status": "completed",
+      "conclusion": "success",
+      "started_at": "2026-09-22T00:24:17Z",
+      "completed_at": "2026-09-22T00:25:55Z"
+    },
+    {
+      "id": 106570070544,
+      "name": "Evaluate kimi-k2.6 \u00b7 dot product + GEMV",
+      "status": "completed",
+      "conclusion": "cancelled",
+      "started_at": "2026-09-22T00:28:57Z",
+      "completed_at": "2026-09-22T01:29:17Z"
+    },
+    {
+      "id": 106570070545,
+      "name": "Evaluate deepseek-v4.1-flash \u00b7 dot product + GEMV",
+      "status": "completed",
+      "conclusion": "failure",
+      "started_at": "2026-09-22T00:25:57Z",
+      "completed_at": "2026-09-22T00:28:20Z"
+    },
+    {
+      "id": 106570070547,
+      "name": "Evaluate glm-5.3-flash \u00b7 dot product + GEMV",
+      "status": "completed",
+      "conclusion": "failure",
+      "started_at": "2026-09-22T00:28:22Z",
+      "completed_at": "2026-09-22T00:28:56Z"
+    },
+    {
+      "id": 106570070560,
+      "name": "Evaluate qwen3.8-flash \u00b7 dot product + GEMV",
+      "status": "completed",
+      "conclusion": "success",
+      "started_at": "2026-09-22T00:28:05Z",
+      "completed_at": "2026-09-22T00:29:43Z"
+    },
+    {
+      "id": 106570070567,
+      "name": "Evaluate mimo-v2.5 \u00b7 dot product + GEMV",
+      "status": "completed",
+      "conclusion": "success",
+      "started_at": "2026-09-22T00:25:58Z",
+      "completed_at": "2026-09-22T00:28:03Z"
+    },
+    {
+      "id": 106570070570,
+      "name": "Evaluate minimax-m2.7 \u00b7 dot product + GEMV",
+      "status": "completed",
+      "conclusion": "failure",
+      "started_at": "2026-09-22T00:29:46Z",
+      "completed_at": "2026-09-22T00:34:43Z"
+    }
+  ]
+}

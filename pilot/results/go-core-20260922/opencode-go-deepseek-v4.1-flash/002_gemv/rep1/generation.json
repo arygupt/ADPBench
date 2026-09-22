@@ -1,0 +1,44 @@
+{
+  "model": "deepseek-v4.1-flash",
+  "problem": "002_gemv",
+  "protocol": "single-shot",
+  "started": "2026-09-22T00:26:47.374498+00:00",
+  "max_output_tokens": 8192,
+  "error": "generation reached output cap; no retry",
+  "generation_settings": {
+    "thinking": {
+      "type": "disabled"
+    },
+    "reasoning_effort": "low"
+  },
+  "github": {
+    "GITHUB_REPOSITORY": "arygupt/ADPBench",
+    "GITHUB_RUN_ID": "35671789622",
+    "GITHUB_RUN_ATTEMPT": "1",
+    "GITHUB_SHA": "a03c6aaf7bbdaf811d34163b5fdb216c74c315ed"
+  },
+  "prompt_bytes": 7117,
+  "finish_reason": "length",
+  "usage": {
+    "prompt_tokens": 1996,
+    "completion_tokens": 8192,
+    "total_tokens": 10188,
+    "prompt_cache_hit_tokens": 0,
+    "prompt_cache_miss_tokens": 1996,
+    "prompt_tokens_details": {
+      "cached_tokens": 0
+    }
+  },
+  "response_id": "c6ca34de-7743-431c-b738-f59bb5e47dad",
+  "response_model": "deepseek-v4.1-flash",
+  "response_diagnostics": {
+    "message_fields": [
+      "content",
+      "role"
+    ],
+    "answer_chars": 26613,
+    "reasoning_chars": 0,
+    "has_reasoning_details": false
+  },
+  "duration_s": 35.3
+}

@@ -24,7 +24,10 @@ python -m scripts.publish_go --run-id RUN_ID --artifacts /path/to/artifacts
 
 The publisher checks the reviewed plan, model/problem identities, original
 Actions run/attempt/commit, scorer manifest and frozen RTL hashes before writing
-anything. It rejects skipped jobs, missing records, altered RTL, and overwrites.
+anything. It rejects skipped jobs, missing records in successful jobs, altered RTL,
+and overwrites. If an interrupted job saved generation but no final scoring
+record, it preserves that generation and frozen RTL as `github-generation-only`:
+score unknown, never a claimed completed evaluation.
 It emits all 12 outcomes, not only successful submissions, under
 `pilot/results/go-core-20260922` and `site/data/go-core-20260922`. Commit these
 reviewed records and the generated site data to publish a new frozen snapshot.

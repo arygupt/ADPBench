@@ -1,0 +1,907 @@
+{
+  "meta": {
+    "generated": "2026-09-21T21:32:14",
+    "git_commit": "a03c6aaf7bbdaf811d34163b5fdb216c74c315ed",
+    "pilot": "go-core-20260922",
+    "problems_planned": [
+      "001_dot_product",
+      "002_gemv"
+    ],
+    "sandbox": {
+      "mode": "docker \u00b7 network disabled"
+    },
+    "budget_s": null,
+    "repetitions": 1,
+    "jobs": null,
+    "cases": {
+      "seeds": [
+        1000,
+        1001,
+        1002
+      ],
+      "dev_seeds": [
+        0,
+        1
+      ],
+      "transactions": 2
+    },
+    "tools": {
+      "yosys": "Yosys 0.69+ (git sha1 143eb14f9, Release, GNU /usr/bin/c++ 12.2.0)",
+      "iverilog": "Icarus Verilog version 13.0 (stable) (v13_0)"
+    },
+    "adpbench_version": "unknown",
+    "protocol": "single-shot",
+    "max_output_tokens": 8192,
+    "workflow_url": "https://github.com/arygupt/ADPBench/actions/runs/35671789622",
+    "generation_requests": 10,
+    "incomplete_evidence": true,
+    "incomplete_usage": false,
+    "output_tokens": 42503
+  },
+  "problems": [
+    {
+      "name": "001_dot_product",
+      "title": "Dot product",
+      "level": 1,
+      "params": {
+        "LEN": 256,
+        "LANES": 32,
+        "DATA_W": 8,
+        "ACC_W": 32
+      },
+      "input_lens": {
+        "in_a_flat": 256,
+        "in_b_flat": 256
+      },
+      "out_len": 1,
+      "transactions": 2,
+      "directed": [
+        "zeros",
+        "min_values",
+        "extreme_signs"
+      ],
+      "quant": {
+        "in_a_flat": "int8 two's complement",
+        "in_b_flat": "int8 two's complement",
+        "out_c": "int32 two's complement, exact",
+        "accumulator": "int32, no saturation, no rounding",
+        "tolerance": "none - bit exact"
+      },
+      "baseline": {
+        "cells": 2142,
+        "cycles": 546,
+        "adp": 1169532.0
+      },
+      "sanity": {
+        "correct": true,
+        "cells": 20200,
+        "cycles": 20,
+        "adp": 404000.0,
+        "ratio": 2.894881188118812
+      }
+    },
+    {
+      "name": "002_gemv",
+      "title": "Matrix-vector (GEMV)",
+      "level": 1,
+      "params": {
+        "ROWS": 16,
+        "COLS": 64,
+        "LANES": 16,
+        "DATA_W": 8,
+        "ACC_W": 32
+      },
+      "input_lens": {
+        "in_a_flat": 1024,
+        "in_x_flat": 64
+      },
+      "out_len": 16,
+      "transactions": 2,
+      "directed": [
+        "zeros",
+        "min_values",
+        "extreme_signs"
+      ],
+      "quant": {
+        "in_a_flat": "int8 two's complement, row-major A",
+        "in_x_flat": "int8 two's complement",
+        "out_c": "int32 two's complement, exact, one word per row",
+        "accumulator": "int32, no saturation, no rounding",
+        "tolerance": "none - bit exact"
+      },
+      "baseline": {
+        "cells": 3295,
+        "cycles": 2216,
+        "adp": 7301720.0
+      },
+      "sanity": {
+        "correct": true,
+        "cells": 11657,
+        "cycles": 298,
+        "adp": 3473786.0,
+        "ratio": 2.101948709563571
+      }
+    }
+  ],
+  "models": [
+    {
+      "label": "opencode-go/deepseek-v4.1-flash [single-shot]",
+      "attempts": 2,
+      "correct": 0,
+      "beating": 0,
+      "correctness_rate": 0.0,
+      "beat_rate": 0.0,
+      "geomean": -1.0,
+      "wrong_rtl": 1,
+      "infra": 1,
+      "score_ci": "\u00b133%",
+      "correctness_ci": "\u00b133%",
+      "runs": [
+        {
+          "label": "opencode-go/deepseek-v4.1-flash [single-shot]",
+          "problem": "001_dot_product",
+          "attempt": 1,
+          "correct": false,
+          "ratio": -1.0,
+          "cells": 19241,
+          "cycles": -1,
+          "adp": -1.0,
+          "stage": "protocol",
+          "correctness": "valid/ready or output-framing violation",
+          "duration_s": 4.81,
+          "timed_out": false,
+          "error": "",
+          "audit_ok": true,
+          "submission_sha256": "61f9f6f13ecf81ec5dacb7041a8b7376805998295bef0cd9f87413a9fab96849",
+          "netlist_sha256": "e02c5418d67f2a58edf8edbbb1a48437504f8cff34c959d3801f8d5682e80df5",
+          "history": 0,
+          "execution": {
+            "kind": "model-evaluation",
+            "repository": "arygupt/ADPBench",
+            "run_id": 35671789622,
+            "run_attempt": 1,
+            "job_id": 106570070545,
+            "commit": "a03c6aaf7bbdaf811d34163b5fdb216c74c315ed",
+            "completed_at": "2026-09-22T00:28:20Z",
+            "job_conclusion": "failure"
+          },
+          "record_origin": "scorer",
+          "generation": {
+            "model": "deepseek-v4.1-flash",
+            "finish_reason": "stop",
+            "usage": {
+              "prompt_tokens": 1896,
+              "completion_tokens": 1282,
+              "total_tokens": 3178,
+              "prompt_cache_hit_tokens": 0,
+              "prompt_cache_miss_tokens": 1896,
+              "prompt_tokens_details": {
+                "cached_tokens": 0
+              }
+            },
+            "generation_settings": {
+              "thinking": {
+                "type": "disabled"
+              },
+              "reasoning_effort": "low"
+            },
+            "response_diagnostics": {
+              "message_fields": [
+                "content",
+                "role"
+              ],
+              "answer_chars": 3863,
+              "reasoning_chars": 0,
+              "has_reasoning_details": false
+            },
+            "error": "",
+            "invalid_rtl": null,
+            "evidence_unavailable": null
+          }
+        },
+        {
+          "label": "opencode-go/deepseek-v4.1-flash [single-shot]",
+          "problem": "002_gemv",
+          "attempt": 1,
+          "correct": false,
+          "ratio": -1.0,
+          "cells": -1,
+          "cycles": -1,
+          "adp": -1.0,
+          "stage": "",
+          "correctness": "",
+          "duration_s": 35.3,
+          "timed_out": false,
+          "error": "generation reached output cap; no retry",
+          "audit_ok": false,
+          "submission_sha256": "",
+          "netlist_sha256": "",
+          "history": 0,
+          "execution": {
+            "kind": "model-evaluation",
+            "repository": "arygupt/ADPBench",
+            "run_id": 35671789622,
+            "run_attempt": 1,
+            "job_id": 106570070545,
+            "commit": "a03c6aaf7bbdaf811d34163b5fdb216c74c315ed",
+            "completed_at": "2026-09-22T00:28:20Z",
+            "job_conclusion": "failure"
+          },
+          "record_origin": "scorer",
+          "generation": {
+            "model": "deepseek-v4.1-flash",
+            "finish_reason": "length",
+            "usage": {
+              "prompt_tokens": 1996,
+              "completion_tokens": 8192,
+              "total_tokens": 10188,
+              "prompt_cache_hit_tokens": 0,
+              "prompt_cache_miss_tokens": 1996,
+              "prompt_tokens_details": {
+                "cached_tokens": 0
+              }
+            },
+            "generation_settings": {
+              "thinking": {
+                "type": "disabled"
+              },
+              "reasoning_effort": "low"
+            },
+            "response_diagnostics": {
+              "message_fields": [
+                "content",
+                "role"
+              ],
+              "answer_chars": 26613,
+              "reasoning_chars": 0,
+              "has_reasoning_details": false
+            },
+            "error": "generation reached output cap; no retry",
+            "invalid_rtl": null,
+            "evidence_unavailable": null
+          }
+        }
+      ]
+    },
+    {
+      "label": "opencode-go/glm-5.3-flash [single-shot]",
+      "attempts": 2,
+      "correct": 0,
+      "beating": 0,
+      "correctness_rate": 0.0,
+      "beat_rate": 0.0,
+      "geomean": -1.0,
+      "wrong_rtl": 0,
+      "infra": 2,
+      "score_ci": "\u00b133%",
+      "correctness_ci": "\u00b133%",
+      "runs": [
+        {
+          "label": "opencode-go/glm-5.3-flash [single-shot]",
+          "problem": "001_dot_product",
+          "attempt": 1,
+          "correct": false,
+          "ratio": -1.0,
+          "cells": -1,
+          "cycles": -1,
+          "adp": -1.0,
+          "stage": "",
+          "correctness": "",
+          "duration_s": 0.28,
+          "timed_out": false,
+          "error": "provider HTTP 400; no retry or fallback",
+          "audit_ok": false,
+          "submission_sha256": "",
+          "netlist_sha256": "",
+          "history": 0,
+          "execution": {
+            "kind": "model-evaluation",
+            "repository": "arygupt/ADPBench",
+            "run_id": 35671789622,
+            "run_attempt": 1,
+            "job_id": 106570070547,
+            "commit": "a03c6aaf7bbdaf811d34163b5fdb216c74c315ed",
+            "completed_at": "2026-09-22T00:28:56Z",
+            "job_conclusion": "failure"
+          },
+          "record_origin": "scorer",
+          "generation": {
+            "model": "glm-5.3-flash",
+            "finish_reason": null,
+            "usage": null,
+            "generation_settings": {
+              "thinking": {
+                "type": "enabled"
+              },
+              "reasoning_effort": "low"
+            },
+            "response_diagnostics": null,
+            "error": "provider HTTP 400; no retry or fallback",
+            "invalid_rtl": null,
+            "evidence_unavailable": null
+          }
+        },
+        {
+          "label": "opencode-go/glm-5.3-flash [single-shot]",
+          "problem": "002_gemv",
+          "attempt": 1,
+          "correct": false,
+          "ratio": -1.0,
+          "cells": -1,
+          "cycles": -1,
+          "adp": -1.0,
+          "stage": "",
+          "correctness": "",
+          "duration_s": 0,
+          "timed_out": false,
+          "error": "not requested: batch stopped after provider HTTP 400; no retry or fallback",
+          "audit_ok": false,
+          "submission_sha256": "",
+          "netlist_sha256": "",
+          "history": 0,
+          "execution": {
+            "kind": "model-evaluation",
+            "repository": "arygupt/ADPBench",
+            "run_id": 35671789622,
+            "run_attempt": 1,
+            "job_id": 106570070547,
+            "commit": "a03c6aaf7bbdaf811d34163b5fdb216c74c315ed",
+            "completed_at": "2026-09-22T00:28:56Z",
+            "job_conclusion": "failure"
+          },
+          "record_origin": "scorer",
+          "generation": {
+            "model": "glm-5.3-flash",
+            "finish_reason": null,
+            "usage": null,
+            "generation_settings": {
+              "thinking": {
+                "type": "enabled"
+              },
+              "reasoning_effort": "low"
+            },
+            "response_diagnostics": null,
+            "error": "not requested: batch stopped after provider HTTP 400; no retry or fallback",
+            "invalid_rtl": null,
+            "evidence_unavailable": null
+          }
+        }
+      ]
+    },
+    {
+      "label": "opencode-go/kimi-k2.6 [single-shot]",
+      "attempts": 2,
+      "correct": 0,
+      "beating": 0,
+      "correctness_rate": 0.0,
+      "beat_rate": 0.0,
+      "geomean": -1.0,
+      "wrong_rtl": 0,
+      "infra": 2,
+      "score_ci": "\u00b133%",
+      "correctness_ci": "\u00b133%",
+      "runs": [
+        {
+          "label": "opencode-go/kimi-k2.6 [single-shot]",
+          "problem": "001_dot_product",
+          "attempt": 1,
+          "correct": false,
+          "ratio": -1.0,
+          "cells": -1,
+          "cycles": -1,
+          "adp": -1.0,
+          "stage": "",
+          "correctness": "",
+          "duration_s": 139.7,
+          "timed_out": false,
+          "error": "generation reached output cap; no retry",
+          "audit_ok": false,
+          "submission_sha256": "",
+          "netlist_sha256": "",
+          "history": 0,
+          "execution": {
+            "kind": "model-evaluation",
+            "repository": "arygupt/ADPBench",
+            "run_id": 35671789622,
+            "run_attempt": 1,
+            "job_id": 106570070544,
+            "commit": "a03c6aaf7bbdaf811d34163b5fdb216c74c315ed",
+            "completed_at": "2026-09-22T01:29:17Z",
+            "job_conclusion": "cancelled"
+          },
+          "record_origin": "scorer",
+          "generation": {
+            "model": "kimi-k2.6",
+            "finish_reason": "length",
+            "usage": {
+              "prompt_tokens": 1820,
+              "completion_tokens": 8192,
+              "total_tokens": 10012,
+              "prompt_tokens_details": {
+                "audio_tokens": 0,
+                "cached_tokens": 0,
+                "cache_write_tokens": 0
+              },
+              "completion_tokens_details": {
+                "audio_tokens": 0,
+                "reasoning_tokens": 1
+              }
+            },
+            "generation_settings": {
+              "thinking": {
+                "type": "disabled"
+              }
+            },
+            "response_diagnostics": {
+              "message_fields": [
+                "content",
+                "reasoning",
+                "refusal",
+                "role"
+              ],
+              "answer_chars": 29524,
+              "reasoning_chars": 0,
+              "has_reasoning_details": false
+            },
+            "error": "generation reached output cap; no retry",
+            "invalid_rtl": null,
+            "evidence_unavailable": null
+          }
+        },
+        {
+          "label": "opencode-go/kimi-k2.6 [single-shot]",
+          "problem": "002_gemv",
+          "attempt": 1,
+          "correct": false,
+          "ratio": -1.0,
+          "cells": -1,
+          "cycles": -1,
+          "adp": -1.0,
+          "stage": "",
+          "correctness": "",
+          "duration_s": 0.0,
+          "timed_out": false,
+          "error": "GitHub job cancelled; generation artifacts were saved but scoring did not produce a final record. Score is unknown.",
+          "audit_ok": false,
+          "submission_sha256": "f5eb1885b6e493590d12b0c30bd7e9cc2ef8510a7c23d999d4884849a1591726",
+          "netlist_sha256": "",
+          "history": 0,
+          "execution": {
+            "kind": "model-evaluation",
+            "repository": "arygupt/ADPBench",
+            "run_id": 35671789622,
+            "run_attempt": 1,
+            "job_id": 106570070544,
+            "commit": "a03c6aaf7bbdaf811d34163b5fdb216c74c315ed",
+            "completed_at": "2026-09-22T01:29:17Z",
+            "job_conclusion": "cancelled"
+          },
+          "record_origin": "github-generation-only",
+          "generation": {
+            "model": "kimi-k2.6",
+            "finish_reason": "stop",
+            "usage": {
+              "prompt_tokens": 1902,
+              "completion_tokens": 2418,
+              "total_tokens": 4320,
+              "prompt_tokens_details": {
+                "audio_tokens": 0,
+                "cached_tokens": 0,
+                "cache_write_tokens": 0
+              },
+              "completion_tokens_details": {
+                "audio_tokens": 0,
+                "reasoning_tokens": 1
+              }
+            },
+            "generation_settings": {
+              "thinking": {
+                "type": "disabled"
+              }
+            },
+            "response_diagnostics": {
+              "message_fields": [
+                "content",
+                "reasoning",
+                "refusal",
+                "role"
+              ],
+              "answer_chars": 9403,
+              "reasoning_chars": 0,
+              "has_reasoning_details": false
+            },
+            "error": "",
+            "invalid_rtl": null,
+            "evidence_unavailable": null
+          }
+        }
+      ]
+    },
+    {
+      "label": "opencode-go/mimo-v2.5 [single-shot]",
+      "attempts": 2,
+      "correct": 0,
+      "beating": 0,
+      "correctness_rate": 0.0,
+      "beat_rate": 0.0,
+      "geomean": -1.0,
+      "wrong_rtl": 2,
+      "infra": 0,
+      "score_ci": "\u00b133%",
+      "correctness_ci": "\u00b133%",
+      "runs": [
+        {
+          "label": "opencode-go/mimo-v2.5 [single-shot]",
+          "problem": "001_dot_product",
+          "attempt": 1,
+          "correct": false,
+          "ratio": -1.0,
+          "cells": 18019,
+          "cycles": -1,
+          "adp": -1.0,
+          "stage": "protocol_timeout",
+          "correctness": "timeout under backpressure - DUT never produced a full result",
+          "duration_s": 8.58,
+          "timed_out": false,
+          "error": "",
+          "audit_ok": true,
+          "submission_sha256": "6987e2e3a37fbee238519b19123d7854d5995197f577d4edc1aba023ce161f09",
+          "netlist_sha256": "8aeb4df4bb31f21fc2310326ec148e0293773fad4a8fbdd0e2097c03f0b608ba",
+          "history": 0,
+          "execution": {
+            "kind": "model-evaluation",
+            "repository": "arygupt/ADPBench",
+            "run_id": 35671789622,
+            "run_attempt": 1,
+            "job_id": 106570070567,
+            "commit": "a03c6aaf7bbdaf811d34163b5fdb216c74c315ed",
+            "completed_at": "2026-09-22T00:28:03Z",
+            "job_conclusion": "success"
+          },
+          "record_origin": "scorer",
+          "generation": {
+            "model": "mimo-v2.5",
+            "finish_reason": "stop",
+            "usage": {
+              "prompt_tokens": 1898,
+              "completion_tokens": 1366,
+              "total_tokens": 3264,
+              "prompt_tokens_details": {
+                "audio_tokens": 0,
+                "cached_tokens": 1856,
+                "cache_write_tokens": 0
+              },
+              "completion_tokens_details": {
+                "audio_tokens": 0,
+                "reasoning_tokens": 0
+              }
+            },
+            "generation_settings": {
+              "reasoning": {
+                "enabled": false
+              },
+              "token_limit_key": "max_completion_tokens"
+            },
+            "response_diagnostics": {
+              "message_fields": [
+                "content",
+                "reasoning",
+                "refusal",
+                "role"
+              ],
+              "answer_chars": 4637,
+              "reasoning_chars": 0,
+              "has_reasoning_details": false
+            },
+            "error": "",
+            "invalid_rtl": null,
+            "evidence_unavailable": null
+          }
+        },
+        {
+          "label": "opencode-go/mimo-v2.5 [single-shot]",
+          "problem": "002_gemv",
+          "attempt": 1,
+          "correct": false,
+          "ratio": -1.0,
+          "cells": 64,
+          "cycles": -1,
+          "adp": -1.0,
+          "stage": "timeout",
+          "correctness": "timeout in the timing run - DUT never produced a full result",
+          "duration_s": 11.0,
+          "timed_out": false,
+          "error": "",
+          "audit_ok": true,
+          "submission_sha256": "b1a8f2184dff88a5051d40627c689386c3beecea3f3d8d0233ca3d54e75516ab",
+          "netlist_sha256": "0b36c94b0ab652f1844296439e45cdf0929c041a3267df94d6f8961ecdae8c4b",
+          "history": 0,
+          "execution": {
+            "kind": "model-evaluation",
+            "repository": "arygupt/ADPBench",
+            "run_id": 35671789622,
+            "run_attempt": 1,
+            "job_id": 106570070567,
+            "commit": "a03c6aaf7bbdaf811d34163b5fdb216c74c315ed",
+            "completed_at": "2026-09-22T00:28:03Z",
+            "job_conclusion": "success"
+          },
+          "record_origin": "scorer",
+          "generation": {
+            "model": "mimo-v2.5",
+            "finish_reason": "stop",
+            "usage": {
+              "prompt_tokens": 1986,
+              "completion_tokens": 1639,
+              "total_tokens": 3625,
+              "prompt_tokens_details": {
+                "audio_tokens": 0,
+                "cached_tokens": 0,
+                "cache_write_tokens": 0
+              },
+              "completion_tokens_details": {
+                "audio_tokens": 0,
+                "reasoning_tokens": 0
+              }
+            },
+            "generation_settings": {
+              "reasoning": {
+                "enabled": false
+              },
+              "token_limit_key": "max_completion_tokens"
+            },
+            "response_diagnostics": {
+              "message_fields": [
+                "content",
+                "reasoning",
+                "refusal",
+                "role"
+              ],
+              "answer_chars": 5995,
+              "reasoning_chars": 0,
+              "has_reasoning_details": false
+            },
+            "error": "",
+            "invalid_rtl": null,
+            "evidence_unavailable": null
+          }
+        }
+      ]
+    },
+    {
+      "label": "opencode-go/minimax-m2.7 [single-shot]",
+      "attempts": 2,
+      "correct": 0,
+      "beating": 0,
+      "correctness_rate": 0.0,
+      "beat_rate": 0.0,
+      "geomean": -1.0,
+      "wrong_rtl": 0,
+      "infra": 2,
+      "score_ci": "\u00b133%",
+      "correctness_ci": "\u00b133%",
+      "runs": [
+        {
+          "label": "opencode-go/minimax-m2.7 [single-shot]",
+          "problem": "001_dot_product",
+          "attempt": 1,
+          "correct": false,
+          "ratio": -1.0,
+          "cells": -1,
+          "cycles": -1,
+          "adp": -1.0,
+          "stage": "",
+          "correctness": "",
+          "duration_s": 124.6,
+          "timed_out": false,
+          "error": "generation reached output cap; no retry",
+          "audit_ok": false,
+          "submission_sha256": "",
+          "netlist_sha256": "",
+          "history": 0,
+          "execution": {
+            "kind": "model-evaluation",
+            "repository": "arygupt/ADPBench",
+            "run_id": 35671789622,
+            "run_attempt": 1,
+            "job_id": 106570070570,
+            "commit": "a03c6aaf7bbdaf811d34163b5fdb216c74c315ed",
+            "completed_at": "2026-09-22T00:34:43Z",
+            "job_conclusion": "failure"
+          },
+          "record_origin": "scorer",
+          "generation": {
+            "model": "minimax-m2.7",
+            "finish_reason": "max_tokens",
+            "usage": {
+              "input_tokens": 1832,
+              "output_tokens": 8192
+            },
+            "generation_settings": {},
+            "response_diagnostics": {
+              "content_block_types": [
+                "thinking",
+                "text"
+              ],
+              "reasoning_chars": 34582
+            },
+            "error": "generation reached output cap; no retry",
+            "invalid_rtl": null,
+            "evidence_unavailable": null
+          }
+        },
+        {
+          "label": "opencode-go/minimax-m2.7 [single-shot]",
+          "problem": "002_gemv",
+          "attempt": 1,
+          "correct": false,
+          "ratio": -1.0,
+          "cells": -1,
+          "cycles": -1,
+          "adp": -1.0,
+          "stage": "",
+          "correctness": "",
+          "duration_s": 132.82,
+          "timed_out": false,
+          "error": "generation reached output cap; no retry",
+          "audit_ok": false,
+          "submission_sha256": "",
+          "netlist_sha256": "",
+          "history": 0,
+          "execution": {
+            "kind": "model-evaluation",
+            "repository": "arygupt/ADPBench",
+            "run_id": 35671789622,
+            "run_attempt": 1,
+            "job_id": 106570070570,
+            "commit": "a03c6aaf7bbdaf811d34163b5fdb216c74c315ed",
+            "completed_at": "2026-09-22T00:34:43Z",
+            "job_conclusion": "failure"
+          },
+          "record_origin": "scorer",
+          "generation": {
+            "model": "minimax-m2.7",
+            "finish_reason": "max_tokens",
+            "usage": {
+              "input_tokens": 1913,
+              "output_tokens": 8192
+            },
+            "generation_settings": {},
+            "response_diagnostics": {
+              "content_block_types": [
+                "thinking"
+              ],
+              "reasoning_chars": 33453
+            },
+            "error": "generation reached output cap; no retry",
+            "invalid_rtl": null,
+            "evidence_unavailable": null
+          }
+        }
+      ]
+    },
+    {
+      "label": "opencode-go/qwen3.8-flash [single-shot]",
+      "attempts": 2,
+      "correct": 0,
+      "beating": 0,
+      "correctness_rate": 0.0,
+      "beat_rate": 0.0,
+      "geomean": -1.0,
+      "wrong_rtl": 2,
+      "infra": 0,
+      "score_ci": "\u00b133%",
+      "correctness_ci": "\u00b133%",
+      "runs": [
+        {
+          "label": "opencode-go/qwen3.8-flash [single-shot]",
+          "problem": "001_dot_product",
+          "attempt": 1,
+          "correct": false,
+          "ratio": -1.0,
+          "cells": 531,
+          "cycles": -1,
+          "adp": -1.0,
+          "stage": "protocol",
+          "correctness": "valid/ready or output-framing violation",
+          "duration_s": 18.62,
+          "timed_out": false,
+          "error": "",
+          "audit_ok": true,
+          "submission_sha256": "626b8e878a8444b13784678fd87da75f99aa242a6b8e323723c377d786ab78f5",
+          "netlist_sha256": "2d78512e6c7687d7dffdb10b7fb8202b6d74a9fa085525f2f7d6421ffd9440f2",
+          "history": 0,
+          "execution": {
+            "kind": "model-evaluation",
+            "repository": "arygupt/ADPBench",
+            "run_id": 35671789622,
+            "run_attempt": 1,
+            "job_id": 106570070560,
+            "commit": "a03c6aaf7bbdaf811d34163b5fdb216c74c315ed",
+            "completed_at": "2026-09-22T00:29:43Z",
+            "job_conclusion": "success"
+          },
+          "record_origin": "scorer",
+          "generation": {
+            "model": "qwen3.8-flash",
+            "finish_reason": "end_turn",
+            "usage": {
+              "input_tokens": 2009,
+              "output_tokens": 1265,
+              "cache_creation_input_tokens": 0,
+              "cache_read_input_tokens": 0
+            },
+            "generation_settings": {
+              "thinking": {
+                "type": "disabled"
+              }
+            },
+            "response_diagnostics": {
+              "content_block_types": [
+                "text"
+              ],
+              "reasoning_chars": 0
+            },
+            "error": "",
+            "invalid_rtl": null,
+            "evidence_unavailable": null
+          }
+        },
+        {
+          "label": "opencode-go/qwen3.8-flash [single-shot]",
+          "problem": "002_gemv",
+          "attempt": 1,
+          "correct": false,
+          "ratio": -1.0,
+          "cells": -1,
+          "cycles": -1,
+          "adp": -1.0,
+          "stage": "",
+          "correctness": "",
+          "duration_s": 29.28,
+          "timed_out": false,
+          "error": "",
+          "audit_ok": false,
+          "submission_sha256": "b3b09e5ff64bec10f1e632cf2be7e5a8893682da98afd3a46de3700275f431f3",
+          "netlist_sha256": "",
+          "history": 0,
+          "execution": {
+            "kind": "model-evaluation",
+            "repository": "arygupt/ADPBench",
+            "run_id": 35671789622,
+            "run_attempt": 1,
+            "job_id": 106570070560,
+            "commit": "a03c6aaf7bbdaf811d34163b5fdb216c74c315ed",
+            "completed_at": "2026-09-22T00:29:43Z",
+            "job_conclusion": "success"
+          },
+          "record_origin": "scorer",
+          "generation": {
+            "model": "qwen3.8-flash",
+            "finish_reason": "end_turn",
+            "usage": {
+              "input_tokens": 2101,
+              "output_tokens": 1765,
+              "cache_creation_input_tokens": 0,
+              "cache_read_input_tokens": 0
+            },
+            "generation_settings": {
+              "thinking": {
+                "type": "disabled"
+              }
+            },
+            "response_diagnostics": {
+              "content_block_types": [
+                "text"
+              ],
+              "reasoning_chars": 0
+            },
+            "error": "",
+            "invalid_rtl": null,
+            "evidence_unavailable": null
+          }
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,71 @@
+{
+  "problem": "002_gemv",
+  "label": "opencode-go/kimi-k2.6 [single-shot]",
+  "attempt": 1,
+  "group": "go-core-20260922",
+  "record_origin": "github-generation-only",
+  "error": "GitHub job cancelled; generation artifacts were saved but scoring did not produce a final record. Score is unknown.",
+  "result": null,
+  "manifest": {
+    "generation": {
+      "model": "kimi-k2.6",
+      "problem": "002_gemv",
+      "protocol": "single-shot",
+      "started": "2026-09-22T00:31:47.878837+00:00",
+      "max_output_tokens": 8192,
+      "error": "",
+      "generation_settings": {
+        "thinking": {
+          "type": "disabled"
+        }
+      },
+      "github": {
+        "GITHUB_REPOSITORY": "arygupt/ADPBench",
+        "GITHUB_RUN_ID": "35671789622",
+        "GITHUB_RUN_ATTEMPT": "1",
+        "GITHUB_SHA": "a03c6aaf7bbdaf811d34163b5fdb216c74c315ed"
+      },
+      "prompt_bytes": 7117,
+      "finish_reason": "stop",
+      "usage": {
+        "prompt_tokens": 1902,
+        "completion_tokens": 2418,
+        "total_tokens": 4320,
+        "prompt_tokens_details": {
+          "audio_tokens": 0,
+          "cached_tokens": 0,
+          "cache_write_tokens": 0
+        },
+        "completion_tokens_details": {
+          "audio_tokens": 0,
+          "reasoning_tokens": 1
+        }
+      },
+      "response_id": "gen-1790037108-lg7ruvIWpjzWDrJSmcbB",
+      "response_model": "kimi-k2.6",
+      "response_diagnostics": {
+        "message_fields": [
+          "content",
+          "reasoning",
+          "refusal",
+          "role"
+        ],
+        "answer_chars": 9403,
+        "reasoning_chars": 0,
+        "has_reasoning_details": false
+      },
+      "duration_s": 39.33
+    },
+    "submission_sha256": "f5eb1885b6e493590d12b0c30bd7e9cc2ef8510a7c23d999d4884849a1591726"
+  },
+  "execution": {
+    "kind": "model-evaluation",
+    "repository": "arygupt/ADPBench",
+    "run_id": 35671789622,
+    "run_attempt": 1,
+    "job_id": 106570070544,
+    "commit": "a03c6aaf7bbdaf811d34163b5fdb216c74c315ed",
+    "completed_at": "2026-09-22T01:29:17Z",
+    "job_conclusion": "cancelled"
+  }
+}
