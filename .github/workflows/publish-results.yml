@@ -1,0 +1,117 @@
+name: Publish validated model results
+run-name: "Publish results · source run ${{ inputs.run_id || github.event.workflow_run.id }}"
+
+on:
+  workflow_run:
+    workflows: ["OpenCode Go model runs"]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      run_id:
+        description: "Completed OpenCode Go model run ID (no new model calls)"
+        required: true
+        type: string
+      validate_only:
+        description: "Validate and stage only; do not open a PR"
+        type: boolean
+        default: false
+  pull_request:
+    paths:
+      - ".github/workflows/publish-results.yml"
+      - "scripts/publish*.py"
+      - "pilot/publication-policy.json"
+      - "pilot/publications/**"
+      - "tests/test_publication.py"
+      - "scripts/diagnose_kimi.py"
+      - "tests/test_kimi_diagnosis.py"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: publish-results-${{ inputs.run_id || github.event.workflow_run.id || github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  checks:
+    name: Publication security and idempotency checks
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: python -m pip install 'numpy>=1.24,<3'
+      - run: python -m unittest tests.test_publication tests.test_publish_go -v
+
+  publish:
+    name: Validate source artifacts and open review-only results PR
+    needs: checks
+    # Never process fork/PR/preparation-only completions. All these checks are
+    # independently repeated against the fetched run metadata inside the script.
+    if: >-
+      github.ref == 'refs/heads/main' &&
+      (github.event_name == 'workflow_dispatch' ||
+       (github.event_name == 'workflow_run' &&
+        github.event.workflow_run.event == 'workflow_dispatch' &&
+        github.event.workflow_run.head_repository.full_name == github.repository &&
+        github.event.workflow_run.display_title == 'OpenCode Go · six-model evaluation'))
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      actions: read
+      contents: write
+      pull-requests: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      SOURCE_RUN_ID: ${{ inputs.run_id || github.event.workflow_run.id }}
+      VALIDATE_ONLY: ${{ inputs.validate_only || false }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: python -m pip install 'numpy>=1.24,<3'
+      - name: Validate and open results PR (no generation or scoring)
+        run: |
+          if [ "$VALIDATE_ONLY" = true ]; then
+            python -m scripts.publish_results --run-id "$SOURCE_RUN_ID"
+          else
+            python -m scripts.publish_results --run-id "$SOURCE_RUN_ID" --open-pr
+          fi
+      - name: Explain publication boundary
+        if: always()
+        run: |
+          echo 'This workflow validates data and opens a results PR. It never calls a model, approves reviews, merges PRs, or changes historical scores.' >> "$GITHUB_STEP_SUMMARY"
+          echo 'Review and merge the results PR to trigger the existing Site build. Public deployment remains controlled by ENABLE_PAGES.' >> "$GITHUB_STEP_SUMMARY"
+
+  counterexample:
+    name: Reproduce Kimi RTL counterexample (no model calls)
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: sandbox/Dockerfile
+          load: true
+          tags: adpbench-diagnosis:ci
+          cache-from: type=gha,scope=adpbench-replay-toolchain
+      - name: Verify the saved-source counterexample without synthesis or scoring
+        run: |
+          docker run --rm --network none --memory 1g --cpus 2 --pids-limit 256 \
+            --user "$(id -u):$(id -g)" --cap-drop ALL --security-opt no-new-privileges \
+            -e PYTHONPATH=/repo -v "$GITHUB_WORKSPACE:/repo:ro" -w /repo \
+            adpbench-diagnosis:ci python -m unittest tests.test_kimi_diagnosis -v

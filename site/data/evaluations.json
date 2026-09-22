@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "default": "go-core-20260922",
+  "evaluations": [
+    {
+      "id": "go-core-20260922",
+      "label": "OpenCode Go \u00b7 six-model single-shot screen",
+      "path": "data/go-core-20260922/leaderboard.json",
+      "protocol": "single-shot"
+    },
+    {
+      "id": "pilot-001",
+      "label": "Pilot-001 \u00b7 iterative agent runs",
+      "path": "data/leaderboard.json",
+      "protocol": "iterative"
+    }
+  ]
+}

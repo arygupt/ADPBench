@@ -33,6 +33,29 @@ SYSTEM = (
     "and back-to-back transactions, then minimize area times cycles."
 )
 SETTING_KEYS = ("thinking", "reasoning_effort", "reasoning", "token_limit_key")
+ERROR_BODY_LIMIT = 16384
+
+
+def provider_error_evidence(exc: urllib.error.HTTPError, key: str) -> dict:
+    """Private artifact only: bounded body, known credential redacted, no headers.
+
+    Never print provider text, retry a rejected request, or put this body in
+    the public generation metadata. A missing body remains explicitly missing.
+    """
+    evidence = {"status": exc.code, "body_available": False, "truncated": False}
+    try:
+        raw = exc.read(ERROR_BODY_LIMIT + 1)
+        text = raw[:ERROR_BODY_LIMIT].decode("utf-8", errors="replace")
+        if key:
+            text = text.replace(key, "[REDACTED]")
+        text = re.sub(r"(?i)(bearer\s+)[A-Za-z0-9._~+/-]+=*", r"\1[REDACTED]", text)
+        text = re.sub(r"\b(?:sk-|gh[pousr]_)[A-Za-z0-9_-]{12,}\b", "[REDACTED]", text)
+        evidence.update(body_available=bool(raw), body=text, truncated=len(raw) > ERROR_BODY_LIMIT)
+    except Exception:
+        evidence["read_error"] = True
+    finally:
+        exc.close()
+    return evidence
 
 
 def read_plan(path: Path = PLAN) -> dict:
@@ -237,6 +260,7 @@ def generate(plan: dict, model: dict, out: Path) -> None:
                 stop = record["error"] or record["invalid_rtl"]
         except urllib.error.HTTPError as exc:
             stop = record["error"] = f"provider HTTP {exc.code}; no retry or fallback"
+            write_json(dest / "provider_error.json", provider_error_evidence(exc, key))
         except Exception as exc:
             # Exception bodies can contain sensitive server response details.
             stop = record["error"] = f"request stopped ({type(exc).__name__}); no retry"

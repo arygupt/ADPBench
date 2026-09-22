@@ -1,0 +1,21 @@
+{
+  "kind": "rtl-diagnostic-not-benchmark-score",
+  "source_run_id": 35671789622,
+  "submission_sha256": "f5eb1885b6e493590d12b0c30bd7e9cc2ef8510a7c23d999d4884849a1591726",
+  "case": "all-ones matrix and vector; two back-to-back transactions",
+  "expected_each": 64,
+  "actual": [48,64,64,64,64,64,64,64,64,64,64,64,64,64,64,64,48,64,64,64,64,64,64,64,64,64,64,64,64,64,64,64],
+  "synthesis_probe": {
+    "yosys_commit": "143eb14f9",
+    "platform": "linux/arm64",
+    "memory_limit_bytes": 5368709120,
+    "cpus": 2,
+    "network": "none",
+    "returncode": -9,
+    "duration_s": 414.1,
+    "last_stage": "FSM_EXTRACT",
+    "docker_oom_event_observed": true,
+    "docker_oom_event_unix_time": 1790101223
+  },
+  "benchmark_scores_changed": false
+}

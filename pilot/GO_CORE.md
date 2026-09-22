@@ -30,3 +30,13 @@ Artifacts contain request settings, prompts, raw responses, token usage, frozen
 RTL, manifests and score records. Green means evaluation completed, not that a
 design beat the baseline. Generation failures are explicitly red. Results are
 a separate single-shot dataset and must not be pooled with iterative pilot-001.
+
+The [saved failure investigation](diagnostics/go-core-20260922.md) records Kimi's
+offline RTL counterexample and synthesis-resource evidence, the limits of the
+available GLM HTTP 400 evidence, and the output-cap analysis. These diagnostics
+do not replace scores or repair submissions.
+
+Completed eligible runs now feed [validated results PR publication](../site/README.md#automatic-results-prs).
+The publisher preserves failed/unknown outcomes, does not call models, and never
+approves or merges PRs. Human review and merge update the site build; public
+Pages deployment remains separately controlled.

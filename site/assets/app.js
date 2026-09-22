@@ -1,5 +1,6 @@
 /* Published records are the source of truth. No framework or build step. */
 import { findReplay, findExecution } from "./evidence.mjs";
+import { parseCatalog } from "./catalog.mjs";
 
 (() => {
   "use strict";
@@ -24,7 +25,7 @@ import { findReplay, findExecution } from "./evidence.mjs";
   const short = (label) =>
     label.replace(/^opencode\//, "").replace(/-free$/, "");
   let data, dialog, returnFocus, evidence;
-  const datasets = {
+  let datasets = {
     "pilot-001": "data/leaderboard.json",
     "go-core-20260922": "data/go-core-20260922/leaderboard.json",
   };
@@ -350,7 +351,7 @@ import { findReplay, findExecution } from "./evidence.mjs";
       const execution = runs.map(findExecution).find(Boolean);
       fill("#dataset-summary", `${m.pilot} · ${data.models.length} models · ${data.problems.length} operators · ${runs.length} scheduled result slots`);
       fill("#attempt-heading", "Slots");
-      if ($("#replay-summary")) $("#replay-summary").innerHTML = `${int(m.generation_requests)} saved model responses · ${m.incomplete_usage ? "at least " : ""}${int(m.output_tokens)} reported output tokens · ${runs.filter(r => r.correct).length}/${runs.length} confirmed correct. ${m.incomplete_evidence ? "Some scoring evidence is unavailable; unknown scores are not passes. " : ""}${execution ? `<a href="${execution.workflow}" target="_blank" rel="noopener">Open all six GitHub model jobs ↗</a>` : "Actions evidence unavailable."}`;
+      if ($("#replay-summary")) $("#replay-summary").innerHTML = `${int(m.generation_requests)} saved model responses · ${m.incomplete_usage ? "at least " : ""}${int(m.output_tokens)} reported output tokens · ${runs.filter(r => r.correct).length}/${runs.length} confirmed correct. ${m.incomplete_evidence ? "Some scoring evidence is unavailable; unknown scores are not passes. " : ""}${execution ? `<a href="${execution.workflow}" target="_blank" rel="noopener">Open all ${data.models.length} GitHub model jobs ↗</a>` : "Actions evidence unavailable."}`;
       fill("#pilot-note", `Single-shot Go screen · at most one request per model–problem pair · ${int(m.max_output_tokens)} output-token cap/request · no repairs or retries · offline Docker scoring. Rates use all scheduled slots, including rejected requests and safety-stop skips; inspect each result for its status. Reasoning settings differ by model and are shown with each result. This dataset is separate from iterative pilot-001; their rankings are not directly comparable. A completed workflow is not a correctness or replay claim.`);
     }
   }
@@ -402,8 +403,11 @@ import { findReplay, findExecution } from "./evidence.mjs";
     try {
       const selector = $("#dataset-select");
       if (selector) {
+        const catalog = parseCatalog(await getJSON("data/evaluations.json"));
+        datasets = catalog.paths;
+        selector.innerHTML = catalog.entries.map(e => `<option value="${esc(e.id)}">${esc(e.label)}</option>`).join("");
         const requested = new URLSearchParams(location.search).get("dataset");
-        datasetKey = Object.hasOwn(datasets, requested) ? requested : "go-core-20260922";
+        datasetKey = Object.hasOwn(datasets, requested) ? requested : catalog.defaultId;
         selector.value = datasetKey;
         selector.addEventListener("change", () => {
           const url = new URL(location.href);
