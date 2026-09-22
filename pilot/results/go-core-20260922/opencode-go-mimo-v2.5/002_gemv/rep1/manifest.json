@@ -1,0 +1,100 @@
+{
+  "adpbench_version": "unknown",
+  "git_commit": "",
+  "problem": "002_gemv",
+  "problem_sha256": {
+    "dut.py": "b2fb0ace4d2bcaa3744897edf6475ba13c8acdf4a673f099ecf1ccd5b92443f1",
+    "baseline.v": "abb52693edfc89e2d11fd4e0120a104e56a0282957c543c644244b22ee20262d",
+    "baseline.json": "3ff73d6eb56d93dfd4c8b43f104ab5aa7553c0d09ad9d241efe0a1ac0d8a7b19"
+  },
+  "cases": {
+    "seeds": [
+      1000,
+      1001,
+      1002
+    ],
+    "directed": [
+      "zeros",
+      "min_values",
+      "extreme_signs"
+    ],
+    "transactions": 2,
+    "input_lens": {
+      "in_a_flat": 1024,
+      "in_x_flat": 64
+    }
+  },
+  "tools": {
+    "yosys": "Yosys 0.69+ (git sha1 143eb14f9, Release, GNU /usr/bin/c++ 12.2.0)",
+    "iverilog": "Icarus Verilog version 13.0 (stable) (v13_0)"
+  },
+  "submission_sha256": "b1a8f2184dff88a5051d40627c689386c3beecea3f3d8d0233ca3d54e75516ab",
+  "netlist_sha256": "0b36c94b0ab652f1844296439e45cdf0929c041a3267df94d6f8961ecdae8c4b",
+  "agent_cmd": "adpbench Go API single-shot (one request, no repair)",
+  "budget_s": 600,
+  "sandbox": {
+    "mode": "docker",
+    "image": "adpbench-go:ci",
+    "network": "none"
+  },
+  "result": {
+    "correct": false,
+    "ratio": -1.0,
+    "cells": 64,
+    "cycles": -1,
+    "stage": "timeout"
+  },
+  "error": "",
+  "timed_out": false,
+  "duration_s": 11.0,
+  "generation": {
+    "model": "mimo-v2.5",
+    "problem": "002_gemv",
+    "protocol": "single-shot",
+    "started": "2026-09-22T00:26:43.125369+00:00",
+    "max_output_tokens": 8192,
+    "error": "",
+    "generation_settings": {
+      "reasoning": {
+        "enabled": false
+      },
+      "token_limit_key": "max_completion_tokens"
+    },
+    "github": {
+      "GITHUB_REPOSITORY": "arygupt/ADPBench",
+      "GITHUB_RUN_ID": "35671789622",
+      "GITHUB_RUN_ATTEMPT": "1",
+      "GITHUB_SHA": "a03c6aaf7bbdaf811d34163b5fdb216c74c315ed"
+    },
+    "prompt_bytes": 7117,
+    "finish_reason": "stop",
+    "usage": {
+      "prompt_tokens": 1986,
+      "completion_tokens": 1639,
+      "total_tokens": 3625,
+      "prompt_tokens_details": {
+        "audio_tokens": 0,
+        "cached_tokens": 0,
+        "cache_write_tokens": 0
+      },
+      "completion_tokens_details": {
+        "audio_tokens": 0,
+        "reasoning_tokens": 0
+      }
+    },
+    "response_id": "gen-1790036803-YE6Z2iueLK3KtLQBLbfj",
+    "response_model": "mimo-v2.5",
+    "response_diagnostics": {
+      "message_fields": [
+        "content",
+        "reasoning",
+        "refusal",
+        "role"
+      ],
+      "answer_chars": 5995,
+      "reasoning_chars": 0,
+      "has_reasoning_details": false
+    },
+    "duration_s": 11.0
+  }
+}

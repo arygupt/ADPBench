@@ -1,0 +1,118 @@
+{
+  "problem": "001_dot_product",
+  "agent_cmd": "adpbench Go API single-shot (one request, no repair)",
+  "label": "opencode-go/minimax-m2.7 [single-shot]",
+  "attempt": 1,
+  "group": "go-core-20260922",
+  "sandbox": "docker",
+  "started": "2026-09-22T00:30:18.250278+00:00",
+  "duration_s": 124.6,
+  "exit_code": -1,
+  "timed_out": false,
+  "audit": {
+    "ok": false,
+    "violations": [
+      {
+        "line": 0,
+        "match": "",
+        "reason": "no RTL produced"
+      }
+    ],
+    "warnings": []
+  },
+  "result": null,
+  "error": "generation reached output cap; no retry",
+  "frozen": "",
+  "manifest": {
+    "adpbench_version": "unknown",
+    "git_commit": "",
+    "problem": "001_dot_product",
+    "problem_sha256": {
+      "dut.py": "91fd0433d225e3f9dd67022edc55b1809f6f642019e415e6b921d67086530a45",
+      "baseline.v": "44111a2a04a8b1ef5517f87f9076861c696422ecb301c1e9e551d828a321d3e7",
+      "baseline.json": "06f89f858ee67fdd51e191965e7f3370ea08827ebf2a1bed935a1c74cf09e63e"
+    },
+    "cases": {
+      "seeds": [
+        1000,
+        1001,
+        1002
+      ],
+      "directed": [
+        "zeros",
+        "min_values",
+        "extreme_signs"
+      ],
+      "transactions": 2,
+      "input_lens": {
+        "in_a_flat": 256,
+        "in_b_flat": 256
+      }
+    },
+    "tools": {
+      "yosys": "Yosys 0.69+ (git sha1 143eb14f9, Release, GNU /usr/bin/c++ 12.2.0)",
+      "iverilog": "Icarus Verilog version 13.0 (stable) (v13_0)"
+    },
+    "submission_sha256": "",
+    "netlist_sha256": "",
+    "agent_cmd": "adpbench Go API single-shot (one request, no repair)",
+    "budget_s": 600,
+    "sandbox": {
+      "mode": "docker",
+      "image": "adpbench-go:ci",
+      "network": "none"
+    },
+    "result": {
+      "correct": false,
+      "ratio": -1.0,
+      "cells": -1,
+      "cycles": -1,
+      "stage": "error"
+    },
+    "error": "generation reached output cap; no retry",
+    "timed_out": false,
+    "duration_s": 124.6,
+    "generation": {
+      "model": "minimax-m2.7",
+      "problem": "001_dot_product",
+      "protocol": "single-shot",
+      "started": "2026-09-22T00:30:18.250278+00:00",
+      "max_output_tokens": 8192,
+      "error": "generation reached output cap; no retry",
+      "generation_settings": {},
+      "github": {
+        "GITHUB_REPOSITORY": "arygupt/ADPBench",
+        "GITHUB_RUN_ID": "35671789622",
+        "GITHUB_RUN_ATTEMPT": "1",
+        "GITHUB_SHA": "a03c6aaf7bbdaf811d34163b5fdb216c74c315ed"
+      },
+      "prompt_bytes": 6943,
+      "finish_reason": "max_tokens",
+      "usage": {
+        "input_tokens": 1832,
+        "output_tokens": 8192
+      },
+      "response_id": "0700ff1a2148e6ab67fcdc7b63f46812",
+      "response_model": "minimax-m2.7",
+      "response_diagnostics": {
+        "content_block_types": [
+          "thinking",
+          "text"
+        ],
+        "reasoning_chars": 34582
+      },
+      "duration_s": 124.6
+    }
+  },
+  "history": [],
+  "execution": {
+    "kind": "model-evaluation",
+    "repository": "arygupt/ADPBench",
+    "run_id": 35671789622,
+    "run_attempt": 1,
+    "job_id": 106570070570,
+    "commit": "a03c6aaf7bbdaf811d34163b5fdb216c74c315ed",
+    "completed_at": "2026-09-22T00:34:43Z",
+    "job_conclusion": "failure"
+  }
+}

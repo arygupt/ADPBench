@@ -8,6 +8,35 @@ adpbench site sanity --out pilot/sanity.json
 adpbench site export --pilot runs/<pilot> --out site/data --sanity pilot/sanity.json
 ```
 
+The evaluation selector keeps **OpenCode Go single-shot** results separate from
+**iterative pilot-001**. The default is the new six-model Go screen. Every Go
+result links to its original model-generation/scoring Actions job, full workflow
+and evaluated code revision. It is never called a verified replay. Output-cap,
+generation, incorrect-RTL and successful outcomes remain distinguishable.
+
+To publish a completed core-model Actions run, download its `go-core-*` artifacts
+(preserving the artifact-name directories) and run:
+
+```bash
+gh run download RUN_ID --pattern 'go-core-*' --dir /path/to/artifacts
+python -m scripts.publish_go --run-id RUN_ID --artifacts /path/to/artifacts
+```
+
+The publisher checks the reviewed plan, model/problem identities, original
+Actions run/attempt/commit, scorer manifest and frozen RTL hashes before writing
+anything. It rejects skipped jobs, missing records in successful jobs, altered RTL,
+and overwrites. If an interrupted job saved generation but no final scoring
+record, it preserves that generation and frozen RTL as `github-generation-only`:
+score unknown, never a claimed completed evaluation.
+It emits all 12 outcomes, not only successful submissions, under
+`pilot/results/go-core-20260922` and `site/data/go-core-20260922`. Commit these
+reviewed records and the generated site data to publish a new frozen snapshot.
+Provider raw responses stay in the private Actions artifacts, not the website.
+If a job fails or times out before uploading its artifact, its two scheduled slots are
+explicitly labeled **job-status-only**: scores, RTL and usage are unknown, not
+fabricated. The token total is then a lower bound. Subsequent workflows preserve
+generation evidence before starting expensive scoring.
+
 Preview locally:
 
 ```bash
