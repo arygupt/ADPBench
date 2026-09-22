@@ -5,7 +5,7 @@ on:
   workflow_dispatch:
     inputs:
       run_models:
-        description: "Run the reviewed 12-request subscription-only batch"
+        description: "Run the reviewed provider-maximum batch (requires an enabled, current plan)"
         type: boolean
         default: false
       subscription_only:
@@ -17,17 +17,18 @@ on:
       - ".github/workflows/go-core.yml"
       - "scripts/go_pilot.py"
       - "pilot/go-core-20260922.json"
+      - "pilot/go-core-provider-max-20260922.json"
       - "tests/test_go_pilot.py"
 
 permissions:
   contents: read
 
 concurrency:
-  group: go-core-20260922
+  group: go-core-provider-max-20260922
   cancel-in-progress: false
 
 env:
-  PLAN: pilot/go-core-20260922.json
+  PLAN: pilot/go-core-provider-max-20260922.json
 
 jobs:
   checks:
@@ -64,7 +65,9 @@ jobs:
           from pathlib import Path
           from scripts.go_pilot import read_plan, due, now_utc
           plan = read_plan(Path(os.environ['PLAN']))
+          assert plan.get('generation_enabled', True), 'Generation is disabled; authorize a new batch before running'
           assert all(due(plan, m, now_utc()) for m in plan['models']), 'Batch authorization expired'
+          print('Requested output limits:', plan['max_output_tokens'])
           PY
       - uses: docker/setup-buildx-action@v3
       - uses: docker/build-push-action@v6
@@ -130,7 +133,8 @@ jobs:
         run: |
           set -euo pipefail
           test -n "$OPENCODE_GO_API_KEY"
-          ref="tags/go-core-20260922-$MODEL"
+          batch=$(python -c 'import os; from pathlib import Path; from scripts.go_pilot import read_plan; print(read_plan(Path(os.environ["PLAN"]))["name"])')
+          ref="tags/$batch-$MODEL"
           if gh api "repos/$GITHUB_REPOSITORY/git/ref/$ref" >/dev/null 2>&1; then
             echo 'Already attempted; no retry or additional spending.' >> "$GITHUB_STEP_SUMMARY"
             echo 'claimed=false' >> "$GITHUB_OUTPUT"

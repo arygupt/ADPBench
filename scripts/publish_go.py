@@ -134,6 +134,8 @@ def publish(artifacts: Path, plan: dict, run: dict, jobs: list[dict], output: Pa
         "incomplete_usage": any(g.get("evidence_unavailable") for _, _, _, g, _ in prepared),
         "output_tokens": sum(g.get("usage", {}).get("completion_tokens", g.get("usage", {}).get("output_tokens", 0)) for _, _, _, g, _ in prepared),
     })
+    if plan.get("output_budget") == "provider_max":
+        board["meta"]["output_budget"] = "provider_max"
     write_json(board_path, board)
     write_json(output / "actions.json", {
         "run": {k: run[k] for k in ("id", "run_attempt", "head_sha", "html_url", "status", "conclusion", "event", "path") if k in run},

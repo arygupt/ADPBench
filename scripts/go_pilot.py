@@ -64,15 +64,21 @@ def read_plan(path: Path = PLAN) -> dict:
     return plan
 
 
+def output_limit(plan: dict, model: dict) -> int:
+    """The reviewed request limit, with no extra harness-wide token ceiling."""
+    limits = plan["max_output_tokens"]
+    return limits[model["id"]] if isinstance(limits, dict) else limits
+
+
 def validate_plan(plan: dict) -> None:
-    """Keep manually dispatched screens finite even if a plan is edited."""
+    """Validate budgets while retaining finite request counts and schedules."""
     problems, models = plan["problems"], plan["models"]
     allowed = {"001_dot_product", "002_gemv", "003_matmul", "004_conv1d"}
     if not problems or len(set(problems)) != len(problems) or not set(problems) <= allowed:
         raise ValueError("invalid or duplicate problems")
     if not 1 <= len(models) <= 6 or len(models) * len(problems) > 12:
         raise ValueError("a batch may contain at most twelve requests across six models")
-    for key, cap in [("max_output_tokens", 8192), ("max_prompt_bytes", 24000), ("request_timeout_s", 600)]:
+    for key, cap in [("max_prompt_bytes", 24000), ("request_timeout_s", 600)]:
         if type(plan[key]) is not int or not 0 < plan[key] <= cap:
             raise ValueError(f"invalid {key}")
     if not re.fullmatch(r"[a-z0-9][a-z0-9-]{0,79}", plan["name"]):
@@ -80,6 +86,20 @@ def validate_plan(plan: dict) -> None:
     ids = [m["id"] for m in models]
     if len(set(ids)) != len(ids):
         raise ValueError("duplicate model")
+    mode = plan.get("output_budget", "fixed")
+    limits = plan["max_output_tokens"]
+    if mode == "provider_max":
+        if not isinstance(limits, dict) or set(limits) != set(ids):
+            raise ValueError("provider_max requires an explicit limit for every planned model")
+        values = limits.values()
+    elif mode == "fixed" and not isinstance(limits, dict):
+        values = [limits]
+    else:
+        raise ValueError("invalid output budget mode")
+    if any(type(value) is not int or value <= 0 for value in values):
+        raise ValueError("max_output_tokens must contain positive integer provider limits")
+    if type(plan.get("generation_enabled", True)) is not bool:
+        raise ValueError("generation_enabled must be boolean")
     expires = datetime.fromisoformat(plan["expires_at"])
     if expires.tzinfo is None:
         raise ValueError("expiry must include a timezone")
@@ -102,7 +122,7 @@ def now_utc() -> datetime:
 
 
 def due(plan: dict, model: dict, now: datetime) -> bool:
-    return datetime.fromisoformat(model["not_before"]) <= now < datetime.fromisoformat(plan["expires_at"])
+    return plan.get("generation_enabled", True) and datetime.fromisoformat(model["not_before"]) <= now < datetime.fromisoformat(plan["expires_at"])
 
 
 def select_model(plan: dict, model_id: str) -> dict:
@@ -127,7 +147,7 @@ def request_body(model: dict, prompt: str, plan: dict) -> dict:
     messages = [{"role": "user", "content": prompt}]
     body = {
         "model": model["id"], "messages": messages,
-        model.get("token_limit_key", "max_tokens"): plan["max_output_tokens"], "stream": False,
+        model.get("token_limit_key", "max_tokens"): output_limit(plan, model), "stream": False,
     }
     for key in ("thinking", "reasoning_effort", "reasoning"):
         if key in model:
@@ -215,7 +235,7 @@ def generate(plan: dict, model: dict, out: Path) -> None:
         record = {
             "model": model["id"], "problem": problem_id,
             "protocol": "single-shot", "started": now_utc().isoformat(),
-            "max_output_tokens": plan["max_output_tokens"], "error": "",
+            "max_output_tokens": output_limit(plan, model), "error": "",
             "generation_settings": {k: model[k] for k in SETTING_KEYS if k in model},
             "github": {k: os.environ.get(k, "") for k in ("GITHUB_REPOSITORY", "GITHUB_RUN_ID", "GITHUB_RUN_ATTEMPT", "GITHUB_SHA")},
         }
@@ -247,7 +267,7 @@ def generate(plan: dict, model: dict, out: Path) -> None:
             (dest / "response.txt").write_text(text)
             if not usage:
                 stop = record["error"] = "missing provider token accounting"
-            elif not valid_usage(usage, model["api"], plan["max_output_tokens"]):
+            elif not valid_usage(usage, model["api"], output_limit(plan, model)):
                 stop = record["error"] = "invalid provider token accounting or output cap exceeded"
             if finish in {"length", "max_tokens"}:
                 record["error"] = "generation reached output cap; no retry"
@@ -324,7 +344,7 @@ def score(plan: dict, model: dict, out: Path) -> None:
     tokens = {"input_tokens_including_cache": total_input, "output_tokens": total_output}
     write_json(out / "usage.json", tokens)
     with (out / "REPORT.md").open("a") as handle:
-        handle.write(f"\nProtocol: one generation per problem, no feedback or retries. Output cap: {plan['max_output_tokens']} tokens/request.\n")
+        handle.write(f"\nProtocol: one generation per problem, no feedback or retries. Output cap: {output_limit(plan, model)} tokens/request ({plan.get('output_budget', 'fixed')}).\n")
         handle.write(f"\nProvider-reported input (including cache): {total_input}; output: {total_output} tokens.\n")
         handle.write(f"\nGeneration settings: `{json.dumps({k: model[k] for k in SETTING_KEYS if k in model})}`.\n")
         handle.write("\nThese single-shot results use a different generation budget from the iterative pilot-001.\n")

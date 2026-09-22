@@ -4,6 +4,7 @@ import { existsSync, readFileSync, readdirSync } from "node:fs";
 import test from "node:test";
 import { findReplay, findExecution } from "../site/assets/evidence.mjs";
 import { parseCatalog } from "../site/assets/catalog.mjs";
+import { budgetSummary, outputLimit } from "../site/assets/budget.mjs";
 
 const readJSON = (path) => JSON.parse(readFileSync(new URL(path, import.meta.url), "utf8"));
 const leaderboard = readJSON("../site/data/leaderboard.json");
@@ -12,6 +13,19 @@ const runs = leaderboard.models.flatMap((m) => m.runs);
 const pilot = leaderboard.meta.pilot;
 const first = evidence.runs[0];
 const run = runs.find((r) => r.submission_sha256 === first.submission_sha256);
+
+test("old fixed and new model-maximum budgets are displayed without claiming unlimited output", () => {
+  const old = readJSON("../site/data/go-core-20260922/leaderboard.json");
+  assert.equal(budgetSummary(old.meta), "8,192 output-token cap/request");
+  assert.equal(outputLimit(old.meta, "mimo-v2.5"), 8192);
+  const plan = readJSON("../pilot/go-core-provider-max-20260922.json");
+  assert.equal(outputLimit(plan, "kimi-k2.6"), 65536);
+  assert.equal(outputLimit(plan, "deepseek-v4.1-flash"), 384000);
+  assert.equal(outputLimit(plan, "unknown"), null);
+  assert.match(budgetSummary(plan), /65,536–384,000/);
+  assert.doesNotMatch(budgetSummary(plan), /unlimited/i);
+  assert.equal(budgetSummary({output_budget:"provider_max",max_output_tokens:{bad:"unlimited"}}), "Output limits unavailable");
+});
 
 test("catalog only permits unique local datasets and existing default", () => {
   const catalog = readJSON("../site/data/evaluations.json");

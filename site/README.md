@@ -33,6 +33,13 @@ GitHub's SHA-256 digests, and rejects unsafe ZIP paths, links, duplicate JSON
 keys and nonfinite numbers. It executes only trusted main-branch publisher code,
 never artifact RTL or downloaded scripts. No Go credentials are passed to it.
 
+The publisher reads the literal `PLAN` selected by the original workflow revision,
+not the current default. This keeps older 8,192-token runs reproducible after
+switching to the separately named provider-maximum configuration. Generation
+records must match the specific model's reviewed limit. The browser shows the
+budget range for provider-maximum datasets and the exact model limit in details;
+it never presents a finite provider response as unlimited.
+
 The PR contains the frozen records, site snapshot, dataset catalog entry and a
 hash receipt in `pilot/publications/`. Existing snapshots are immutable: changed
 scores or sources stop publication. Repeating publication reuses an existing
