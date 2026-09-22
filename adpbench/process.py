@@ -103,8 +103,7 @@ def run_logged(args: list[str], cwd: Path, name: str, timeout: float = 600,
             raise
         finally:
             if proc is not None:
-                if proc.poll() is None or state["reason"]:
-                    stop_tree(proc)
+                stop_tree(proc)  # Also terminate descendants whose parent closed stdout and exited.
                 proc.stdout.close()
                 state["returncode"] = proc.returncode
             state.update(state="completed", duration_s=round(time.monotonic()-start, 3), log_bytes=min(size,log_limit))

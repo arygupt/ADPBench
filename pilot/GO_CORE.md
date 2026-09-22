@@ -105,7 +105,9 @@ Pages deployment remains separately controlled.
 - **Checkpoint before the job ends:** synthesis, completed cases, tool logs,
   return codes and container status persist on host mounts. Final small records
   upload before the larger `go-checkpoints-MODEL-RUN` artifact. Tool logs are
-  bounded at 16 MiB, streams at 32 MiB and individual SSE events at 2 MiB.
+  bounded at 16 MiB; streamed content at 16 MiB, wire traffic (including SSE/JSON
+  framing) at 256 MiB, and individual SSE events at 2 MiB. Wire overhead is not
+  mistaken for generated output tokens.
 
 Runner loss, forced cancellation or an upload outage can still prevent the
 latest checkpoint reaching GitHub. Evidence already uploaded by the generation

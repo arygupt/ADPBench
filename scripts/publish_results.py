@@ -116,7 +116,10 @@ def validate_source(run: dict, jobs: list[dict], plan: dict, policy: dict) -> No
                 or not re.fullmatch(r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z", job.get("completed_at", ""))):
             raise ValueError("invalid model job provenance")
         generated |= any(s.get("name") == "Generate two single-shot submissions (no retries or fallback)"
-                         and s.get("conclusion") in {"success", "failure"} for s in job.get("steps", []))
+                         and (s.get("conclusion") in {"success", "failure"}
+                              or (s.get("conclusion") in {"cancelled", "timed_out"}
+                                  and re.fullmatch(r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z", s.get("started_at") or "")))
+                         for s in job.get("steps", []))
     if not generated:
         raise ValueError("preparation-only or duplicate-claim run; no model generation occurred")
 

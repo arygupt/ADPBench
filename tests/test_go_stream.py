@@ -104,6 +104,9 @@ class StreamTest(unittest.TestCase):
             self.read([sse(chat("large event"))])
         with patch("scripts.go_stream.MAX_STREAM_BYTES", 10), self.assertRaisesRegex(StreamFailure, "byte_limit"):
             self.read([sse(chat("large event"))])
+        with patch("scripts.go_stream.MAX_CONTENT_BYTES", 4), self.assertRaisesRegex(StreamFailure, "assembled_output_byte_limit"):
+            self.read([sse(chat("12")),sse(chat("345"))])
+        self.assertEqual(json.loads((self.root / "response.partial.json").read_text())["choices"][0]["message"]["content"], "12")
 
     def test_http_rejection_never_reconnects_or_uses_zen_fallback(self):
         conn = MagicMock()

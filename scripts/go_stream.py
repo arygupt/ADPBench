@@ -11,8 +11,9 @@ from pathlib import Path
 
 from adpbench.durable import atomic_json
 
-MAX_STREAM_BYTES = 32 * 1024 * 1024
+MAX_STREAM_BYTES = 256 * 1024 * 1024  # Includes repeated SSE/JSON framing, not just tokens.
 MAX_EVENT_BYTES = 2 * 1024 * 1024
+MAX_CONTENT_BYTES = 16 * 1024 * 1024
 
 
 class StreamFailure(RuntimeError):
@@ -33,6 +34,14 @@ class ResponseStream:
         self.done = False
         self.started = False
         self.provider_error = None
+        self.content_bytes = 0
+
+    def account_content(self, value: str) -> None:
+        if not isinstance(value, str):
+            raise StreamFailure("invalid_text_delta")
+        self.content_bytes += len(value.encode("utf-8"))
+        if self.content_bytes > MAX_CONTENT_BYTES:
+            raise StreamFailure("assembled_output_byte_limit")
 
     def feed(self, payload: str) -> None:
         if self.done:
@@ -55,9 +64,13 @@ class ResponseStream:
             self.started = True
             for key in ("id", "model"):
                 if event.get(key):
+                    if not isinstance(event[key], str) or len(event[key]) > 65536:
+                        raise StreamFailure("invalid_stream_metadata")
                     self.data[key] = event[key]
             if event.get("usage"):
                 self.data["usage"].update(event["usage"])
+                if len(json.dumps(self.data["usage"])) > 65536:
+                    raise StreamFailure("invalid_stream_usage")
             for choice in event.get("choices", []):
                 if choice.get("index", 0) != 0:
                     raise StreamFailure("multiple_stream_choices")
@@ -67,8 +80,7 @@ class ResponseStream:
                 for name, target in [("content",self.text), ("reasoning",self.reasoning), ("reasoning_content",self.reasoning)]:
                     value = delta.get(name)
                     if value is not None:
-                        if not isinstance(value, str):
-                            raise StreamFailure("invalid_text_delta")
+                        self.account_content(value)
                         target.append(value)
                 if choice.get("finish_reason"):
                     self.finish = choice["finish_reason"]
@@ -81,6 +93,8 @@ class ResponseStream:
                 raise StreamFailure("duplicate_message_start")
             self.started = True
             message = event["message"]
+            if len(json.dumps({k:message[k] for k in ("id", "model", "usage") if k in message})) > 65536:
+                raise StreamFailure("invalid_stream_metadata")
             self.data.update({k:message[k] for k in ("id", "model", "usage") if k in message})
         elif kind == "content_block_start":
             index = event["index"]
@@ -89,7 +103,11 @@ class ResponseStream:
             block = event["content_block"]
             if block.get("type") not in {"text", "thinking", "redacted_thinking"}:
                 raise StreamFailure("unexpected_content_block")
-            self.blocks[index] = {**block, "pieces":[block.get("text",block.get("thinking",""))]}
+            initial = block.get("text", block.get("thinking", ""))
+            if not isinstance(initial, str):
+                raise StreamFailure("invalid_text_delta")
+            self.account_content(json.dumps(block))
+            self.blocks[index] = {**block, "pieces":[initial]}
         elif kind == "content_block_delta":
             block = self.blocks[event["index"]]
             delta = event["delta"]
@@ -98,12 +116,16 @@ class ResponseStream:
                 value = delta[field]
                 if not isinstance(value, str) or block["type"] != ("text" if field == "text" else "thinking"):
                     raise StreamFailure("invalid_content_delta")
+                self.account_content(value)
                 block["pieces"].append(value)
             elif delta["type"] == "signature_delta":
+                self.account_content(delta.get("signature", ""))
                 block["signature"] = block.get("signature", "") + delta.get("signature", "")
         elif kind == "message_delta":
             self.finish = event.get("delta", {}).get("stop_reason") or self.finish
             self.data["usage"].update(event.get("usage", {}))  # Cumulative, never sum deltas.
+            if len(json.dumps(self.data["usage"])) > 65536:
+                raise StreamFailure("invalid_stream_usage")
         elif kind == "message_stop":
             if not self.started or not self.finish:
                 raise StreamFailure("invalid_stream_end")

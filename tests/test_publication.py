@@ -59,6 +59,15 @@ class PublicationTest(PublishGoTest):
             with self.assertRaises(ValueError):
                 validate_source(self.run,invalid,self.plan,self.policy)
 
+    def test_interrupted_generation_is_not_mistaken_for_preparation_only(self):
+        step = {"name":"Generate two single-shot submissions (no retries or fallback)",
+                "conclusion":"cancelled", "started_at":"2026-09-22T00:00:00Z"}
+        job = {**self.jobs[0], "conclusion":"cancelled", "steps":[step]}
+        validate_source(self.run,[job],self.plan,self.policy)
+        step.pop("started_at")
+        with self.assertRaises(ValueError):
+            validate_source(self.run,[job],self.plan,self.policy)
+
     def test_rejects_budget_changes_and_passing_error_records(self):
         validate_records(self.root / "artifacts", self.plan, self.run)
         path = self.artifact / "opencode-go-mimo-v2.5/001_dot_product/rep1/record.json"
