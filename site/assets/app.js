@@ -41,6 +41,8 @@ import { findReplay, findExecution } from "./evidence.mjs";
     );
   // Match report.RunSummary.kind, including a timeout with a scored wrong design.
   function state(run) {
+    if (run.record_origin === "github-job-status-only")
+      return { cls: "infra", label: "Job timeout · score unavailable", value: "timeout" };
     if (run.correct)
       return run.ratio > 1
         ? { cls: "beat", label: "Beat baseline", value: ratio(run.ratio) }
@@ -215,6 +217,8 @@ import { findReplay, findExecution } from "./evidence.mjs";
     const execution = findExecution(run);
     if (execution) {
       const g = run.generation || {}, usage = g.usage || {};
+      if (g.evidence_unavailable)
+        return `<section class="run-evidence" aria-label="GitHub job status only"><p class="evidence-title">Job timed out · final artifacts unavailable</p><p class="rc-meta">This entry records the observed Actions job status only. Per-problem generation, scores, RTL and token usage are unknown; no score or replay verification is claimed.</p><div class="evidence-links"><a href="${esc(execution.job)}" target="_blank" rel="noopener">Timed-out job &amp; logs ↗</a><a href="${esc(execution.workflow)}" target="_blank" rel="noopener">Workflow ↗</a></div></section>`;
       return `<section class="run-evidence" aria-label="Original GitHub model run"><p class="evidence-title">Generated &amp; evaluated in GitHub Actions</p><p class="rc-meta">New single-shot attempt, not a replay. Job: ${esc(execution.conclusion)}. Correctness is the measured outcome above.</p><div class="evidence-links"><a href="${esc(execution.job)}" target="_blank" rel="noopener">Model job &amp; logs ↗</a><a href="${esc(execution.workflow)}" target="_blank" rel="noopener">Workflow &amp; artifacts ↗</a><a href="${esc(execution.code)}" target="_blank" rel="noopener">Evaluated code ↗</a></div><p class="rc-meta">Output: ${int(usage.completion_tokens ?? usage.output_tokens)} tokens · finish: ${esc(g.finish_reason || "no completion")}<br>Reasoning response: ${int(g.response_diagnostics?.reasoning_chars)} characters</p><details><summary>Generation settings</summary><p class="hash-value">${esc(JSON.stringify(g.generation_settings || {}))}</p></details><p class="evidence-retention">Logs and raw response artifacts are retained for 90 days. Frozen records remain in the repository.</p></section>`;
     }
     if (run.generation)
@@ -341,7 +345,7 @@ import { findReplay, findExecution } from "./evidence.mjs";
       const execution = runs.map(findExecution).find(Boolean);
       fill("#dataset-summary", `${m.pilot} · ${data.models.length} models · ${data.problems.length} operators · ${runs.length} scheduled result slots`);
       fill("#attempt-heading", "Slots");
-      if ($("#replay-summary")) $("#replay-summary").innerHTML = `${int(m.generation_requests)} model responses · ${int(m.output_tokens)} output tokens · ${runs.filter(r => r.correct).length}/${runs.length} correct. ${execution ? `<a href="${execution.workflow}" target="_blank" rel="noopener">Open all six GitHub model jobs ↗</a>` : "Actions evidence unavailable."}`;
+      if ($("#replay-summary")) $("#replay-summary").innerHTML = `${int(m.generation_requests)} saved model responses · ${m.incomplete_evidence ? "at least " : ""}${int(m.output_tokens)} reported output tokens · ${runs.filter(r => r.correct).length}/${runs.length} correct. ${m.incomplete_evidence ? "Some job artifacts are unavailable; their scores and usage are unknown. " : ""}${execution ? `<a href="${execution.workflow}" target="_blank" rel="noopener">Open all six GitHub model jobs ↗</a>` : "Actions evidence unavailable."}`;
       fill("#pilot-note", `Single-shot Go screen · at most one request per model–problem pair · ${int(m.max_output_tokens)} output-token cap/request · no repairs or retries · offline Docker scoring. Rates use all scheduled slots, including rejected requests and safety-stop skips; inspect each result for its status. Reasoning settings differ by model and are shown with each result. This dataset is separate from iterative pilot-001; their rankings are not directly comparable. A completed workflow is not a correctness or replay claim.`);
     }
   }

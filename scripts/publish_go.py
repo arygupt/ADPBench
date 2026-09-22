@@ -40,9 +40,27 @@ def publish(artifacts: Path, plan: dict, run: dict, jobs: list[dict], output: Pa
     for model in plan["models"]:
         model_id = model["id"]
         job = next(j for j in jobs if j["name"] == f"Evaluate {model_id} · dot product + GEMV")
-        if job["status"] != "completed" or job["conclusion"] not in {"success", "failure"}:
+        if job["status"] != "completed" or job["conclusion"] not in {"success", "failure", "timed_out"}:
             raise ValueError(f"model job not evaluated: {model_id}")
         artifact = artifacts / f"go-core-{model_id}-{run['id']}"
+        if not artifact.exists() and job["conclusion"] == "timed_out":
+            # A job-level timeout can prevent always() artifact-upload steps.
+            # Publish only the observed job status, never fabricated scores,
+            # provider responses, token counts, or submission hashes.
+            for problem in plan["problems"]:
+                error = "GitHub job timed out before final artifacts were uploaded. Per-problem generation, scores, RTL and token usage are unavailable."
+                gen = {"model": model_id, "problem": problem, "protocol": "single-shot", "evidence_unavailable": True}
+                record = {
+                    "problem": problem, "label": f"opencode-go/{model_id} [single-shot]", "attempt": 1,
+                    "group": plan["name"], "record_origin": "github-job-status-only", "error": error,
+                    "result": None, "manifest": {"generation": gen},
+                    "execution": {"kind": "model-evaluation", "repository": REPOSITORY,
+                                  "run_id": run["id"], "run_attempt": run["run_attempt"], "job_id": job["id"],
+                                  "commit": run["head_sha"], "completed_at": job["completed_at"],
+                                  "job_conclusion": job["conclusion"]},
+                }
+                prepared.append((model_id, problem, record, gen, artifact / "missing.v"))
+            continue
         if json.loads((artifact / "plan.json").read_text()) != plan:
             raise ValueError("artifact plan differs from the reviewed plan")
         for problem in plan["problems"]:
@@ -94,6 +112,7 @@ def publish(artifacts: Path, plan: dict, run: dict, jobs: list[dict], output: Pa
         "git_commit": run["head_sha"], "protocol": "single-shot", "repetitions": 1,
         "max_output_tokens": plan["max_output_tokens"], "sandbox": {"mode": "docker · network disabled"},
         "workflow_url": run["html_url"], "generation_requests": sum(bool(g.get("response_id")) for _, _, _, g, _ in prepared),
+        "incomplete_evidence": any(g.get("evidence_unavailable") for _, _, _, g, _ in prepared),
         "output_tokens": sum(g.get("usage", {}).get("completion_tokens", g.get("usage", {}).get("output_tokens", 0)) for _, _, _, g, _ in prepared),
     })
     write_json(board_path, board)

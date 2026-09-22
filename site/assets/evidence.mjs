@@ -32,7 +32,7 @@ export function findExecution(run) {
       ![e.run_id, e.run_attempt, e.job_id].every((n) => Number.isSafeInteger(n) && n > 0) ||
       !/^[a-f0-9]{40}$/.test(e.commit) ||
       !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/.test(e.completed_at) ||
-      !["success", "failure"].includes(e.job_conclusion)) return null;
+      !["success", "failure", "timed_out"].includes(e.job_conclusion)) return null;
   const base = `https://github.com/${e.repository}`;
   return {
     job: `${base}/actions/runs/${e.run_id}/job/${e.job_id}`,

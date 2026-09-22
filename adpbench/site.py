@@ -70,10 +70,12 @@ def _run_entry(record: dict) -> dict:
         "netlist_sha256": manifest.get("netlist_sha256", ""),
         "history": len(record.get("history", [])),
         "execution": record.get("execution"),
+        "record_origin": record.get("record_origin", "scorer"),
         "generation": {
             k: generation.get(k) for k in (
                 "model", "finish_reason", "usage", "generation_settings",
                 "response_diagnostics", "error", "invalid_rtl",
+                "evidence_unavailable",
             )
         } if generation else None,
     }

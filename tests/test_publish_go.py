@@ -1,5 +1,6 @@
 import hashlib
 import json
+import shutil
 import tempfile
 import unittest
 from pathlib import Path
@@ -67,6 +68,20 @@ class PublishGoTest(unittest.TestCase):
         write_json(path, gen)
         with self.assertRaisesRegex(ValueError, "provenance mismatch"):
             self.publish()
+
+    def test_job_timeout_without_artifacts_is_explicitly_unknown_not_scored(self):
+        shutil.rmtree(self.artifact)  # This test owns the temporary fixture only.
+        self.jobs[0]["conclusion"] = "timed_out"
+        board = self.publish()
+        self.assertTrue(board["meta"]["incomplete_evidence"])
+        self.assertEqual(board["meta"]["generation_requests"], 0)
+        for run in board["models"][0]["runs"]:
+            self.assertEqual(run["record_origin"], "github-job-status-only")
+            self.assertEqual(run["execution"]["job_conclusion"], "timed_out")
+            self.assertFalse(run["correct"])
+            self.assertFalse(run["submission_sha256"])
+            self.assertIsNone(run["generation"]["usage"])
+            self.assertIn("unavailable", run["error"])
 
 
 if __name__ == "__main__":
