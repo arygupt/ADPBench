@@ -29,7 +29,7 @@ It emits all 12 outcomes, not only successful submissions, under
 `pilot/results/go-core-20260922` and `site/data/go-core-20260922`. Commit these
 reviewed records and the generated site data to publish a new frozen snapshot.
 Provider raw responses stay in the private Actions artifacts, not the website.
-If a job times out before uploading its artifact, its two scheduled slots are
+If a job fails or times out before uploading its artifact, its two scheduled slots are
 explicitly labeled **job-status-only**: scores, RTL and usage are unknown, not
 fabricated. The token total is then a lower bound. Subsequent workflows preserve
 generation evidence before starting expensive scoring.

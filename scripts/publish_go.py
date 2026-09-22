@@ -43,12 +43,13 @@ def publish(artifacts: Path, plan: dict, run: dict, jobs: list[dict], output: Pa
         if job["status"] != "completed" or job["conclusion"] not in {"success", "failure", "timed_out"}:
             raise ValueError(f"model job not evaluated: {model_id}")
         artifact = artifacts / f"go-core-{model_id}-{run['id']}"
-        if not artifact.exists() and job["conclusion"] == "timed_out":
+        if not artifact.exists() and job["conclusion"] in {"failure", "timed_out"}:
             # A job-level timeout can prevent always() artifact-upload steps.
             # Publish only the observed job status, never fabricated scores,
             # provider responses, token counts, or submission hashes.
             for problem in plan["problems"]:
-                error = "GitHub job timed out before final artifacts were uploaded. Per-problem generation, scores, RTL and token usage are unavailable."
+                outcome = "timed out" if job["conclusion"] == "timed_out" else "failed"
+                error = f"GitHub job {outcome} before final artifacts were uploaded. Per-problem generation, scores, RTL and token usage are unavailable."
                 gen = {"model": model_id, "problem": problem, "protocol": "single-shot", "evidence_unavailable": True}
                 record = {
                     "problem": problem, "label": f"opencode-go/{model_id} [single-shot]", "attempt": 1,
