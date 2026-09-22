@@ -1,0 +1,10 @@
+{
+  "schema_version": 1,
+  "workflows": {
+    ".github/workflows/go-core.yml": {
+      "name": "OpenCode Go model runs",
+      "plans": ["pilot/go-core-20260922.json"],
+      "artifact_prefix": "go-core-"
+    }
+  }
+}

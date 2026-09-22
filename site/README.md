@@ -14,8 +14,56 @@ result links to its original model-generation/scoring Actions job, full workflow
 and evaluated code revision. It is never called a verified replay. Output-cap,
 generation, incorrect-RTL and successful outcomes remain distinguishable.
 
-To publish a completed core-model Actions run, download its `go-core-*` artifacts
-(preserving the artifact-name directories) and run:
+## Automatic results PRs
+
+The **Publish validated model results** workflow follows completed, eligible
+**OpenCode Go model runs** on `main`, including failed or interrupted evaluations:
+
+`completed model run → artifact validation → results PR → human merge → Site build`
+
+Preparation-only, skipped/duplicate-claim, fork and PR runs cannot publish.
+`pilot/publication-policy.json` registers the supported workflow and reviewed
+plan. A new batch needs a new authorized plan and a reviewed policy update;
+this automation neither launches models nor grants spending authorization.
+
+The publisher checks the original repository, run attempt, ancestral main commit,
+unchanged problem/flow definitions, plan, budgets, generation settings, scorer
+records and frozen RTL hashes. It downloads size-bounded artifacts, verifies
+GitHub's SHA-256 digests, and rejects unsafe ZIP paths, links, duplicate JSON
+keys and nonfinite numbers. It executes only trusted main-branch publisher code,
+never artifact RTL or downloaded scripts. No Go credentials are passed to it.
+
+The PR contains the frozen records, site snapshot, dataset catalog entry and a
+hash receipt in `pilot/publications/`. Existing snapshots are immutable: changed
+scores or sources stop publication. Repeating publication reuses an existing
+PR or produces no change, and never force-pushes or reopens a closed PR. The
+site's validated `site/data/evaluations.json` catalog makes new datasets available
+without editing the browser code. CI verifies receipt hashes against the frozen
+files and checks that the website shows the same outcomes.
+
+The repository's Actions PR-creation setting must be enabled. Default token
+permissions stay read-only; only the publisher job has contents/PR write access.
+It **never approves or merges PRs**. GitHub may require a maintainer to approve
+CI execution on bot-created PRs; review the data diff first. A human merge
+triggers Site validation and builds the updated downloadable site bundle.
+Public hosting remains separately gated by `ENABLE_PAGES`; publication does
+not enable Pages or change repository visibility.
+
+Backfill an already-completed run without any model calls:
+
+```bash
+gh workflow run publish-results.yml -f run_id=35671789622
+# Validation only (no branch, commit or PR):
+gh workflow run publish-results.yml -f run_id=35671789622 -f validate_only=true
+```
+
+For a local validation/staging pass, run
+`python -m scripts.publish_results --run-id RUN_ID`. It downloads and stages
+data files but does not commit or push unless `--open-pr` is supplied; that flag
+requires a clean checkout. Keep this separate from active development edits.
+
+The lower-level manual exporter remains available for debugging. Download
+`go-core-*` artifacts preserving artifact-name directories, then run:
 
 ```bash
 gh run download RUN_ID --pattern 'go-core-*' --dir /path/to/artifacts
@@ -28,7 +76,7 @@ anything. It rejects skipped jobs, missing records in successful jobs, altered R
 and overwrites. If an interrupted job saved generation but no final scoring
 record, it preserves that generation and frozen RTL as `github-generation-only`:
 score unknown, never a claimed completed evaluation.
-It emits all 12 outcomes, not only successful submissions, under
+For the current reviewed plan it emits all 12 outcomes, not only successful submissions, under
 `pilot/results/go-core-20260922` and `site/data/go-core-20260922`. Commit these
 reviewed records and the generated site data to publish a new frozen snapshot.
 Provider raw responses stay in the private Actions artifacts, not the website.
@@ -96,10 +144,10 @@ The six pilot-001 entries reference successful score comparisons in Actions run
 35528582943; they are re-evaluations, not original model-generation jobs. A green
 preparation-only workflow is not replay or model-run evidence.
 
-When publishing future results, collect IDs from the actual jobs and publish
-their provenance alongside the frozen records. Do not infer success from the
-workflow's green badge alone. Keep evidence updates reviewed until automatic
-publication validates submission hashes and score comparisons. No GitHub token
+The automatic publisher uses IDs from actual model jobs and publishes their
+provenance alongside the frozen records. It does not claim to replay scores;
+verified replay evidence still requires an actual score comparison and review.
+Do not infer correctness from a workflow's green badge alone. No GitHub token
 or live API polling is needed by the website. GitHub logs/artifacts have limited
 retention, so source links are pinned to the evaluated commit. The replay index
 survives score re-exports; a new pilot needs its own matching evidence index.

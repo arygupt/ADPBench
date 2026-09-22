@@ -1,5 +1,6 @@
 """Guard the finite schedule and billable request count without spending tokens."""
 import json
+import io
 import tempfile
 import unittest
 import urllib.error
@@ -10,6 +11,7 @@ from unittest.mock import patch
 from scripts.go_pilot import (
     due, extract_rtl, gate, generate, parse_response, read_plan, request_body,
     validate_plan, valid_usage, response_diagnostics,
+    provider_error_evidence, ERROR_BODY_LIMIT,
 )
 
 
@@ -66,6 +68,21 @@ class GoPilotTest(unittest.TestCase):
             for path in records:
                 self.assertNotIn("private provider error", path.read_text())
                 self.assertTrue(json.loads(path.read_text())["error"])
+
+    def test_provider_error_body_is_bounded_private_and_redacted(self):
+        body = b'{"error":"bad parameter; Bearer otherlongsecret; key=fixture-secret"}'
+        error = urllib.error.HTTPError("https://example.invalid", 400, "ignored reason", {"Authorization":"never save"}, io.BytesIO(body))
+        evidence = provider_error_evidence(error, "fixture-secret")
+        self.assertEqual(evidence["status"], 400)
+        self.assertTrue(evidence["body_available"])
+        self.assertIn("bad parameter", evidence["body"])
+        self.assertNotIn("fixture-secret", json.dumps(evidence))
+        self.assertNotIn("otherlongsecret", json.dumps(evidence))
+        self.assertNotIn("Authorization", evidence)
+        error = urllib.error.HTTPError("https://example.invalid", 400, "", {}, io.BytesIO(b"x" * (ERROR_BODY_LIMIT + 2)))
+        evidence = provider_error_evidence(error, "fixture-secret")
+        self.assertTrue(evidence["truncated"])
+        self.assertEqual(len(evidence["body"]), ERROR_BODY_LIMIT)
 
     def test_truncation_does_not_trigger_repairs(self):
         with tempfile.TemporaryDirectory() as tmp, patch.dict("os.environ", {"OPENCODE_GO_API_KEY": "fake"}), patch("scripts.go_pilot.now_utc", return_value=self.now), patch("scripts.go_pilot.call_model", return_value=self.response("length")) as call:

@@ -1,8 +1,9 @@
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync, readdirSync } from "node:fs";
 import test from "node:test";
 import { findReplay, findExecution } from "../site/assets/evidence.mjs";
+import { parseCatalog } from "../site/assets/catalog.mjs";
 
 const readJSON = (path) => JSON.parse(readFileSync(new URL(path, import.meta.url), "utf8"));
 const leaderboard = readJSON("../site/data/leaderboard.json");
@@ -11,6 +12,87 @@ const runs = leaderboard.models.flatMap((m) => m.runs);
 const pilot = leaderboard.meta.pilot;
 const first = evidence.runs[0];
 const run = runs.find((r) => r.submission_sha256 === first.submission_sha256);
+
+test("catalog only permits unique local datasets and existing default", () => {
+  const catalog = readJSON("../site/data/evaluations.json");
+  const parsed = parseCatalog(catalog);
+  assert.equal(parsed.paths["pilot-001"], "data/leaderboard.json");
+  for (const entry of catalog.evaluations) {
+    const board = readJSON(`../site/${entry.path}`);
+    assert.equal(board.meta.pilot, entry.id);
+  }
+  for (const delta of [{default:"missing"}, {evaluations:[...catalog.evaluations, catalog.evaluations[0]]},
+                       {evaluations:[{...catalog.evaluations[0], path:"https://evil.invalid"}]},
+                       {evaluations:[{...catalog.evaluations[0], id:"../escape"}]}])
+    assert.throws(() => parseCatalog({...catalog, ...delta}));
+});
+
+test("every publication receipt binds exact frozen records and website outcomes", () => {
+  const directory = new URL("../pilot/publications/", import.meta.url);
+  const files = existsSync(directory) ? readdirSync(directory) : [];
+  for (const file of files) {
+    assert.match(file, /^run-[1-9][0-9]*-attempt-[1-9][0-9]*\.json$/);
+    const receipt = JSON.parse(readFileSync(new URL(file, directory), "utf8"));
+    assert.equal(receipt.schema_version, 1);
+    assert.equal(receipt.kind, "validated-model-results-publication");
+    for (const id of [receipt.source_run_id, receipt.source_attempt])
+      assert.ok(Number.isSafeInteger(id) && id > 0);
+    assert.equal(file, `run-${receipt.source_run_id}-attempt-${receipt.source_attempt}.json`);
+    assert.match(receipt.source_commit, /^[0-9a-f]{40}$/);
+    assert.equal(receipt.source_workflow, ".github/workflows/go-core.yml");
+    assert.match(receipt.dataset, /^[a-z0-9][a-z0-9-]{0,79}$/);
+    const root = `../pilot/results/${receipt.dataset}`;
+    const hashes = receipt.record_file_sha256;
+    const expectedPaths = ["plan.json"];
+    const board = readJSON(`../site/data/${receipt.dataset}/leaderboard.json`);
+    assert.equal(board.meta.pilot, receipt.dataset);
+    assert.equal(board.meta.git_commit, receipt.source_commit);
+    assert.equal(receipt.confirmed_correct, board.models.reduce((n, m) => n + m.correct, 0));
+    assert.equal(receipt.result_slots, board.models.reduce((n, m) => n + m.runs.length, 0));
+    const plan = readJSON(`${root}/plan.json`);
+    for (const model of plan.models) {
+      assert.match(model.id, /^[a-z0-9][a-z0-9.-]*$/);
+      const published = board.models.find(m => m.label === `opencode-go/${model.id} [single-shot]`);
+      assert.ok(published);
+      for (const problem of plan.problems) {
+        assert.match(problem, /^[a-z0-9_]+$/);
+        const base = `opencode-go-${model.id}/${problem}`;
+        for (const filename of ["generation.json", "manifest.json", "record.json"])
+          expectedPaths.push(`${base}/rep1/${filename}`);
+        const record = readJSON(`${root}/${base}/rep1/record.json`);
+        const shown = published.runs.find(r => r.problem === problem);
+        assert.ok(findExecution(shown));
+        assert.deepEqual(shown.execution, record.execution);
+        assert.equal(record.execution.run_id, receipt.source_run_id);
+        assert.equal(record.execution.run_attempt, receipt.source_attempt);
+        assert.equal(record.execution.commit, receipt.source_commit);
+        assert.equal(shown.correct, Boolean(record.result?.correct));
+        for (const metric of ["cells", "cycles"])
+          assert.equal(shown[metric], record.result?.[metric] ?? -1);
+        assert.equal(shown.ratio, record.result?.ratio || -1);
+        if (record.manifest.submission_sha256) {
+          expectedPaths.push(`${base}/rep1_frozen/dut.v`);
+          assert.equal(hashes[`${base}/rep1_frozen/dut.v`], record.manifest.submission_sha256);
+          assert.equal(shown.submission_sha256, record.manifest.submission_sha256);
+        }
+      }
+    }
+    // Only canonical planned paths can be read; never arbitrary receipt paths.
+    assert.deepEqual(Object.keys(hashes).sort(), expectedPaths.sort());
+    for (const path of expectedPaths) {
+      assert.match(hashes[path], /^[0-9a-f]{64}$/);
+      assert.equal(createHash("sha256").update(readFileSync(new URL(`${root}/${path}`, import.meta.url))).digest("hex"), hashes[path]);
+    }
+    const names = new Set();
+    for (const artifact of receipt.artifacts) {
+      assert.ok(Number.isSafeInteger(artifact.id) && artifact.id > 0);
+      assert.match(artifact.digest, /^sha256:[0-9a-f]{64}$/);
+      assert.ok(plan.models.some(m => ["go-core", "go-generation"].some(prefix => artifact.name === `${prefix}-${m.id}-${receipt.source_run_id}`)));
+      assert.ok(!names.has(artifact.name));
+      names.add(artifact.name);
+    }
+  }
+});
 
 test("original model jobs remain distinct from verified replays", () => {
   const r = { execution: { kind: "model-evaluation", repository: "arygupt/ADPBench", run_id: 123, run_attempt: 1, job_id: 456, commit: "a".repeat(40), completed_at: "2026-09-22T01:00:00Z", job_conclusion: "failure" } };

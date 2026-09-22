@@ -82,6 +82,8 @@ def publish(artifacts: Path, plan: dict, run: dict, jobs: list[dict], output: Pa
                 # Preserve verified generation evidence without inventing an
                 # interrupted scorer's result. This hash identifies the saved
                 # artifact only; it is not a claim of completed evaluation.
+                if not source.exists() and (path / "dut.v").is_file():
+                    source = path / "dut.v"  # Pre-scoring generation artifact; not a measured score.
                 record = {
                     "problem": problem, "label": f"opencode-go/{model_id} [single-shot]", "attempt": 1,
                     "group": plan["name"], "record_origin": "github-generation-only",

@@ -3,9 +3,9 @@ name: Site
 on:
   push:
     branches: [main]
-    paths: ["site/**", "pilot/results/**", "scripts/publish_go.py", "adpbench/site.py", "tests/test_site*", "tests/test_publish_go.py", ".github/workflows/deploy-site.yml"]
+    paths: ["site/**", "pilot/results/**", "pilot/publications/**", "scripts/publish_go.py", "adpbench/site.py", "tests/test_site*", "tests/test_publish_go.py", ".github/workflows/deploy-site.yml"]
   pull_request:
-    paths: ["site/**", "pilot/results/**", "scripts/publish_go.py", "adpbench/site.py", "tests/test_site*", "tests/test_publish_go.py", ".github/workflows/deploy-site.yml"]
+    paths: ["site/**", "pilot/results/**", "pilot/publications/**", "scripts/publish_go.py", "adpbench/site.py", "tests/test_site*", "tests/test_publish_go.py", ".github/workflows/deploy-site.yml"]
   workflow_dispatch:
 
 permissions:
