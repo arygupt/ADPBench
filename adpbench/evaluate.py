@@ -21,6 +21,8 @@ import hashlib
 import json
 import os
 import re
+import time
+import fcntl
 from pathlib import Path
 from uuid import uuid4
 
@@ -28,6 +30,8 @@ from . import score as scoring
 from . import sim, synth, vectors
 from .problem import Problem, repo_root
 from .result import EvalResult
+from .durable import atomic_json
+from .process import deadline, DEADLINE
 
 LOG_TAIL = 4000
 
@@ -154,6 +158,8 @@ def evaluate(
     seed: int | str = 0,
     source: str = "",
     workdir: Path | None = None,
+    *,
+    _prepared_synthesis: dict | None = None,
 ) -> EvalResult:
     rtl_paths = [Path(p).resolve() for p in rtl_paths]
     workdir = (
@@ -175,13 +181,14 @@ def evaluate(
         "iverilog": sim.tool_version(),
     }
 
-    syn = synth.synthesize(problem, rtl_paths, workdir)
+    syn = _prepared_synthesis if _prepared_synthesis is not None else synth.synthesize(problem, rtl_paths, workdir)
     result.synthesizable = syn["ok"]
     result.cells = syn["cells"]
     result.metadata["cells"] = syn["cells"]
     if not syn["ok"]:
         result.metadata["stage"] = "synthesis"
         result.metadata["synthesis_log"] = syn["log"][-LOG_TAIL:]
+        result.metadata["failure_kind"] = syn.get("failure_kind", "synthesis_error")
         return result
 
     netlist = syn["netlist"]
@@ -196,6 +203,8 @@ def evaluate(
     run = sim.simulate(problem, netlist, workdir, seed, mode="score")
     result.compiled = run["compiled"]
     result.metadata["sim_log"] = run["log"][-LOG_TAIL:]
+    if run.get("failure_kind"):
+        result.metadata["failure_kind"] = run["failure_kind"]
     if not run["compiled"]:
         result.metadata["stage"] = "compile"
         result.metadata["correctness"] = "failed to compile"
@@ -222,6 +231,8 @@ def evaluate(
     # hold-stable check. Results must still match; cycles are ignored.
     protocol_run = sim.simulate(problem, netlist, workdir, seed, mode="protocol")
     result.metadata["protocol_log"] = protocol_run["log"][-LOG_TAIL:]
+    if protocol_run.get("failure_kind"):
+        result.metadata["failure_kind"] = protocol_run["failure_kind"]
     if not protocol_run["compiled"]:
         result.metadata["stage"] = "protocol_compile"
         result.metadata["correctness"] = "protocol testbench failed to compile"
@@ -302,6 +313,9 @@ def evaluate_multi(
     source: str = "",
     tag: str = "eval",
     include_directed: bool = True,
+    checkpoint_dir: Path | None = None,
+    resume: bool = False,
+    deadline_s: float | None = None,
 ) -> EvalResult:
     """Score one submission across held-out seeds and directed cases, then aggregate.
 
@@ -313,18 +327,89 @@ def evaluate_multi(
     cases: list[int | str] = list(seeds)
     if include_directed:
         cases += problem.directed_cases
+    if not cases:
+        raise ValueError("evaluation requires at least one case")
 
     job = uuid4().hex[:8]
-    parts = [
-        evaluate(
-            problem,
-            rtl_paths,
-            seed=case,
-            source=source,
-            workdir=work_dir(problem, case, tag=tag, job=job),
-        )
-        for case in cases
-    ]
+    root = Path(checkpoint_dir).resolve() if checkpoint_dir else work_dir(problem, "checkpoint", tag=tag, job=job)
+    root.mkdir(parents=True, exist_ok=True)
+    # Checkpoints are harness-owned. Never reuse unverified, agent-writable caches.
+    identity = {
+        "schema_version":1, "problem":problem.name, "params":problem.params,
+        "cases":cases, "rtl":[_sha256_file(p) for p in rtl_paths],
+        "spec":_sha256_file(problem.root / "dut.py"), "flow":_sha256_file(synth.FLOW),
+        "baseline":_sha256_file(problem.baseline_metrics) if problem.baseline_metrics.exists() else None,
+        "tools":_tool_ids(_current_tools()),
+        "harness":{name:_sha256_file(Path(__file__).with_name(name)) for name in
+                   ("evaluate.py", "synth.py", "sim.py", "vectors.py", "score.py", "result.py", "process.py", "durable.py")},
+    }
+    state_path = root / "checkpoint.json"
+    with (root / ".lock").open("a") as lock, deadline(deadline_s):
+        fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        if state_path.exists():
+            if not resume:
+                raise FileExistsError("checkpoint already exists; explicitly resume or select a new directory")
+            state = json.loads(state_path.read_text())
+            if state.get("identity") != identity:
+                raise ValueError("checkpoint identity changed; refusing stale scoring evidence")
+            job = state["job"]
+        else:
+            state = {"identity":identity, "job":job, "state":"started", "completed":{}}
+            atomic_json(state_path, state)
+        syn_path = root / "synthesis.json"
+        if state.get("synthesis_sha256"):
+            if _sha256_file(syn_path) != state["synthesis_sha256"]:
+                raise ValueError("synthesis checkpoint hash mismatch")
+            syn = json.loads(syn_path.read_text())
+            if syn["ok"]:
+                netlist = root / "synthesis" / synth.NETLIST
+                if _sha256_file(netlist) != syn["netlist_sha256"]:
+                    raise ValueError("cached netlist hash mismatch")
+                syn["netlist"] = netlist
+        else:
+            state["state"] = "synthesis"
+            atomic_json(state_path, state)
+            syn = synth.synthesize(problem, rtl_paths, root / "synthesis")
+            saved = {**syn, "netlist":synth.NETLIST if syn["ok"] else None,
+                     "log":syn["log"][-LOG_TAIL:]}
+            if syn["ok"]:
+                saved["netlist_sha256"] = _sha256_file(syn["netlist"])
+            atomic_json(syn_path, saved)
+            state["synthesis_sha256"] = _sha256_file(syn_path)
+            atomic_json(state_path, state)
+        parts = []
+        for index, case in enumerate(cases):
+            part_path = root / f"case-{index}" / "result.json"
+            key = str(index)
+            if key in state["completed"]:
+                if _sha256_file(part_path) != state["completed"][key]:
+                    raise ValueError("case checkpoint hash mismatch")
+                part = EvalResult(**json.loads(part_path.read_text()))
+            else:
+                state.update(state="case", current_case=case)
+                atomic_json(state_path, state)
+                if DEADLINE.get() is not None and time.monotonic() >= DEADLINE.get():
+                    part = EvalResult(problem=problem.name, source=source,
+                                      metadata={"stage":"evaluation_timeout", "case":case,
+                                                "failure_kind":"wall_timeout", "correctness":"evaluation wall deadline exhausted"})
+                    parts.append(part)
+                    break  # No completed-case claim for work that never started.
+                part = evaluate(problem, rtl_paths, seed=case, source=source,
+                                workdir=part_path.parent, _prepared_synthesis=syn)
+                atomic_json(part_path, part.to_dict())
+                state["completed"][key] = _sha256_file(part_path)
+                atomic_json(state_path, state)
+            parts.append(part)
+        merged = _aggregate(problem, parts, cases, source, job)
+        atomic_json(root / "result.json", merged.to_dict())
+        state.update(state="completed" if len(state["completed"]) == len(cases) else "interrupted",
+                     result_sha256=_sha256_file(root / "result.json"))
+        atomic_json(state_path, state)
+        return merged
+
+
+def _aggregate(problem: Problem, parts: list[EvalResult], cases: list,
+               source: str, job: str) -> EvalResult:
     merged = EvalResult(problem=problem.name, source=source)
     merged.synthesizable = all(p.synthesizable for p in parts)
     merged.compiled = all(p.compiled for p in parts)
@@ -356,11 +441,16 @@ def evaluate_multi(
             merged.metadata["stage"] = "synthesis"
             merged.metadata["correctness"] = "synthesis failed"
             merged.metadata["synthesis_log"] = p.metadata.get("synthesis_log", "")
+            merged.metadata["failure_kind"] = p.metadata.get("failure_kind", "synthesis_error")
+            if p.metadata.get("stage") == "evaluation_timeout":
+                merged.metadata.update(stage="evaluation_timeout", correctness=p.metadata["correctness"])
             return merged
         if not p.correct:
             merged.metadata["stage"] = p.metadata.get("stage", "")
             merged.metadata["correctness"] = p.metadata.get("correctness", "incorrect")
             merged.metadata["case_failed"] = p.metadata.get("case")
+            if p.metadata.get("failure_kind"):
+                merged.metadata["failure_kind"] = p.metadata["failure_kind"]
             return merged
 
     merged.metadata["stage"] = "ok"

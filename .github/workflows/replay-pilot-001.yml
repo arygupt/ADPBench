@@ -2,6 +2,13 @@ name: Replay pilot-001
 
 on:
   workflow_dispatch:
+  pull_request:
+    paths:
+      - ".github/workflows/replay-pilot-001.yml"
+      - "adpbench/**"
+      - "!adpbench/site.py"
+      - "flows/**"
+      - "problems/**"
   push:
     branches: [main]
     paths:
@@ -27,9 +34,8 @@ jobs:
     timeout-minutes: 45
     strategy:
       fail-fast: false
-      # The first job populates the shared BuildKit cache with the pinned
-      # Yosys/Icarus image; later jobs then restore that image from the cache.
-      max-parallel: 1
+      # Keep replay concurrency modest while reusing the pinned toolchain cache.
+      max-parallel: 2
       matrix:
         include:
           - id: mimo-dot-product
@@ -100,7 +106,7 @@ jobs:
       - name: Replay and compare score
         run: |
           set -euo pipefail
-          docker run --rm \
+          docker run --rm --network none --memory 5g --cpus 2 --pids-limit 256 \
             -e PYTHONPATH=/repo \
             -e ADPBENCH_WORKDIR=/repo/.action-replay/work \
             -v "$GITHUB_WORKSPACE:/repo" \

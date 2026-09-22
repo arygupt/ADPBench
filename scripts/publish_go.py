@@ -131,7 +131,7 @@ def publish(artifacts: Path, plan: dict, run: dict, jobs: list[dict], output: Pa
         "max_output_tokens": plan["max_output_tokens"], "sandbox": {"mode": "docker · network disabled"},
         "workflow_url": run["html_url"], "generation_requests": sum(bool(g.get("response_id")) for _, _, _, g, _ in prepared),
         "incomplete_evidence": any(r.get("record_origin", "scorer") != "scorer" for _, _, r, _, _ in prepared),
-        "incomplete_usage": any(g.get("evidence_unavailable") for _, _, _, g, _ in prepared),
+        "incomplete_usage": any(g.get("evidence_unavailable") or g.get("incomplete_usage") for _, _, _, g, _ in prepared),
         "output_tokens": sum(g.get("usage", {}).get("completion_tokens", g.get("usage", {}).get("output_tokens", 0)) for _, _, _, g, _ in prepared),
     })
     if plan.get("output_budget") == "provider_max":

@@ -7,6 +7,7 @@ only in the generation step's environment; requests are never retried.
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import os
 import re
@@ -20,6 +21,8 @@ from adpbench.agent import RunRecord, audit_submission, build_manifest, render_p
 from adpbench.evaluate import EVAL_SEEDS, evaluate_multi
 from adpbench.problem import load_problem, repo_root
 from adpbench.report import write_report
+from adpbench.durable import atomic_json
+from scripts.go_stream import call_streaming, StreamFailure
 
 PLAN = repo_root() / "pilot/go-20260921.json"
 BASE_URL = "https://opencode.ai/zen/go/v1/"
@@ -100,6 +103,10 @@ def validate_plan(plan: dict) -> None:
         raise ValueError("max_output_tokens must contain positive integer provider limits")
     if type(plan.get("generation_enabled", True)) is not bool:
         raise ValueError("generation_enabled must be boolean")
+    if type(plan.get("stream", False)) is not bool:
+        raise ValueError("stream must be boolean")
+    if type(plan.get("request_wall_timeout_s", 600)) is not int or not 0 < plan.get("request_wall_timeout_s", 600) <= 3600:
+        raise ValueError("invalid request wall timeout")
     expires = datetime.fromisoformat(plan["expires_at"])
     if expires.tzinfo is None:
         raise ValueError("expiry must include a timezone")
@@ -130,8 +137,7 @@ def select_model(plan: dict, model_id: str) -> dict:
 
 
 def write_json(path: Path, data: dict) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(data, indent=2) + "\n")
+    atomic_json(path, data)
 
 
 def prompt_for(problem) -> str:
@@ -147,7 +153,7 @@ def request_body(model: dict, prompt: str, plan: dict) -> dict:
     messages = [{"role": "user", "content": prompt}]
     body = {
         "model": model["id"], "messages": messages,
-        model.get("token_limit_key", "max_tokens"): output_limit(plan, model), "stream": False,
+        model.get("token_limit_key", "max_tokens"): output_limit(plan, model), "stream": plan.get("stream", False),
     }
     for key in ("thinking", "reasoning_effort", "reasoning"):
         if key in model:
@@ -156,6 +162,8 @@ def request_body(model: dict, prompt: str, plan: dict) -> dict:
         body["system"] = SYSTEM
     else:
         messages.insert(0, {"role": "system", "content": SYSTEM})
+        if body["stream"]:
+            body["stream_options"] = {"include_usage":True}
     return body
 
 
@@ -200,7 +208,8 @@ class NoRedirect(urllib.request.HTTPRedirectHandler):
         return None
 
 
-def call_model(model: dict, body: dict, key: str, session: str, timeout: int) -> dict:
+def call_model(model: dict, body: dict, key: str, session: str, timeout: int,
+               *, evidence: Path | None = None, wall_timeout: int = 600) -> dict:
     headers = {
         "Authorization": "Bearer " + key,
         "Content-Type": "application/json", "User-Agent": USER_AGENT,
@@ -208,6 +217,10 @@ def call_model(model: dict, body: dict, key: str, session: str, timeout: int) ->
     }
     if model["api"] == "messages":
         headers.update({"x-api-key": key, "anthropic-version": "2023-06-01"})
+    if body.get("stream"):
+        if evidence is None:
+            raise ValueError("streaming requires a durable evidence directory")
+        return call_streaming(model["api"], body, headers, evidence, key, timeout, wall_timeout)
     request = urllib.request.Request(BASE_URL + model["api"], json.dumps(body).encode(), headers)
     # urllib does not retry. Do not log headers or raw provider errors.
     with urllib.request.build_opener(NoRedirect).open(request, timeout=timeout) as response:
@@ -229,6 +242,14 @@ def generate(plan: dict, model: dict, out: Path) -> None:
         json.dump({"model": model["id"], "started": now_utc().isoformat()}, handle)
     write_json(out / "plan.json", plan)
     stop = ""
+    # Pre-create every scheduled slot so a hard kill cannot erase later slots.
+    for problem_id in plan["problems"]:
+        write_json(out / ("opencode-go-" + model["id"]) / problem_id / "rep1/generation.json", {
+            "model":model["id"], "problem":problem_id, "protocol":"single-shot",
+            "started":now_utc().isoformat(), "max_output_tokens":output_limit(plan,model),
+            "generation_settings":{k:model[k] for k in SETTING_KEYS if k in model},
+            "github":{k:os.environ.get(k, "") for k in ("GITHUB_REPOSITORY", "GITHUB_RUN_ID", "GITHUB_RUN_ATTEMPT", "GITHUB_SHA")},
+            "generation_state":"pending", "error":"not requested: generation job stopped before this request"})
     for problem_id in plan["problems"]:
         dest = out / ("opencode-go-" + model["id"]) / problem_id / "rep1"
         dest.mkdir(parents=True, exist_ok=True)
@@ -249,6 +270,7 @@ def generate(plan: dict, model: dict, out: Path) -> None:
         prompt_bytes = len((SYSTEM + prompt).encode())
         record["prompt_bytes"] = prompt_bytes
         started = time.monotonic()
+        requested = False
         try:
             if not due(plan, model, now_utc()):
                 raise RuntimeError("schedule expired")
@@ -257,20 +279,32 @@ def generate(plan: dict, model: dict, out: Path) -> None:
             session = f"adpbench-{plan['name']}-{model['id']}-{problem_id}"
             body = request_body(model, prompt, plan)
             write_json(dest / "request.json", body)
-            data = call_model(model, body, key, session, plan["request_timeout_s"])
+            if body["stream"]:
+                record["transport"] = {"stream":True, "idle_timeout_s":plan["request_timeout_s"],
+                                       "wall_timeout_s":plan.get("request_wall_timeout_s",600)}
+            write_json(dest / "generation.json", {**record, "generation_state":"in_progress",
+                       "incomplete_usage":True, "error":"generation interrupted before completion"})
+            requested = True
+            data = call_model(model, body, key, session, plan["request_timeout_s"],
+                              evidence=dest, wall_timeout=plan.get("request_wall_timeout_s",600))
             # Raw model output is evidence, never executable commands. Never save credentials.
             safe_data = json.loads(json.dumps(data).replace(key, "[REDACTED]"))
             write_json(dest / "response.json", safe_data)
-            text, finish, usage = parse_response(data, model["api"])
-            record.update({"finish_reason": finish, "usage": usage, "response_id": data.get("id", ""), "response_model": data.get("model", "")})
+            text, finish, usage = parse_response(safe_data, model["api"])
+            record.update({"finish_reason": finish, "usage": usage if isinstance(usage, dict) else {},
+                           "response_id": data.get("id", ""), "response_model": data.get("model", "")})
             record["response_diagnostics"] = response_diagnostics(data, model["api"])
             (dest / "response.txt").write_text(text)
             if not usage:
                 stop = record["error"] = "missing provider token accounting"
+                record["incomplete_usage"] = True
             elif not valid_usage(usage, model["api"], output_limit(plan, model)):
                 stop = record["error"] = "invalid provider token accounting or output cap exceeded"
+                record["incomplete_usage"] = True
             if finish in {"length", "max_tokens"}:
                 record["error"] = "generation reached output cap; no retry"
+            elif finish not in {"stop", "end_turn", "stop_sequence"}:
+                stop = record["error"] = "unexpected provider stop reason; no retry"
             elif not record["error"]:
                 try:
                     (dest / "dut.v").write_text(extract_rtl(text))
@@ -281,10 +315,15 @@ def generate(plan: dict, model: dict, out: Path) -> None:
         except urllib.error.HTTPError as exc:
             stop = record["error"] = f"provider HTTP {exc.code}; no retry or fallback"
             write_json(dest / "provider_error.json", provider_error_evidence(exc, key))
+        except StreamFailure as exc:
+            stop = record["error"] = f"generation incomplete: {exc}; no retry or fallback"
+            record["incomplete_usage"] = True
         except Exception as exc:
             # Exception bodies can contain sensitive server response details.
             stop = record["error"] = f"request stopped ({type(exc).__name__}); no retry"
+            record["incomplete_usage"] = requested
         record["duration_s"] = round(time.monotonic() - started, 2)
+        record["generation_state"] = "failed" if record["error"] or record.get("invalid_rtl") else "completed"
         write_json(dest / "generation.json", record)
         print(f"{problem_id}: {record['error'] or record.get('invalid_rtl') or 'generated'}", flush=True)
     if stop:
@@ -292,26 +331,32 @@ def generate(plan: dict, model: dict, out: Path) -> None:
 
 
 def valid_usage(usage: dict, api: str, cap: int) -> bool:
+    if not isinstance(usage, dict):
+        return False
     inputs = usage.get("input_tokens" if api == "messages" else "prompt_tokens")
     outputs = usage.get("output_tokens" if api == "messages" else "completion_tokens")
     return type(inputs) is int and inputs >= 0 and type(outputs) is int and 0 <= outputs <= cap
 
 
-def score(plan: dict, model: dict, out: Path) -> None:
-    total_input = total_output = 0
-    for problem_id in plan["problems"]:
-        dest = out / ("opencode-go-" + model["id"]) / problem_id / "rep1"
+def score(plan: dict, model: dict, out: Path, *, problem_id: str | None = None,
+          checkpoint_root: Path | None = None, resume: bool = False,
+          deadline_s: float | None = None) -> None:
+    if problem_id is not None and problem_id not in plan["problems"]:
+        raise ValueError("problem is not in the reviewed plan")
+    for current_problem in plan["problems"]:
+        if problem_id is not None and current_problem != problem_id:
+            continue
+        selected = current_problem
+        dest = out / ("opencode-go-" + model["id"]) / selected / "rep1"
         generation_path = dest / "generation.json"
         if not generation_path.exists():
             continue
         generation = json.loads(generation_path.read_text())
-        usage = generation.get("usage", {})
-        total_input += usage.get("prompt_tokens", usage.get("input_tokens", 0))
-        total_output += usage.get("completion_tokens", usage.get("output_tokens", 0))
-        total_input += usage.get("cache_read_input_tokens", 0) + usage.get("cache_creation_input_tokens", 0)
-        problem = load_problem(repo_root() / "problems/level1" / problem_id)
+        if (dest / "record.json").exists() and not resume:
+            raise FileExistsError("scoring record exists; use --resume or a fresh output directory")
+        problem = load_problem(repo_root() / "problems/level1" / selected)
         record = RunRecord(
-            problem=problem_id, agent_cmd="adpbench Go API single-shot (one request, no repair)",
+            problem=selected, agent_cmd="adpbench Go API single-shot (one request, no repair)",
             label=("scripted/baseline-fixture" if generation.get("protocol") == "fixture"
                    else "opencode-go/" + model["id"] + " [single-shot]"), group=plan["name"],
             started=generation["started"], duration_s=generation.get("duration_s", 0),
@@ -322,32 +367,114 @@ def score(plan: dict, model: dict, out: Path) -> None:
         if source.exists():
             frozen = dest.parent / "rep1_frozen/dut.v"
             frozen.parent.mkdir(exist_ok=True)
-            frozen.write_bytes(source.read_bytes())
+            if frozen.exists():
+                if hashlib.sha256(frozen.read_bytes()).digest() != hashlib.sha256(source.read_bytes()).digest():
+                    raise ValueError("frozen RTL differs from saved generation; refusing to overwrite")
+            else:
+                frozen.write_bytes(source.read_bytes())
             record.frozen = str(frozen)
             record.audit = audit_submission(frozen.read_text())
-            if record.audit["ok"]:
+            if resume and (dest / "record.json").exists():
+                previous = json.loads((dest / "record.json").read_text())
+                if previous.get("result") is not None:
+                    # A completed pass OR failure is immutable. Recovery only
+                    # finishes interrupted work, never repairs a scored design.
+                    print(f"{selected}: retaining completed scoring result", flush=True)
+                    continue
+            if record.audit["ok"] and not record.error:
+                # A hard kill leaves a truthful, publishable incomplete record.
+                record.manifest = build_manifest(problem, record, frozen, plan["request_timeout_s"], "docker", "adpbench-go:ci", "none")
+                record.manifest["generation"] = generation
+                progress = json.loads(record.to_json())
+                progress["error"] = "scoring interrupted before completion; see scoring checkpoints"
+                write_json(dest / "manifest.json", record.manifest)
+                write_json(dest / "record.json", progress)
+                write_json(dest / "scoring-state.json", {"state":"running"})
                 try:
-                    print(f"{problem_id}: scoring frozen RTL on held-out cases", flush=True)
-                    record.result = evaluate_multi(problem, [frozen], seeds=EVAL_SEEDS, source="go-single-shot", tag="eval").to_dict()
+                    print(f"{selected}: scoring frozen RTL on held-out cases", flush=True)
+                    checkpoint = checkpoint_root / model["id"] / selected if checkpoint_root else None
+                    record.result = evaluate_multi(problem, [frozen], seeds=EVAL_SEEDS, source="go-single-shot", tag="eval",
+                                                   checkpoint_dir=checkpoint, resume=resume, deadline_s=deadline_s).to_dict()
+                    failure = record.result.get("metadata", {}).get("failure_kind", "")
+                    if failure in {"wall_timeout", "signal", "log_limit", "interrupted"} or failure.startswith("launch_error"):
+                        record.error = f"scoring infrastructure: {failure}; inspect stage logs"
                 except Exception as exc:
-                    record.error = f"scoring failed: {type(exc).__name__}: {exc}"
+                    record.error = f"scoring failed: {type(exc).__name__}; see private scoring logs"
+                    print(record.error, flush=True)
         else:
             record.audit = {"ok": False, "violations": [{"line": 0, "match": "", "reason": generation.get("invalid_rtl", "no RTL produced")}], "warnings": []}
         record.manifest = build_manifest(problem, record, frozen, plan["request_timeout_s"], "docker", "adpbench-go:ci", "none")
         record.manifest["generation"] = generation
         write_json(dest / "manifest.json", record.manifest)
         write_json(dest / "record.json", json.loads(record.to_json()))
+        write_json(dest / "scoring-state.json", {"state":"completed", "has_result":record.result is not None})
         result = record.result or {}
-        print(f"{problem_id}: scoring complete; correct={bool(result.get('correct'))}; "
+        print(f"{selected}: scoring complete; correct={bool(result.get('correct'))}; "
               f"stage={(result.get('metadata') or {}).get('stage', 'no submission')}", flush=True)
+    summarize(plan, model, out)
+
+
+def summarize(plan: dict, model: dict, out: Path) -> None:
+    total_input = total_output = 0
+    incomplete_usage = False
+    for problem_id in plan["problems"]:
+        path = out / ("opencode-go-" + model["id"]) / problem_id / "rep1/generation.json"
+        if not path.exists():
+            incomplete_usage = True
+            continue
+        generation = json.loads(path.read_text())
+        incomplete_usage |= bool(generation.get("incomplete_usage"))
+        usage = generation.get("usage", {})
+        # Never turn unknown/invalid accounting into a fabricated numeric total.
+        if usage and valid_usage(usage, model["api"], output_limit(plan, model)):
+            total_input += usage.get("prompt_tokens", usage.get("input_tokens", 0))
+            total_output += usage.get("completion_tokens", usage.get("output_tokens", 0))
+            for key in ("cache_read_input_tokens", "cache_creation_input_tokens"):
+                value = usage.get(key, 0)
+                if type(value) is int and value >= 0:
+                    total_input += value
+        elif usage:
+            incomplete_usage = True
     write_report(out)
-    tokens = {"input_tokens_including_cache": total_input, "output_tokens": total_output}
+    tokens = {"input_tokens_including_cache": total_input, "output_tokens": total_output, "incomplete_usage":incomplete_usage}
     write_json(out / "usage.json", tokens)
     with (out / "REPORT.md").open("a") as handle:
         handle.write(f"\nProtocol: one generation per problem, no feedback or retries. Output cap: {output_limit(plan, model)} tokens/request ({plan.get('output_budget', 'fixed')}).\n")
         handle.write(f"\nProvider-reported input (including cache): {total_input}; output: {total_output} tokens.\n")
         handle.write(f"\nGeneration settings: `{json.dumps({k: model[k] for k in SETTING_KEYS if k in model})}`.\n")
         handle.write("\nThese single-shot results use a different generation budget from the iterative pilot-001.\n")
+        if incomplete_usage:
+            handle.write("\nToken totals are incomplete; an interrupted response may have consumed additional subscription quota.\n")
+
+
+def save_scoring_failure(plan: dict, model: dict, out: Path, problem_id: str, reason: str) -> None:
+    """Host-side crash receipt: unknown score, never fabricate a DUT failure/pass."""
+    dest = out / ("opencode-go-" + model["id"]) / problem_id / "rep1"
+    path = dest / "record.json"
+    if path.exists():
+        record = json.loads(path.read_text())
+        if record.get("result") is not None:
+            return  # Preserve a finalized score even if post-scoring cleanup failed.
+    else:
+        generation = json.loads((dest / "generation.json").read_text())
+        problem = load_problem(repo_root() / "problems/level1" / problem_id)
+        run = RunRecord(problem=problem_id, agent_cmd="adpbench Go API single-shot (one request, no repair)",
+                        label=f"opencode-go/{model['id']} [single-shot]",
+                        group=plan["name"], started=generation["started"], sandbox="docker")
+        frozen = dest.parent / "rep1_frozen/dut.v"
+        if not frozen.exists() and (dest / "dut.v").exists():
+            frozen.parent.mkdir(exist_ok=True)
+            frozen.write_bytes((dest / "dut.v").read_bytes())
+        run.frozen = str(frozen) if frozen.exists() else ""
+        run.manifest = build_manifest(problem, run, frozen if frozen.exists() else None,
+                                      plan["request_timeout_s"], "docker", "adpbench-go:ci", "none")
+        run.manifest["generation"] = generation
+        record = json.loads(run.to_json())
+    record["error"] = f"scoring infrastructure: {reason}; score unknown; frozen generation preserved"
+    record["manifest"]["error"] = record["error"]
+    write_json(dest / "manifest.json", record["manifest"])
+    write_json(path, record)
+    write_json(dest / "scoring-state.json", {"state":"interrupted", "reason":reason})
 
 
 def gate(plan: dict, cron: str, now: datetime) -> dict:
@@ -361,6 +488,10 @@ def main() -> None:
     parser.add_argument("--model", default="deepseek-v4.1-flash")
     parser.add_argument("--plan", type=Path, default=PLAN)
     parser.add_argument("--out", type=Path, default=Path("runs/go"))
+    parser.add_argument("--problem", help="Score only this planned problem; no model calls")
+    parser.add_argument("--checkpoint-root", type=Path)
+    parser.add_argument("--resume", action="store_true", help="Reuse hash-verified scoring checkpoints; never regenerate")
+    parser.add_argument("--deadline-s", type=float, help="Soft scoring wall deadline, below the outer job timeout")
     args = parser.parse_args()
     plan = read_plan(args.plan)
     if args.mode == "gate":
@@ -374,7 +505,8 @@ def main() -> None:
     if args.mode == "generate":
         generate(plan, model, args.out)
     elif args.mode == "score":
-        score(plan, model, args.out)
+        score(plan, model, args.out, problem_id=args.problem, checkpoint_root=args.checkpoint_root,
+              resume=args.resume, deadline_s=args.deadline_s)
     else:
         # No HTTP calls: exercise the full scoring path with known-good RTL.
         for problem_id in plan["problems"]:

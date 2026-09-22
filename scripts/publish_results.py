@@ -103,8 +103,13 @@ def validate_source(run: dict, jobs: list[dict], plan: dict, policy: dict) -> No
     evaluated = [j for j in jobs if j.get("name") in names]
     if len(evaluated) != len(names) or len({j["name"] for j in evaluated}) != len(names):
         raise ValueError("missing or duplicate model jobs")
+    generation_names = [f"Generate {model['id']} · two single-shot submissions" for model in plan["models"]]
+    generation_jobs = [j for j in jobs if j.get("name") in generation_names]
+    if generation_jobs and (len(generation_jobs) != len(generation_names)
+                            or len({j["name"] for j in generation_jobs}) != len(generation_names)):
+        raise ValueError("missing or duplicate generation jobs")
     generated = False
-    for job in evaluated:
+    for job in [*evaluated, *generation_jobs]:
         positive_id(job["id"])
         if (job.get("run_id") != run["id"] or job.get("status") != "completed"
                 or job.get("conclusion") not in {"success", "failure", "cancelled", "timed_out"}

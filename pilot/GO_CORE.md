@@ -10,8 +10,9 @@ one dot-product and one GEMV attempt per model, 8,192 output tokens each,
 24,000 prompt bytes and 600 seconds per request. There are no retries, repairs,
 schedules, or non-Go endpoints. The user must confirm Go **Use balance is off**.
 
-Preparation validates both baselines once. Six independently inspectable model
-jobs then generate and score in a network-disabled, credential-free container.
+Preparation validates both baselines once. Six independently inspectable generation
+jobs save responses; six separate scoring jobs evaluate frozen RTL in
+network-disabled, credential-free containers.
 Matrix fail-fast is disabled: a model failure cannot cancel another model.
 Per-model durable tags and local exclusive-create guards prevent duplicate
 spending when a workflow is rerun. A new batch needs a new reviewed plan and
@@ -48,9 +49,11 @@ policy registration; never clear old model-claim tags.
 With two problems per model, the configured worst-case output allowance is
 **1,941,504 tokens**, plus input tokens. Usage may be much lower, but subscription
 quota can be exhausted faster. Keep Go **Use balance off**. Subscription-only
-endpoints, the twelve-request limit, no retries/fallback, the ten-minute request
-timeout and the one-hour scoring-job limit remain unchanged. Timeout, provider
-rejection and incorrect RTL failures can still occur with larger output budgets.
+endpoints, the twelve-request limit and no retries/fallback remain unchanged.
+The new streaming plan uses a **120-second idle timeout and 30-minute total
+request deadline**, with a 75-minute generation job budget. The scoring job has
+its own 60-minute budget. Provider rejection, quota exhaustion and incorrect RTL
+can still occur; a larger budget cannot guarantee a successful submission.
 
 Generation artifacts and job summaries record each model's actual requested
 limit. Publication validates that limit against the source run's reviewed plan;
@@ -80,3 +83,56 @@ Completed eligible runs now feed [validated results PR publication](../site/READ
 The publisher preserves failed/unknown outcomes, does not call models, and never
 approves or merges PRs. Human review and merge update the site build; public
 Pages deployment remains separately controlled.
+
+## Interruption-safe execution
+
+- **Stream and preserve:** Chat Completions and Messages SSE are assembled into
+  atomic `response.partial.json` snapshots every two seconds while data arrives.
+  Explicit terminal events are required. Disconnects, idle/wall timeouts,
+  malformed streams and byte limits remain incomplete failures, never valid RTL.
+  Unknown token usage is labeled incomplete. No reconnect or automatic repair.
+- **Separate generation from scoring:** `go-generation-MODEL-RUN` contains the
+  small canonical generation evidence. `go-raw-generation-MODEL-RUN` holds private
+  prompts/responses/provider errors. Final scoring cannot erase either artifact.
+- **Synthesize once:** every case uses the same hashed netlist. Held-out seeds,
+  directed tests, backpressure, arithmetic comparisons and score formulas are
+  unchanged. No design is credited without passing every required case.
+- **Bound resource failures:** each problem runs in a separate 5 GiB / 2 CPU
+  container, with no swap expansion, a 20-minute soft deadline and a 21-minute
+  outer deadline. Individual tools have ten-minute limits. A failed problem
+  does not cancel the next problem or another model. Process groups are cleaned
+  up; Docker's `OOMKilled` flag is recorded instead of guessing from exit 137.
+- **Checkpoint before the job ends:** synthesis, completed cases, tool logs,
+  return codes and container status persist on host mounts. Final small records
+  upload before the larger `go-checkpoints-MODEL-RUN` artifact. Tool logs are
+  bounded at 16 MiB, streams at 32 MiB and individual SSE events at 2 MiB.
+
+Runner loss, forced cancellation or an upload outage can still prevent the
+latest checkpoint reaching GitHub. Evidence already uploaded by the generation
+job survives a scoring-job failure. This is failure containment, not a promise
+that hardware, providers or generated RTL can never fail.
+
+### Scoring-only recovery
+
+Use the exact source checkout, reviewed plan and trusted same-run artifacts.
+Restore `go-generation-...` into `runs/model` and `go-checkpoints-...` into `runs`
+(its top-level directories are `checkpoints` and `diagnostics`). Then:
+
+```sh
+python -m scripts.go_score \
+  --plan pilot/go-core-provider-max-20260922.json --model mimo-v2.5 \
+  --out runs/model --checkpoints runs/checkpoints --diagnostics runs/diagnostics \
+  --image adpbench-go:ci --resume
+```
+
+This command has no generation path or API credential. It verifies the saved
+plan and frozen RTL, and checkpoints bind RTL/spec/flow/toolchain/harness hashes.
+It resumes unfinished cases, not completed incorrect results. Do not edit a
+cache to make it pass, clear claim tags, or overwrite published results. Recovery
+evidence needs separate review; this command does not republish an old attempt.
+The current workflow does not automatically retry interrupted model requests.
+
+Offline CI fault-injects disconnects, malformed streams, timeouts, process-tree
+failures, OOM status, interrupted checkpoints and cache tampering. Real pinned
+toolchain tests compare both baseline scores; PRs changing the scorer also
+replay all six successful pilot-001 submissions. No model tokens are used.

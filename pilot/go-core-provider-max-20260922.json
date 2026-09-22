@@ -14,7 +14,9 @@
     "minimax-m2.7": 131072
   },
   "max_prompt_bytes": 24000,
-  "request_timeout_s": 600,
+  "stream": true,
+  "request_timeout_s": 120,
+  "request_wall_timeout_s": 1800,
   "stop_on_invalid_output": false,
   "problems": ["001_dot_product", "002_gemv"],
   "models": [

@@ -49,6 +49,16 @@ class PublicationTest(PublishGoTest):
             with self.assertRaises(ValueError):
                 validate_source(self.run, jobs, self.plan, self.policy)
 
+    def test_separate_generation_and_scoring_jobs_keep_provenance_checks(self):
+        generation = {**self.jobs[0], "id":456, "name":"Generate mimo-v2.5 · two single-shot submissions"}
+        evaluated = {**self.jobs[0], "steps":[]}
+        validate_source(self.run,[evaluated,generation],self.plan,self.policy)
+        for invalid in [[evaluated,generation,generation],
+                        [evaluated,{**generation,"run_id":999}],
+                        [evaluated,{**generation,"steps":[]}]]:
+            with self.assertRaises(ValueError):
+                validate_source(self.run,invalid,self.plan,self.policy)
+
     def test_rejects_budget_changes_and_passing_error_records(self):
         validate_records(self.root / "artifacts", self.plan, self.run)
         path = self.artifact / "opencode-go-mimo-v2.5/001_dot_product/rep1/record.json"

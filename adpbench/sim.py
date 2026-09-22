@@ -28,6 +28,7 @@ import hashlib
 import os
 import re
 import subprocess
+from .process import run_logged
 from functools import lru_cache
 from pathlib import Path
 from shutil import which
@@ -462,7 +463,7 @@ def simulate(
 
     lib = simlib_path()
     binary = f"sim_{mode}.vvp"
-    build = subprocess.run(
+    build = run_logged(
         [
             "iverilog",
             "-g2012",
@@ -474,41 +475,33 @@ def simulate(
             str(lib),
             tb.name,
         ],
-        cwd=workdir,
-        capture_output=True,
-        text=True,
-        timeout=600,
+        workdir, f"iverilog_{mode}",
     )
-    if build.returncode != 0:
+    if build["returncode"] != 0 or build["reason"]:
         return {
             "compiled": False,
             "finished": False,
-            "timed_out": False,
+            "timed_out": build["timed_out"],
             "status": "COMPILE",
             "cycles": -1,
             "out_file": out_file,
-            "log": build.stdout + build.stderr,
+            "log": build["log"],
+            "failure_kind": build["reason"],
         }
 
-    try:
-        run = subprocess.run(
-            ["vvp", binary],
-            cwd=workdir,
-            capture_output=True,
-            text=True,
-            timeout=600,
-        )
-    except subprocess.TimeoutExpired as exc:
+    run = run_logged(["vvp", binary], workdir, f"vvp_{mode}")
+    if run["returncode"] != 0 or run["reason"]:
         return {
             "compiled": True,
             "finished": False,
-            "timed_out": True,
-            "status": "TIMEOUT",
+            "timed_out": run["timed_out"],
+            "status": "WALL_TIMEOUT" if run["timed_out"] else "TOOL_ERROR",
             "cycles": -1,
             "out_file": out_file,
-            "log": f"[adpbench] vvp exceeded its time limit\n{exc}",
+            "log": run["log"],
+            "failure_kind": run["reason"],
         }
-    log = run.stdout + run.stderr
+    log = run["log"]
     match = RESULT_RE.search(log)
 
     if match is None:

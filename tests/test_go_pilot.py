@@ -209,7 +209,9 @@ class ProviderMaximumTest(unittest.TestCase):
             key = model.get("token_limit_key", "max_tokens")
             self.assertEqual(body[key], expected[model["id"]])
             self.assertIs(type(body[key]), int)  # Never send null/Infinity/dict to Messages.
-            self.assertFalse(body["stream"])
+            self.assertTrue(body["stream"])
+            if model["api"] == "chat/completions":
+                self.assertEqual(body["stream_options"], {"include_usage": True})
             self.assertNotIn("tools", body)
 
     def test_no_harness_wide_8192_ceiling(self):
