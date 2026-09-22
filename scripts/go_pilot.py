@@ -32,6 +32,7 @@ SYSTEM = (
     "Prioritize correctness, independent stream handshakes, signed arithmetic, "
     "and back-to-back transactions, then minimize area times cycles."
 )
+SETTING_KEYS = ("thinking", "reasoning_effort", "reasoning", "token_limit_key")
 
 
 def read_plan(path: Path = PLAN) -> dict:
@@ -46,8 +47,8 @@ def validate_plan(plan: dict) -> None:
     allowed = {"001_dot_product", "002_gemv", "003_matmul", "004_conv1d"}
     if not problems or len(set(problems)) != len(problems) or not set(problems) <= allowed:
         raise ValueError("invalid or duplicate problems")
-    if not 1 <= len(models) <= 3 or len(models) * len(problems) > 6:
-        raise ValueError("a batch may contain at most six requests across three models")
+    if not 1 <= len(models) <= 6 or len(models) * len(problems) > 12:
+        raise ValueError("a batch may contain at most twelve requests across six models")
     for key, cap in [("max_output_tokens", 8192), ("max_prompt_bytes", 24000), ("request_timeout_s", 600)]:
         if type(plan[key]) is not int or not 0 < plan[key] <= cap:
             raise ValueError(f"invalid {key}")
@@ -66,6 +67,8 @@ def validate_plan(plan: dict) -> None:
             raise ValueError("unsupported Go endpoint")
         if model.get("token_limit_key", "max_tokens") not in {"max_tokens", "max_completion_tokens"}:
             raise ValueError("invalid output limit field")
+        if "reasoning" in model and model["reasoning"] not in ({"enabled": False}, {"enabled": True}):
+            raise ValueError("unsupported normalized reasoning control")
         starts = datetime.fromisoformat(model["not_before"])
         if starts.tzinfo is None or not 0 < (expires - starts).total_seconds() <= 172800:
             raise ValueError("authorization window must be positive and at most two days")
@@ -103,7 +106,7 @@ def request_body(model: dict, prompt: str, plan: dict) -> dict:
         "model": model["id"], "messages": messages,
         model.get("token_limit_key", "max_tokens"): plan["max_output_tokens"], "stream": False,
     }
-    for key in ("thinking", "reasoning_effort"):
+    for key in ("thinking", "reasoning_effort", "reasoning"):
         if key in model:
             body[key] = model[key]
     if model["api"] == "messages":
@@ -122,6 +125,19 @@ def parse_response(data: dict, api: str) -> tuple[str, str, dict]:
         text = choice["message"].get("content") or ""
         finish = choice.get("finish_reason", "")
     return text, finish, data.get("usage", {})
+
+
+def response_diagnostics(data: dict, api: str) -> dict:
+    """Keep field-level evidence even when provider token accounting is wrong."""
+    if api == "messages":
+        blocks = data.get("content", [])
+        return {"content_block_types": [b.get("type") for b in blocks],
+                "reasoning_chars": sum(len(b.get("thinking", "")) for b in blocks if b.get("type") == "thinking")}
+    message = data["choices"][0]["message"]
+    return {"message_fields": sorted(message),
+            "answer_chars": len(message.get("content") or ""),
+            "reasoning_chars": max(len(message.get(k) or "") for k in ("reasoning", "reasoning_content")),
+            "has_reasoning_details": bool(message.get("reasoning_details"))}
 
 
 def extract_rtl(text: str) -> str:
@@ -177,7 +193,7 @@ def generate(plan: dict, model: dict, out: Path) -> None:
             "model": model["id"], "problem": problem_id,
             "protocol": "single-shot", "started": now_utc().isoformat(),
             "max_output_tokens": plan["max_output_tokens"], "error": "",
-            "generation_settings": {k: model[k] for k in ("thinking", "reasoning_effort", "token_limit_key") if k in model},
+            "generation_settings": {k: model[k] for k in SETTING_KEYS if k in model},
             "github": {k: os.environ.get(k, "") for k in ("GITHUB_REPOSITORY", "GITHUB_RUN_ID", "GITHUB_RUN_ATTEMPT", "GITHUB_SHA")},
         }
         if stop:
@@ -199,8 +215,12 @@ def generate(plan: dict, model: dict, out: Path) -> None:
             body = request_body(model, prompt, plan)
             write_json(dest / "request.json", body)
             data = call_model(model, body, key, session, plan["request_timeout_s"])
+            # Raw model output is evidence, never executable commands. Never save credentials.
+            safe_data = json.loads(json.dumps(data).replace(key, "[REDACTED]"))
+            write_json(dest / "response.json", safe_data)
             text, finish, usage = parse_response(data, model["api"])
             record.update({"finish_reason": finish, "usage": usage, "response_id": data.get("id", ""), "response_model": data.get("model", "")})
+            record["response_diagnostics"] = response_diagnostics(data, model["api"])
             (dest / "response.txt").write_text(text)
             if not usage:
                 stop = record["error"] = "missing provider token accounting"
@@ -208,7 +228,7 @@ def generate(plan: dict, model: dict, out: Path) -> None:
                 stop = record["error"] = "invalid provider token accounting or output cap exceeded"
             if finish in {"length", "max_tokens"}:
                 record["error"] = "generation reached output cap; no retry"
-            else:
+            elif not record["error"]:
                 try:
                     (dest / "dut.v").write_text(extract_rtl(text))
                 except ValueError as exc:
@@ -251,7 +271,7 @@ def score(plan: dict, model: dict, out: Path) -> None:
             label=("scripted/baseline-fixture" if generation.get("protocol") == "fixture"
                    else "opencode-go/" + model["id"] + " [single-shot]"), group=plan["name"],
             started=generation["started"], duration_s=generation.get("duration_s", 0),
-            error=generation.get("error", ""), sandbox="docker",
+            error=generation.get("error", "") or generation.get("invalid_rtl", ""), sandbox="docker",
         )
         source = dest / "dut.v"
         frozen = None
@@ -278,7 +298,7 @@ def score(plan: dict, model: dict, out: Path) -> None:
     with (out / "REPORT.md").open("a") as handle:
         handle.write(f"\nProtocol: one generation per problem, no feedback or retries. Output cap: {plan['max_output_tokens']} tokens/request.\n")
         handle.write(f"\nProvider-reported input (including cache): {total_input}; output: {total_output} tokens.\n")
-        handle.write(f"\nGeneration settings: `{json.dumps({k: model[k] for k in ('thinking', 'reasoning_effort') if k in model})}`.\n")
+        handle.write(f"\nGeneration settings: `{json.dumps({k: model[k] for k in SETTING_KEYS if k in model})}`.\n")
         handle.write("\nThese single-shot results use a different generation budget from the iterative pilot-001.\n")
 
 
