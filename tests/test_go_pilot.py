@@ -9,7 +9,7 @@ from unittest.mock import patch
 
 from scripts.go_pilot import (
     due, extract_rtl, gate, generate, parse_response, read_plan, request_body,
-    validate_plan, valid_usage,
+    validate_plan, valid_usage, response_diagnostics,
 )
 
 
@@ -141,6 +141,40 @@ class CostScreenTest(unittest.TestCase):
         self.assertTrue(valid_usage(usage, "messages", 8192))
         for usage in [{}, {"prompt_tokens": 10, "completion_tokens": 8193}, {"prompt_tokens": 10, "completion_tokens": -1}, {"prompt_tokens": 10, "completion_tokens": True}]:
             self.assertFalse(valid_usage(usage, "chat/completions", 8192))
+
+
+class CoreModelsTest(unittest.TestCase):
+    def setUp(self):
+        self.plan = read_plan(Path(__file__).resolve().parent.parent / "pilot/go-core-20260922.json")
+        self.now = datetime.fromisoformat("2026-09-22T01:00:00+00:00")
+
+    def test_twelve_bounded_requests_and_correct_mimo_control(self):
+        self.assertEqual(len(self.plan["models"]) * len(self.plan["problems"]), 12)
+        self.assertFalse(self.plan["stop_on_invalid_output"])
+        body = request_body(self.plan["models"][0], "task", self.plan)
+        self.assertEqual(body["reasoning"], {"enabled": False})
+        self.assertNotIn("thinking", body)
+        self.assertEqual(body["max_completion_tokens"], 8192)
+        with self.assertRaises(ValueError):
+            validate_plan({**self.plan, "problems": ["001_dot_product", "002_gemv", "003_matmul"]})
+
+    def test_reasoning_is_recorded_despite_zero_provider_reasoning_count(self):
+        response = {"choices": [{"message": {"content": None, "reasoning": "hidden diagnostic", "reasoning_details": [{"type": "reasoning.text"}]}, "finish_reason": "length"}], "usage": {"prompt_tokens": 10, "completion_tokens": 8192, "completion_tokens_details": {"reasoning_tokens": 0}}}
+        self.assertEqual(response_diagnostics(response, "chat/completions")["reasoning_chars"], 17)
+        with tempfile.TemporaryDirectory() as tmp, patch.dict("os.environ", {"OPENCODE_GO_API_KEY": "test-credential"}), patch("scripts.go_pilot.now_utc", return_value=self.now), patch("scripts.go_pilot.call_model", return_value=response) as call:
+            generate(self.plan, self.plan["models"][0], Path(tmp))
+            self.assertEqual(call.call_count, 2)
+            self.assertEqual(len(list(Path(tmp).glob("**/response.json"))), 2)
+            self.assertFalse(list(Path(tmp).glob("**/dut.v")))
+            record = json.loads(next(Path(tmp).glob("**/generation.json")).read_text())
+            self.assertEqual(record["response_diagnostics"]["reasoning_chars"], 17)
+
+    def test_bad_accounting_never_creates_a_submission(self):
+        response = {"choices": [{"message": {"content": "module dut; endmodule"}, "finish_reason": "stop"}], "usage": {"prompt_tokens": 1, "completion_tokens": 8193}}
+        with tempfile.TemporaryDirectory() as tmp, patch.dict("os.environ", {"OPENCODE_GO_API_KEY": "test-credential"}), patch("scripts.go_pilot.now_utc", return_value=self.now), patch("scripts.go_pilot.call_model", return_value=response):
+            with self.assertRaises(RuntimeError):
+                generate(self.plan, self.plan["models"][0], Path(tmp))
+            self.assertFalse(list(Path(tmp).glob("**/dut.v")))
 
 
 if __name__ == "__main__":

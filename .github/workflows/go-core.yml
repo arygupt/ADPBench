@@ -1,0 +1,181 @@
+name: OpenCode Go model runs
+run-name: "OpenCode Go · ${{ inputs.run_models && 'six-model evaluation' || 'offline checks' }}"
+
+on:
+  workflow_dispatch:
+    inputs:
+      run_models:
+        description: "Run the reviewed 12-request subscription-only batch"
+        type: boolean
+        default: false
+      subscription_only:
+        description: "Go Use balance is OFF; no Zen balance fallback"
+        type: boolean
+        default: false
+  pull_request:
+    paths:
+      - ".github/workflows/go-core.yml"
+      - "scripts/go_pilot.py"
+      - "pilot/go-core-20260922.json"
+      - "tests/test_go_pilot.py"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: go-core-20260922
+  cancel-in-progress: false
+
+env:
+  PLAN: pilot/go-core-20260922.json
+
+jobs:
+  checks:
+    name: Offline request and accounting checks
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: python -m pip install 'numpy>=1.24'
+      - run: python -m unittest discover -s tests -p test_go_pilot.py -v
+
+  prepare:
+    name: Prepare toolchain and validate both baselines (no model calls)
+    needs: checks
+    if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main' && inputs.run_models && inputs.subscription_only
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: python -m pip install 'numpy>=1.24'
+      - name: Validate the finite authorization window
+        run: |
+          python - <<'PY'
+          import os
+          from pathlib import Path
+          from scripts.go_pilot import read_plan, due, now_utc
+          plan = read_plan(Path(os.environ['PLAN']))
+          assert all(due(plan, m, now_utc()) for m in plan['models']), 'Batch authorization expired'
+          PY
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: sandbox/Dockerfile
+          load: true
+          tags: adpbench-go:ci
+          cache-from: type=gha,scope=adpbench-replay-toolchain
+          cache-to: type=gha,mode=max,scope=adpbench-replay-toolchain
+      - name: Validate baselines once before any model calls
+        run: |
+          mkdir -p runs/fixtures
+          docker run --rm --network none --memory 5g --cpus 2 --pids-limit 256 \
+            --user "$(id -u):$(id -g)" --cap-drop ALL --security-opt no-new-privileges \
+            -e PYTHONPATH=/repo -e ADPBENCH_WORKDIR=/tmp/adpbench \
+            -v "$GITHUB_WORKSPACE:/repo:ro" -v "$GITHUB_WORKSPACE/runs/fixtures:/output" \
+            -w /repo adpbench-go:ci \
+            python -m scripts.go_pilot fixture --plan "$PLAN" --model mimo-v2.5 --out /output
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: go-core-baselines-${{ github.run_id }}
+          path: runs/fixtures
+          retention-days: 90
+
+  evaluate:
+    name: "Evaluate ${{ matrix.model }} · dot product + GEMV"
+    needs: prepare
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    permissions:
+      contents: write # Only the claim step receives a repository write token.
+    strategy:
+      fail-fast: false
+      max-parallel: 2
+      matrix:
+        model: [mimo-v2.5, deepseek-v4.1-flash, qwen3.8-flash, glm-5.3-flash, kimi-k2.6, minimax-m2.7]
+    env:
+      MODEL: ${{ matrix.model }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: python -m pip install 'numpy>=1.24'
+      - uses: docker/setup-buildx-action@v3
+      - name: Restore the prepared scoring toolchain
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: sandbox/Dockerfile
+          load: true
+          tags: adpbench-go:ci
+          cache-from: type=gha,scope=adpbench-replay-toolchain
+      - name: Claim this model once, including failed attempts
+        id: claim
+        env:
+          GH_TOKEN: ${{ github.token }}
+          OPENCODE_GO_API_KEY: ${{ secrets.OPENCODE_GO_API_KEY }}
+        run: |
+          set -euo pipefail
+          test -n "$OPENCODE_GO_API_KEY"
+          ref="tags/go-core-20260922-$MODEL"
+          if gh api "repos/$GITHUB_REPOSITORY/git/ref/$ref" >/dev/null 2>&1; then
+            echo 'Already attempted; no retry or additional spending.' >> "$GITHUB_STEP_SUMMARY"
+            echo 'claimed=false' >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          gh api --method POST "repos/$GITHUB_REPOSITORY/git/refs" -f ref="refs/$ref" -f sha="$GITHUB_SHA" >/dev/null
+          echo 'claimed=true' >> "$GITHUB_OUTPUT"
+      - name: Generate two single-shot submissions (no retries or fallback)
+        id: generate
+        if: steps.claim.outputs.claimed == 'true'
+        continue-on-error: true
+        env:
+          OPENCODE_GO_API_KEY: ${{ secrets.OPENCODE_GO_API_KEY }}
+        run: python -m scripts.go_pilot generate --plan "$PLAN" --model "$MODEL" --out runs/model
+      - name: Score frozen RTL without credentials or network
+        if: steps.claim.outputs.claimed == 'true'
+        run: |
+          docker run --rm --network none --memory 5g --cpus 2 --pids-limit 256 \
+            --user "$(id -u):$(id -g)" --cap-drop ALL --security-opt no-new-privileges \
+            -e PYTHONPATH=/repo -e ADPBENCH_WORKDIR=/tmp/adpbench \
+            -v "$GITHUB_WORKSPACE:/repo:ro" -v "$GITHUB_WORKSPACE/runs/model:/output" \
+            -w /repo adpbench-go:ci \
+            python -m scripts.go_pilot score --plan "$PLAN" --model "$MODEL" --out /output
+      - name: Publish measured outcomes to this job's summary
+        if: always() && steps.claim.outputs.claimed == 'true'
+        run: |
+          echo "## $MODEL · new model generation + offline scoring" >> "$GITHUB_STEP_SUMMARY"
+          echo 'One attempt per problem. Green means evaluation completed; correctness is shown below. Not a replay.' >> "$GITHUB_STEP_SUMMARY"
+          if test -f runs/model/REPORT.md; then
+            cat runs/model/REPORT.md >> "$GITHUB_STEP_SUMMARY"
+          fi
+      - uses: actions/upload-artifact@v4
+        if: always() && steps.claim.outputs.claimed == 'true'
+        with:
+          name: go-core-${{ matrix.model }}-${{ github.run_id }}
+          path: runs/model
+          if-no-files-found: error
+          retention-days: 90
+      - name: Fail visibly if generation did not produce both submissions
+        if: steps.claim.outputs.claimed == 'true'
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          records = [json.loads(p.read_text()) for p in Path('runs/model').glob('*/**/rep1/generation.json')]
+          assert len(records) == 2, 'Missing generation records'
+          assert all(not r.get('error') and not r.get('invalid_rtl') for r in records), 'See saved generation diagnostics'
+          PY
