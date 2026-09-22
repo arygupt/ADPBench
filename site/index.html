@@ -15,7 +15,7 @@
       href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
       rel="stylesheet"
     />
-    <link rel="stylesheet" href="assets/style.css?v=evidence1" />
+    <link rel="stylesheet" href="assets/style.css?v=go-core1" />
   </head>
   <body class="workspace">
     <a class="skip-link" href="#main">Skip to results</a>
@@ -32,8 +32,9 @@
     <main id="main" class="wrap">
       <div class="page-intro">
         <h1>Results</h1>
-        <a class="download-link" href="data/leaderboard.json" download>Download results <span aria-hidden="true">↓</span></a>
+        <a class="download-link" data-results-download href="data/leaderboard.json" download>Download results <span aria-hidden="true">↓</span></a>
       </div>
+      <div class="dataset-picker"><label for="dataset-select">Evaluation</label><select id="dataset-select"><option value="go-core-20260922">OpenCode Go · six-model single-shot screen</option><option value="pilot-001">Pilot-001 · iterative agent runs</option></select><span>Separate protocols · separate rankings</span></div>
       <div class="workspace-toolbar">
         <p class="dataset-summary" id="dataset-summary">Loading results…</p>
         <input type="search" id="model-search" aria-label="Find a model" placeholder="Find a model…" />
@@ -51,7 +52,7 @@
         <div class="board-scroll ranking-scroll" tabindex="0" role="region" aria-label="Model ranking table">
           <table class="ranking-table">
             <colgroup><col class="model-col"><col class="chart-col"><col class="score-col"><col class="stat-col"><col class="stat-col"><col class="attempt-col"></colgroup>
-            <thead><tr><th scope="col">Model</th><th scope="col" class="chart-heading">Performance <span id="interval-label">/ 95% confidence interval</span></th><th scope="col" id="rank-metric-label">Beat baseline</th><th scope="col">Correct</th><th scope="col">ADP gain</th><th scope="col">Attempts</th></tr></thead>
+            <thead><tr><th scope="col">Model</th><th scope="col" class="chart-heading">Performance <span id="interval-label">/ 95% confidence interval</span></th><th scope="col" id="rank-metric-label">Beat baseline</th><th scope="col">Correct</th><th scope="col">ADP gain</th><th scope="col" id="attempt-heading">Attempts</th></tr></thead>
             <tbody id="leaderboard-rows"></tbody>
             <tfoot><tr><td></td><td><div id="chart-axis" class="chart-axis" aria-hidden="true"></div></td><td colspan="4"></td></tr></tfoot>
           </table>
@@ -75,7 +76,7 @@
       <div class="outcome-legend" aria-label="Result legend">
         <span><b class="legend-pass">pass</b> correct result</span
         ><span><b class="legend-wrong">wrong</b> incorrect RTL</span
-        ><span><b class="legend-infra">infra</b> infrastructure failure</span
+        ><span><b class="legend-infra">infra / cap</b> no valid score</span
         ><span><b class="legend-best">★</b> best</span
         >
       </div>
@@ -88,23 +89,23 @@
       <noscript
         ><p>
           Enable JavaScript to explore the results, or
-          <a href="data/report.json">read the report</a>.
+          <a data-report-link href="data/report.json">read the report</a>.
         </p></noscript
       >
     </main>
     <footer class="site-footer">
       <div>
         <a href="https://github.com/arygupt/ADPBench">source</a><span>·</span
-        ><a href="data/leaderboard.json" download>results.json</a><span>·</span
-        ><a href="data/report.json">report</a><span>·</span
+        ><a data-results-download href="data/leaderboard.json" download>results.json</a><span>·</span
+        ><a data-report-link href="data/report.json">report</a><span>·</span
         ><a href="data/problems.json">problems.json</a>
-        <span>·</span><a href="data/evidence.json">replay evidence</a>
+        <span>·</span><a href="data/evidence.json">pilot-001 replay evidence</a>
       </div>
       <p>
         snapshot <span id="meta-generated">—</span> ·
         <code id="meta-commit">—</code>
       </p>
     </footer>
-    <script type="module" src="assets/app.js?v=evidence1"></script>
+    <script type="module" src="assets/app.js?v=go-core1"></script>
   </body>
 </html>

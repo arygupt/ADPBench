@@ -1,5 +1,5 @@
 /* Published records are the source of truth. No framework or build step. */
-import { findReplay } from "./evidence.mjs";
+import { findReplay, findExecution } from "./evidence.mjs";
 
 (() => {
   "use strict";
@@ -24,6 +24,11 @@ import { findReplay } from "./evidence.mjs";
   const short = (label) =>
     label.replace(/^opencode\//, "").replace(/-free$/, "");
   let data, dialog, returnFocus, evidence;
+  const datasets = {
+    "pilot-001": "data/leaderboard.json",
+    "go-core-20260922": "data/go-core-20260922/leaderboard.json",
+  };
+  let datasetKey = "pilot-001";
   const title = (name) =>
     data.problems.find((p) => p.name === name)?.title || name;
   const ranked = (models) =>
@@ -40,6 +45,12 @@ import { findReplay } from "./evidence.mjs";
       return run.ratio > 1
         ? { cls: "beat", label: "Beat baseline", value: ratio(run.ratio) }
         : { cls: "correct", label: "Correct, ≤ 1×", value: ratio(run.ratio) };
+    if (run.generation?.error?.startsWith("not requested"))
+      return { cls: "infra", label: "Not requested (safety stop)", value: "skipped" };
+    if (["length", "max_tokens"].includes(run.generation?.finish_reason))
+      return { cls: "infra", label: "Generation reached output cap", value: "cap" };
+    if (run.generation?.error || run.generation?.invalid_rtl)
+      return { cls: "infra", label: "Generation failed", value: "no RTL" };
     if (
       run.error ||
       ["no result", "no_result"].includes(run.stage) ||
@@ -69,6 +80,12 @@ import { findReplay } from "./evidence.mjs";
     "opencode/nemotron-3-ultra-free": "Nemotron 3 Ultra",
     "opencode/nemotron-3.5-lightning-free": "Nemotron 3.5 Lightning",
     "opencode/ling-3.0-flash-fin-free": "Ling 3.0 Flash Fin",
+    "opencode-go/mimo-v2.5 [single-shot]": "MiMo V2.5",
+    "opencode-go/deepseek-v4.1-flash [single-shot]": "DeepSeek V4.1 Flash",
+    "opencode-go/qwen3.8-flash [single-shot]": "Qwen3.8 Flash",
+    "opencode-go/glm-5.3-flash [single-shot]": "GLM-5.3-Flash",
+    "opencode-go/kimi-k2.6 [single-shot]": "Kimi K2.6",
+    "opencode-go/minimax-m2.7 [single-shot]": "MiniMax M2.7",
   };
   const displayName = (model) => names[model.label] || short(model.label);
   function modelButton(model) {
@@ -195,6 +212,13 @@ import { findReplay } from "./evidence.mjs";
     );
   }
   function replayEvidence(run) {
+    const execution = findExecution(run);
+    if (execution) {
+      const g = run.generation || {}, usage = g.usage || {};
+      return `<section class="run-evidence" aria-label="Original GitHub model run"><p class="evidence-title">Generated &amp; evaluated in GitHub Actions</p><p class="rc-meta">New single-shot attempt, not a replay. Job: ${esc(execution.conclusion)}. Correctness is the measured outcome above.</p><div class="evidence-links"><a href="${esc(execution.job)}" target="_blank" rel="noopener">Model job &amp; logs ↗</a><a href="${esc(execution.workflow)}" target="_blank" rel="noopener">Workflow &amp; artifacts ↗</a><a href="${esc(execution.code)}" target="_blank" rel="noopener">Evaluated code ↗</a></div><p class="rc-meta">Output: ${int(usage.completion_tokens ?? usage.output_tokens)} tokens · finish: ${esc(g.finish_reason || "no completion")}<br>Reasoning response: ${int(g.response_diagnostics?.reasoning_chars)} characters</p><details><summary>Generation settings</summary><p class="hash-value">${esc(JSON.stringify(g.generation_settings || {}))}</p></details><p class="evidence-retention">Logs and raw response artifacts are retained for 90 days. Frozen records remain in the repository.</p></section>`;
+    }
+    if (run.generation)
+      return '<p class="rc-meta">Original Actions evidence unavailable. This is not verified replay evidence.</p>';
     if (!evidence)
       return '<p class="rc-meta">Replay evidence unavailable. Scores are unaffected.</p>';
     const replay = findReplay(evidence, data.meta.pilot, run);
@@ -226,7 +250,7 @@ import { findReplay } from "./evidence.mjs";
       })
       .join(
         "",
-      )}</div><p class="pilot-note">Ratios are area–delay improvements, not clock-speed measurements. <a href="data/leaderboard.json">Read the source records ↗</a></p></div>`;
+      )}</div><p class="pilot-note">Ratios are area–delay improvements, not clock-speed measurements. <a href="${datasets[datasetKey]}">Read the source records ↗</a></p></div>`;
     const interval = (count) =>
       wilson(count, model.attempts).map(pct).join("–");
     $(".dialog-summary", dialog).insertAdjacentHTML(
@@ -311,6 +335,15 @@ import { findReplay } from "./evidence.mjs";
       "#pilot-note",
       `${m.repetitions || 1} attempt(s) per model–problem pair · ${m.budget_s ? m.budget_s / 60 + " min budget" : "budget unreported"} · ${m.sandbox?.mode || "sandbox unreported"}. Cells × cycles is an area–delay proxy, not a power or physical-timing measurement. Small pilot; model variance is not yet established.`,
     );
+    $$('a[data-results-download]').forEach((a) => a.href = datasets[datasetKey]);
+    $$('a[data-report-link]').forEach((a) => a.href = datasets[datasetKey].replace('leaderboard.json', 'report.json'));
+    if (m.protocol === "single-shot") {
+      const execution = runs.map(findExecution).find(Boolean);
+      fill("#dataset-summary", `${m.pilot} · ${data.models.length} models · ${data.problems.length} operators · ${runs.length} scheduled result slots`);
+      fill("#attempt-heading", "Slots");
+      if ($("#replay-summary")) $("#replay-summary").innerHTML = `${int(m.generation_requests)} model responses · ${int(m.output_tokens)} output tokens · ${runs.filter(r => r.correct).length}/${runs.length} correct. ${execution ? `<a href="${execution.workflow}" target="_blank" rel="noopener">Open all six GitHub model jobs ↗</a>` : "Actions evidence unavailable."}`;
+      fill("#pilot-note", `Single-shot Go screen · at most one request per model–problem pair · ${int(m.max_output_tokens)} output-token cap/request · no repairs or retries · offline Docker scoring. Rates use all scheduled slots, including rejected requests and safety-stop skips; inspect each result for its status. Reasoning settings differ by model and are shown with each result. This dataset is separate from iterative pilot-001; their rankings are not directly comparable. A completed workflow is not a correctness or replay claim.`);
+    }
   }
   function setupShell() {
     dialog = document.createElement("dialog");
@@ -358,8 +391,19 @@ import { findReplay } from "./evidence.mjs";
   document.addEventListener("DOMContentLoaded", async () => {
     setupShell();
     try {
+      const selector = $("#dataset-select");
+      if (selector) {
+        const requested = new URLSearchParams(location.search).get("dataset");
+        datasetKey = Object.hasOwn(datasets, requested) ? requested : "go-core-20260922";
+        selector.value = datasetKey;
+        selector.addEventListener("change", () => {
+          const url = new URL(location.href);
+          url.searchParams.set("dataset", selector.value);
+          location.assign(url.href);
+        });
+      }
       const [leaderboard, problems, publishedEvidence] = await Promise.all([
-        getJSON("data/leaderboard.json"),
+        getJSON(datasets[datasetKey]),
         getJSON("data/problems.json").catch(() => null),
         getJSON("data/evidence.json").catch(() => null),
       ]);
@@ -371,7 +415,7 @@ import { findReplay } from "./evidence.mjs";
       data = {
         ...leaderboard,
         meta: leaderboard.meta || {},
-        problems: problems?.problems || leaderboard.problems,
+        problems: $("#problem-grid") ? (problems?.problems || leaderboard.problems) : leaderboard.problems,
       };
       evidence = publishedEvidence?.schema_version === 1 && Array.isArray(publishedEvidence.runs)
         ? publishedEvidence : null;

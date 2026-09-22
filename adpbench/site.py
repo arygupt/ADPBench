@@ -50,6 +50,7 @@ def _run_entry(record: dict) -> dict:
     result = record.get("result") or {}
     metadata = result.get("metadata") or {}
     manifest = record.get("manifest") or {}
+    generation = manifest.get("generation") or {}
     return {
         "label": record.get("label", ""),
         "problem": record.get("problem", ""),
@@ -68,6 +69,13 @@ def _run_entry(record: dict) -> dict:
         "submission_sha256": manifest.get("submission_sha256", ""),
         "netlist_sha256": manifest.get("netlist_sha256", ""),
         "history": len(record.get("history", [])),
+        "execution": record.get("execution"),
+        "generation": {
+            k: generation.get(k) for k in (
+                "model", "finish_reason", "usage", "generation_settings",
+                "response_diagnostics", "error", "invalid_rtl",
+            )
+        } if generation else None,
     }
 
 

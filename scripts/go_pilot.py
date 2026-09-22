@@ -283,6 +283,7 @@ def score(plan: dict, model: dict, out: Path) -> None:
             record.audit = audit_submission(frozen.read_text())
             if record.audit["ok"]:
                 try:
+                    print(f"{problem_id}: scoring frozen RTL on held-out cases", flush=True)
                     record.result = evaluate_multi(problem, [frozen], seeds=EVAL_SEEDS, source="go-single-shot", tag="eval").to_dict()
                 except Exception as exc:
                     record.error = f"scoring failed: {type(exc).__name__}: {exc}"
@@ -292,6 +293,9 @@ def score(plan: dict, model: dict, out: Path) -> None:
         record.manifest["generation"] = generation
         write_json(dest / "manifest.json", record.manifest)
         write_json(dest / "record.json", json.loads(record.to_json()))
+        result = record.result or {}
+        print(f"{problem_id}: scoring complete; correct={bool(result.get('correct'))}; "
+              f"stage={(result.get('metadata') or {}).get('stage', 'no submission')}", flush=True)
     write_report(out)
     tokens = {"input_tokens_including_cache": total_input, "output_tokens": total_output}
     write_json(out / "usage.json", tokens)
