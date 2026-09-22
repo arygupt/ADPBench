@@ -5,7 +5,7 @@ on:
   workflow_dispatch:
     inputs:
       run_models:
-        description: "Run the reviewed 12-request subscription-only batch"
+        description: "Run the reviewed provider-maximum batch (requires an enabled, current plan)"
         type: boolean
         default: false
       subscription_only:
@@ -16,18 +16,26 @@ on:
     paths:
       - ".github/workflows/go-core.yml"
       - "scripts/go_pilot.py"
+      - "scripts/go_stream.py"
+      - "scripts/go_score.py"
+      - "adpbench/**"
       - "pilot/go-core-20260922.json"
+      - "pilot/go-core-provider-max-20260922.json"
       - "tests/test_go_pilot.py"
+      - "tests/test_go_stream.py"
+      - "tests/test_reliability.py"
+      - "tests/test_go_scoring_integration.py"
+      - "tests/test_evaluate.py"
 
 permissions:
   contents: read
 
 concurrency:
-  group: go-core-20260922
+  group: go-core-provider-max-20260922
   cancel-in-progress: false
 
 env:
-  PLAN: pilot/go-core-20260922.json
+  PLAN: pilot/go-core-provider-max-20260922.json
 
 jobs:
   checks:
@@ -41,7 +49,40 @@ jobs:
         with:
           python-version: "3.12"
       - run: python -m pip install 'numpy>=1.24'
-      - run: python -m unittest discover -s tests -p test_go_pilot.py -v
+      - run: python -m unittest tests.test_go_pilot tests.test_go_stream tests.test_reliability -v
+
+  scoring-checks:
+    name: Pinned-toolchain scoring and recovery (no model calls)
+    if: github.event_name == 'pull_request' || !inputs.run_models
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: python -m pip install 'numpy>=1.24'
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: sandbox/Dockerfile
+          load: true
+          tags: adpbench-go:ci
+          cache-from: type=gha,scope=adpbench-replay-toolchain
+          cache-to: type=gha,mode=max,scope=adpbench-replay-toolchain
+      - name: Check isolated supervisor, both baseline scores, and no-op resume
+        env:
+          ADPBENCH_DOCKER_TEST_IMAGE: adpbench-go:ci
+        run: python -m unittest tests.test_go_scoring_integration -v
+      - name: Keep scorer correctness and anti-cheat gates unchanged
+        run: |
+          docker run --rm --network none --memory 5g --cpus 2 --pids-limit 256 \
+            -e PYTHONPATH=/repo -e ADPBENCH_WORKDIR=/tmp/adpbench \
+            -v "$GITHUB_WORKSPACE:/repo:ro" -w /repo adpbench-go:ci \
+            python -m unittest tests.test_evaluate -v
 
   prepare:
     name: Prepare toolchain and validate both baselines (no model calls)
@@ -64,7 +105,11 @@ jobs:
           from pathlib import Path
           from scripts.go_pilot import read_plan, due, now_utc
           plan = read_plan(Path(os.environ['PLAN']))
+          assert plan.get('generation_enabled', True), 'Generation is disabled; authorize a new batch before running'
           assert all(due(plan, m, now_utc()) for m in plan['models']), 'Batch authorization expired'
+          assert len(plan['problems']) == 2, 'This workflow reserves scoring time for two problems'
+          assert len(plan['problems']) * plan.get('request_wall_timeout_s', plan['request_timeout_s']) <= 3900, 'Request deadlines leave no artifact-upload margin'
+          print('Requested output limits:', plan['max_output_tokens'])
           PY
       - uses: docker/setup-buildx-action@v3
       - uses: docker/build-push-action@v6
@@ -91,11 +136,11 @@ jobs:
           path: runs/fixtures
           retention-days: 90
 
-  evaluate:
-    name: "Evaluate ${{ matrix.model }} · dot product + GEMV"
+  generate:
+    name: "Generate ${{ matrix.model }} · two single-shot submissions"
     needs: prepare
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    timeout-minutes: 75 # Two 30-minute requests plus setup and upload margin.
     permissions:
       contents: write # Only the claim step receives a repository write token.
     strategy:
@@ -113,15 +158,6 @@ jobs:
         with:
           python-version: "3.12"
       - run: python -m pip install 'numpy>=1.24'
-      - uses: docker/setup-buildx-action@v3
-      - name: Restore the prepared scoring toolchain
-        uses: docker/build-push-action@v6
-        with:
-          context: .
-          file: sandbox/Dockerfile
-          load: true
-          tags: adpbench-go:ci
-          cache-from: type=gha,scope=adpbench-replay-toolchain
       - name: Claim this model once, including failed attempts
         id: claim
         env:
@@ -130,7 +166,8 @@ jobs:
         run: |
           set -euo pipefail
           test -n "$OPENCODE_GO_API_KEY"
-          ref="tags/go-core-20260922-$MODEL"
+          batch=$(python -c 'import os; from pathlib import Path; from scripts.go_pilot import read_plan; print(read_plan(Path(os.environ["PLAN"]))["name"])')
+          ref="tags/$batch-$MODEL"
           if gh api "repos/$GITHUB_REPOSITORY/git/ref/$ref" >/dev/null 2>&1; then
             echo 'Already attempted; no retry or additional spending.' >> "$GITHUB_STEP_SUMMARY"
             echo 'claimed=false' >> "$GITHUB_OUTPUT"
@@ -150,33 +187,28 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: go-generation-${{ matrix.model }}-${{ github.run_id }}
-          path: runs/model
+          path: |
+            runs/model
+            !runs/model/**/response*.json
+            !runs/model/**/response.txt
+            !runs/model/**/prompt.txt
+            !runs/model/**/request.json
+            !runs/model/**/provider_error.json
           if-no-files-found: error
           retention-days: 90
-      - name: Score frozen RTL without credentials or network
-        if: steps.claim.outputs.claimed == 'true'
-        run: |
-          docker run --rm --network none --memory 5g --cpus 2 --pids-limit 256 \
-            --user "$(id -u):$(id -g)" --cap-drop ALL --security-opt no-new-privileges \
-            -e PYTHONPATH=/repo -e ADPBENCH_WORKDIR=/tmp/adpbench \
-            -v "$GITHUB_WORKSPACE:/repo:ro" -v "$GITHUB_WORKSPACE/runs/model:/output" \
-            -w /repo adpbench-go:ci \
-            python -m scripts.go_pilot score --plan "$PLAN" --model "$MODEL" --out /output
-      - name: Publish measured outcomes to this job's summary
+      - name: Preserve private raw response and streaming diagnostics
         if: always() && steps.claim.outputs.claimed == 'true'
-        run: |
-          echo "## $MODEL · new model generation + offline scoring" >> "$GITHUB_STEP_SUMMARY"
-          echo 'One attempt per problem. Green means evaluation completed; correctness is shown below. Not a replay.' >> "$GITHUB_STEP_SUMMARY"
-          if test -f runs/model/REPORT.md; then
-            cat runs/model/REPORT.md >> "$GITHUB_STEP_SUMMARY"
-          fi
-      - uses: actions/upload-artifact@v4
-        if: always() && steps.claim.outputs.claimed == 'true'
+        uses: actions/upload-artifact@v4
         with:
-          name: go-core-${{ matrix.model }}-${{ github.run_id }}
+          name: go-raw-generation-${{ matrix.model }}-${{ github.run_id }}
           path: runs/model
           if-no-files-found: error
           retention-days: 90
+      - name: Explain generation status
+        if: always()
+        run: |
+          echo "## $MODEL · generation only" >> "$GITHUB_STEP_SUMMARY"
+          echo 'One request per problem, no retries/fallback. Green generation is not a correctness claim. Scoring runs separately, without model credentials.' >> "$GITHUB_STEP_SUMMARY"
       - name: Fail visibly if generation did not produce both submissions
         if: steps.claim.outputs.claimed == 'true'
         run: |
@@ -187,3 +219,72 @@ jobs:
           assert len(records) == 2, 'Missing generation records'
           assert all(not r.get('error') and not r.get('invalid_rtl') for r in records), 'See saved generation diagnostics'
           PY
+
+  evaluate:
+    name: "Evaluate ${{ matrix.model }} · dot product + GEMV"
+    needs: [prepare, generate]
+    # A failed generation still has real evidence and must remain visible.
+    if: always() && needs.prepare.result == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 60 # Two <=21-minute containers; leave upload/cleanup margin.
+    strategy:
+      fail-fast: false
+      max-parallel: 2
+      matrix:
+        model: [mimo-v2.5, deepseek-v4.1-flash, qwen3.8-flash, glm-5.3-flash, kimi-k2.6, minimax-m2.7]
+    env:
+      MODEL: ${{ matrix.model }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: python -m pip install 'numpy>=1.24'
+      - name: Download frozen generation (never call a model)
+        uses: actions/download-artifact@v4
+        with:
+          name: go-generation-${{ matrix.model }}-${{ github.run_id }}
+          path: runs/model
+      - uses: docker/setup-buildx-action@v3
+      - name: Restore the prepared scoring toolchain
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: sandbox/Dockerfile
+          load: true
+          tags: adpbench-go:ci
+          cache-from: type=gha,scope=adpbench-replay-toolchain
+      - name: Score frozen RTL with independent problem deadlines
+        run: |
+          python -m scripts.go_score --plan "$PLAN" --model "$MODEL" \
+            --out runs/model --checkpoints runs/checkpoints --diagnostics runs/diagnostics
+      - name: Preserve final records before large diagnostic uploads
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: go-core-${{ matrix.model }}-${{ github.run_id }}
+          path: runs/model
+          if-no-files-found: warn
+          retention-days: 90
+      - name: Preserve scoring logs and resumable checkpoints
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: go-checkpoints-${{ matrix.model }}-${{ github.run_id }}
+          path: |
+            runs/checkpoints
+            runs/diagnostics
+          if-no-files-found: warn
+          retention-days: 90
+      - name: Publish measured outcomes to this job's summary
+        if: always()
+        run: |
+          echo "## $MODEL · offline scoring of frozen generation" >> "$GITHUB_STEP_SUMMARY"
+          echo 'Green means the evaluation completed, not correct RTL. Wrong RTL stays failed. Interrupted work has no invented score. See the generation job and separate checkpoint artifact.' >> "$GITHUB_STEP_SUMMARY"
+          if test -f runs/model/REPORT.md; then
+            cat runs/model/REPORT.md >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo 'Scoring did not produce a report. Inspect the generation artifact and failed step.' >> "$GITHUB_STEP_SUMMARY"
+          fi

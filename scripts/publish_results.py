@@ -19,12 +19,12 @@ import tempfile
 import zipfile
 from pathlib import Path, PurePosixPath
 
-from scripts.go_pilot import validate_plan, write_json
+from scripts.go_pilot import output_limit, validate_plan, write_json
 from scripts.publish_go import REPOSITORY, publish
 
-MAX_ARCHIVE = 10 * 1024 * 1024
-MAX_EXPANDED = 30 * 1024 * 1024
-MAX_FILE = 2 * 1024 * 1024
+MAX_ARCHIVE = 32 * 1024 * 1024
+MAX_EXPANDED = 128 * 1024 * 1024
+MAX_FILE = 16 * 1024 * 1024
 MAX_FILES = 300
 MAX_API = 2 * 1024 * 1024
 SAFE_ID = re.compile(r"[a-z0-9][a-z0-9-]{0,79}")
@@ -78,6 +78,14 @@ def positive_id(value) -> int:
     return value
 
 
+def source_plan_path(workflow: str, allowed: list[str]) -> str:
+    """Read the literal reviewed PLAN from source code; never evaluate YAML/expressions."""
+    matches = re.findall(r"^  PLAN: (pilot/[a-z0-9-]+\.json)\s*$", workflow, re.M)
+    if len(matches) != 1 or matches[0] not in allowed:
+        raise ValueError("source workflow must select exactly one registered literal plan")
+    return matches[0]
+
+
 def validate_source(run: dict, jobs: list[dict], plan: dict, policy: dict) -> None:
     validate_plan(plan)
     positive_id(run["id"])
@@ -95,15 +103,23 @@ def validate_source(run: dict, jobs: list[dict], plan: dict, policy: dict) -> No
     evaluated = [j for j in jobs if j.get("name") in names]
     if len(evaluated) != len(names) or len({j["name"] for j in evaluated}) != len(names):
         raise ValueError("missing or duplicate model jobs")
+    generation_names = [f"Generate {model['id']} · two single-shot submissions" for model in plan["models"]]
+    generation_jobs = [j for j in jobs if j.get("name") in generation_names]
+    if generation_jobs and (len(generation_jobs) != len(generation_names)
+                            or len({j["name"] for j in generation_jobs}) != len(generation_names)):
+        raise ValueError("missing or duplicate generation jobs")
     generated = False
-    for job in evaluated:
+    for job in [*evaluated, *generation_jobs]:
         positive_id(job["id"])
         if (job.get("run_id") != run["id"] or job.get("status") != "completed"
                 or job.get("conclusion") not in {"success", "failure", "cancelled", "timed_out"}
                 or not re.fullmatch(r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z", job.get("completed_at", ""))):
             raise ValueError("invalid model job provenance")
         generated |= any(s.get("name") == "Generate two single-shot submissions (no retries or fallback)"
-                         and s.get("conclusion") in {"success", "failure"} for s in job.get("steps", []))
+                         and (s.get("conclusion") in {"success", "failure"}
+                              or (s.get("conclusion") in {"cancelled", "timed_out"}
+                                  and re.fullmatch(r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z", s.get("started_at") or "")))
+                         for s in job.get("steps", []))
     if not generated:
         raise ValueError("preparation-only or duplicate-claim run; no model generation occurred")
 
@@ -148,7 +164,7 @@ def validate_records(artifacts: Path, plan: dict, run: dict) -> None:
         for problem in plan["problems"]:
             dest = root / f"opencode-go-{model['id']}" / problem / "rep1"
             generation = strict_json((dest / "generation.json").read_bytes())
-            if generation.get("max_output_tokens") != plan["max_output_tokens"]:
+            if generation.get("max_output_tokens") != output_limit(plan, model):
                 raise ValueError("generation budget differs from reviewed plan")
             settings = {k: model[k] for k in ("thinking", "reasoning_effort", "reasoning", "token_limit_key") if k in model}
             if generation.get("generation_settings") != settings:
@@ -289,11 +305,9 @@ def main() -> None:
         raise ValueError("invalid source SHA")
     command(["git", "merge-base", "--is-ancestor", run["head_sha"], "HEAD"], repo)
     command(["git", "diff", "--quiet", run["head_sha"], "HEAD", "--", "problems", "flows"], repo)
-    plans = []
-    for path in rule["plans"]:
-        if not re.fullmatch(r"pilot/[a-z0-9-]+\.json", path):
-            raise ValueError("invalid reviewed plan path")
-        plans.append(strict_json(command(["git", "show", f"{run['head_sha']}:{path}"], repo)))
+    workflow = command(["git", "show", f"{run['head_sha']}:{run['path']}"], repo).decode()
+    path = source_plan_path(workflow, rule["plans"])
+    plan = strict_json(command(["git", "show", f"{run['head_sha']}:{path}"], repo))
     jobs_response = api(f"actions/runs/{run['id']}/attempts/{positive_id(run['run_attempt'])}/jobs?per_page=100")
     artifacts_response = api(f"actions/runs/{run['id']}/artifacts?per_page=100")
     if jobs_response["total_count"] > 100 or artifacts_response["total_count"] > 100:
@@ -303,11 +317,7 @@ def main() -> None:
     with tempfile.TemporaryDirectory(prefix="adpbench-artifacts-") as temp:
         dest = Path(temp)
         evidence = []
-        # A supported workflow has a single reviewed plan at a time. Explicit
-        # registration prevents downloaded data from selecting executable code.
-        if len(plans) != 1:
-            raise ValueError("expected exactly one reviewed plan for this workflow")
-        plan = plans[0]
+        # The source workflow selects its reviewed plan, not downloaded artifacts.
         validate_source(run, jobs, plan, policy)
         for model in plan["models"]:
             final = f"go-core-{model['id']}-{run['id']}"

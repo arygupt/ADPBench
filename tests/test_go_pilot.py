@@ -11,7 +11,7 @@ from unittest.mock import patch
 from scripts.go_pilot import (
     due, extract_rtl, gate, generate, parse_response, read_plan, request_body,
     validate_plan, valid_usage, response_diagnostics,
-    provider_error_evidence, ERROR_BODY_LIMIT,
+    provider_error_evidence, ERROR_BODY_LIMIT, output_limit,
 )
 
 
@@ -128,7 +128,7 @@ class CostScreenTest(unittest.TestCase):
 
     def test_no_oversized_duplicate_or_unsafe_plans(self):
         for change in [
-            {"max_output_tokens": 8193}, {"max_output_tokens": True},
+            {"max_output_tokens": 0}, {"max_output_tokens": True},
             {"request_timeout_s": 601}, {"max_prompt_bytes": 24001},
             {"problems": ["001_dot_product"] * 2}, {"problems": ["../../secret"]},
             {"models": self.plan["models"] * 2}, {"name": "../escape"},
@@ -192,6 +192,67 @@ class CoreModelsTest(unittest.TestCase):
             with self.assertRaises(RuntimeError):
                 generate(self.plan, self.plan["models"][0], Path(tmp))
             self.assertFalse(list(Path(tmp).glob("**/dut.v")))
+
+
+class ProviderMaximumTest(unittest.TestCase):
+    def setUp(self):
+        self.plan = read_plan(Path(__file__).resolve().parent.parent / "pilot/go-core-provider-max-20260922.json")
+        self.now = datetime.fromisoformat("2026-09-22T01:00:00+00:00")
+
+    def test_every_model_gets_its_full_reviewed_limit(self):
+        expected = {"mimo-v2.5":128000, "deepseek-v4.1-flash":384000,
+                    "qwen3.8-flash":131072, "glm-5.3-flash":131072,
+                    "kimi-k2.6":65536, "minimax-m2.7":131072}
+        self.assertEqual(self.plan["max_output_tokens"], expected)
+        for model in self.plan["models"]:
+            body = request_body(model, "task", self.plan)
+            key = model.get("token_limit_key", "max_tokens")
+            self.assertEqual(body[key], expected[model["id"]])
+            self.assertIs(type(body[key]), int)  # Never send null/Infinity/dict to Messages.
+            self.assertTrue(body["stream"])
+            if model["api"] == "chat/completions":
+                self.assertEqual(body["stream_options"], {"include_usage": True})
+            self.assertNotIn("tools", body)
+
+    def test_no_harness_wide_8192_ceiling(self):
+        legacy = read_plan()
+        for cap in (8193, 65536, 384000):
+            changed = {**legacy, "max_output_tokens":cap}
+            validate_plan(changed)
+            self.assertEqual(output_limit(changed, changed["models"][0]), cap)
+        self.assertEqual(legacy["max_output_tokens"], 8192)
+
+    def test_missing_extra_or_invalid_provider_limits_are_rejected(self):
+        limits = self.plan["max_output_tokens"]
+        for change in [{"max_output_tokens":8192}, {"max_output_tokens":{}},
+                       {"max_output_tokens":{**limits,"unreviewed-model":99999}},
+                       *[{"max_output_tokens":{**limits,"kimi-k2.6":v}} for v in (None, True, -1, 0, 1.5, "unlimited")],
+                       {"output_budget":"unlimited"}, {"generation_enabled":"true"}]:
+            with self.subTest(change=change), self.assertRaises(ValueError):
+                validate_plan({**self.plan, **change})
+
+    def test_configuring_limits_does_not_authorize_new_calls(self):
+        for model in self.plan["models"]:
+            self.assertFalse(due(self.plan, model, self.now))
+            with patch("scripts.go_pilot.call_model") as call, patch("scripts.go_pilot.now_utc", return_value=self.now):
+                with self.assertRaisesRegex(RuntimeError, "authorized schedule"):
+                    generate(self.plan, model, Path("unused"))
+                call.assert_not_called()
+
+    def test_large_complete_outputs_accepted_truncation_still_rejected(self):
+        # Explicitly enable a temporary test-only plan; every request is mocked.
+        plan = {**self.plan, "generation_enabled":True}
+        model = plan["models"][0]
+        for finish, tokens in [("stop",20000), ("length",128000)]:
+            response = {"id":"test", "choices":[{"message":{"content":"module dut; endmodule"},"finish_reason":finish}],
+                        "usage":{"prompt_tokens":100,"completion_tokens":tokens}}
+            with tempfile.TemporaryDirectory() as tmp, patch.dict("os.environ", {"OPENCODE_GO_API_KEY":"test-credential"}), patch("scripts.go_pilot.now_utc", return_value=self.now), patch("scripts.go_pilot.call_model", return_value=response) as call:
+                generate(plan, model, Path(tmp))
+                self.assertEqual(call.call_count, 2)  # Still no retry or continuation.
+                self.assertEqual(len(list(Path(tmp).glob("**/dut.v"))), 2 if finish == "stop" else 0)
+                for path in Path(tmp).glob("**/generation.json"):
+                    self.assertEqual(json.loads(path.read_text())["max_output_tokens"], 128000)
+        self.assertFalse(valid_usage({"prompt_tokens":1,"completion_tokens":128001}, "chat/completions", 128000))
 
 
 if __name__ == "__main__":

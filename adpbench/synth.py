@@ -17,6 +17,7 @@ from functools import lru_cache
 from pathlib import Path
 
 from .problem import Problem, repo_root
+from .process import run_logged
 
 # Yosys changed the `stat` report format; accept either.
 CELL_RES = (
@@ -92,25 +93,11 @@ def synthesize(problem: Problem, rtl_paths: list[Path], workdir: Path) -> dict:
     netlist = workdir / NETLIST
     if netlist.exists():
         netlist.unlink()
-    try:
-        proc = subprocess.run(
-            ["yosys", str(script)],
-            cwd=workdir,
-            capture_output=True,
-            text=True,
-            timeout=600,
-        )
-    except subprocess.TimeoutExpired as exc:
-        return {
-            "ok": False,
-            "cells": -1,
-            "netlist": None,
-            "log": f"[adpbench] yosys exceeded its time limit\n{exc}",
-        }
-    log = proc.stdout + proc.stderr
-
-    if proc.returncode != 0:
-        return {"ok": False, "cells": -1, "netlist": None, "log": log}
+    proc = run_logged(["yosys", str(script)], workdir, "yosys")
+    log = proc["log"]
+    if proc["returncode"] != 0 or proc["reason"]:
+        return {"ok": False, "cells": -1, "netlist": None, "log": log,
+                "failure_kind":proc["reason"], "returncode":proc["returncode"]}
 
     cells = _parse_cells(log)
     if cells is None:
