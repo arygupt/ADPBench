@@ -5,6 +5,7 @@ import test from "node:test";
 import { findReplay, findExecution } from "../site/assets/evidence.mjs";
 import { parseCatalog } from "../site/assets/catalog.mjs";
 import { budgetSummary, outputLimit } from "../site/assets/budget.mjs";
+import { agentState } from "../site/assets/outcomes.mjs";
 
 const readJSON = (path) => JSON.parse(readFileSync(new URL(path, import.meta.url), "utf8"));
 const leaderboard = readJSON("../site/data/leaderboard.json");
@@ -13,6 +14,20 @@ const runs = leaderboard.models.flatMap((m) => m.runs);
 const pilot = leaderboard.meta.pilot;
 const first = evidence.runs[0];
 const run = runs.find((r) => r.submission_sha256 === first.submission_sha256);
+
+test("agent outcomes distinguish wrong RTL from unscored execution and submission failures", () => {
+  const generation = {protocol:"agent-assisted-v1"};
+  assert.equal(agentState({generation, outcome:"incorrect"}).value, "wrong");
+  assert.equal(agentState({generation, outcome:"scoring_interrupted", correct:null}).value, "unknown");
+  assert.equal(agentState({generation, outcome:"invalid_submission"}).value, "invalid");
+  assert.equal(agentState({generation, outcome:"provider_error"}).cls, "infra");
+  assert.equal(agentState({generation, outcome:"turn_limit"}).cls, "fail");
+  assert.equal(agentState({generation, outcome:"<script>"}).value, "unknown");
+  assert.equal(agentState({generation:{protocol:"single-shot"}}), null);
+  const catalog = {schema_version:1, default:"agent-test", evaluations:[{
+    id:"agent-test", label:"Agent-assisted v1", path:"data/agent-test/leaderboard.json", protocol:"agent-assisted-v1"}]};
+  assert.equal(parseCatalog(catalog).defaultId, "agent-test");
+});
 
 test("compatibility panel shows frozen diagnostic evidence without changing benchmark outcomes", () => {
   const html = readFileSync(new URL("../site/index.html", import.meta.url), "utf8");
@@ -87,7 +102,7 @@ test("every publication receipt binds exact frozen records and website outcomes"
       assert.ok(Number.isSafeInteger(id) && id > 0);
     assert.equal(file, `run-${receipt.source_run_id}-attempt-${receipt.source_attempt}.json`);
     assert.match(receipt.source_commit, /^[0-9a-f]{40}$/);
-    assert.equal(receipt.source_workflow, ".github/workflows/go-core.yml");
+    assert.ok([".github/workflows/go-core.yml", ".github/workflows/go-agent.yml"].includes(receipt.source_workflow));
     assert.match(receipt.dataset, /^[a-z0-9][a-z0-9-]{0,79}$/);
     const root = `../pilot/results/${receipt.dataset}`;
     const hashes = receipt.record_file_sha256;
@@ -98,9 +113,10 @@ test("every publication receipt binds exact frozen records and website outcomes"
     assert.equal(receipt.confirmed_correct, board.models.reduce((n, m) => n + m.correct, 0));
     assert.equal(receipt.result_slots, board.models.reduce((n, m) => n + m.runs.length, 0));
     const plan = readJSON(`${root}/plan.json`);
+    const protocol = plan.protocol || "single-shot";
     for (const model of plan.models) {
       assert.match(model.id, /^[a-z0-9][a-z0-9.-]*$/);
-      const published = board.models.find(m => m.label === `opencode-go/${model.id} [single-shot]`);
+      const published = board.models.find(m => m.label === `opencode-go/${model.id} [${protocol}]`);
       assert.ok(published);
       for (const problem of plan.problems) {
         assert.match(problem, /^[a-z0-9_]+$/);
@@ -114,7 +130,7 @@ test("every publication receipt binds exact frozen records and website outcomes"
         assert.equal(record.execution.run_id, receipt.source_run_id);
         assert.equal(record.execution.run_attempt, receipt.source_attempt);
         assert.equal(record.execution.commit, receipt.source_commit);
-        assert.equal(shown.correct, Boolean(record.result?.correct));
+        assert.equal(shown.correct, protocol === "agent-assisted-v1" && !["correct", "incorrect"].includes(record.outcome) ? null : Boolean(record.result?.correct));
         for (const metric of ["cells", "cycles"])
           assert.equal(shown[metric], record.result?.[metric] ?? -1);
         assert.equal(shown.ratio, record.result?.ratio || -1);
@@ -135,7 +151,9 @@ test("every publication receipt binds exact frozen records and website outcomes"
     for (const artifact of receipt.artifacts) {
       assert.ok(Number.isSafeInteger(artifact.id) && artifact.id > 0);
       assert.match(artifact.digest, /^sha256:[0-9a-f]{64}$/);
-      assert.ok(plan.models.some(m => ["go-core", "go-generation"].some(prefix => artifact.name === `${prefix}-${m.id}-${receipt.source_run_id}`)));
+      assert.ok(plan.models.some(m => protocol === "agent-assisted-v1"
+        ? plan.problems.some(p => ["go-agent-records", "go-agent-generation"].some(prefix => artifact.name === `${prefix}-${m.id}-${p}-${receipt.source_run_id}`))
+        : ["go-core", "go-generation"].some(prefix => artifact.name === `${prefix}-${m.id}-${receipt.source_run_id}`)));
       assert.ok(!names.has(artifact.name));
       names.add(artifact.name);
     }

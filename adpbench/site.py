@@ -51,7 +51,8 @@ def _run_entry(record: dict) -> dict:
     metadata = result.get("metadata") or {}
     manifest = record.get("manifest") or {}
     generation = manifest.get("generation") or {}
-    return {
+    agent = generation.get("protocol") == "agent-assisted-v1"
+    entry = {
         "label": record.get("label", ""),
         "problem": record.get("problem", ""),
         "attempt": record.get("attempt", 1),
@@ -79,6 +80,14 @@ def _run_entry(record: dict) -> dict:
             )
         } if generation else None,
     }
+    if agent:
+        entry.update(outcome=record.get("outcome", "scoring_interrupted"),
+                     execution_health=record.get("execution_health", "failed"))
+        entry["correct"] = (bool(result.get("correct")) if entry["outcome"] in {"correct", "incorrect"} else None)
+        entry["generation"].update({k:generation.get(k) for k in
+            ("protocol", "outcome", "turns", "max_turns", "incomplete_usage")})
+        entry["generation"]["dev_checks"] = generation.get("checks", generation.get("dev_checks"))
+    return entry
 
 
 def _wilson(k: int, n: int, z: float = 1.96) -> tuple[float, float]:
@@ -153,6 +162,16 @@ def export_site(
                 "runs": record_group,
             }
         )
+        if plan.get("protocol") == "agent-assisted-v1":
+            counts = {}
+            for run in record_group:
+                outcome = run.get("outcome", "scoring_interrupted")
+                counts[outcome] = counts.get(outcome, 0) + 1
+            models[-1].update(outcomes=counts,
+                              scored=sum(type(r["correct"]) is bool for r in record_group),
+                              unscored=sum(r["correct"] is None for r in record_group),
+                              wrong_rtl=counts.get("incorrect", 0),
+                              infra=sum(r.get("execution_health") == "failed" for r in record_group))
 
     first_manifest = {}
     for record in records:

@@ -1,0 +1,174 @@
+name: OpenCode Go agent runs
+run-name: "OpenCode Go · agent-assisted-v1 · ${{ inputs.run_models && 'twelve-slot evaluation' || 'offline checks' }}"
+
+on:
+  workflow_dispatch:
+    inputs:
+      run_models:
+        description: "Run the reviewed twelve-slot agent-assisted batch (requires an enabled, current plan)"
+        type: boolean
+        default: false
+      subscription_only:
+        description: "Go Use balance is OFF; no Zen balance fallback"
+        type: boolean
+        default: false
+  pull_request:
+    paths:
+      - ".github/workflows/go-agent*.yml"
+      - "scripts/go_agent.py"
+      - "scripts/go_tools.py"
+      - "scripts/go_stream.py"
+      - "scripts/go_pilot.py"
+      - "scripts/go_score.py"
+      - "pilot/go-agent*.json"
+      - "adpbench/**"
+      - "sandbox/Dockerfile"
+      - "tests/test_go_agent*.py"
+      - "tests/test_go_tools.py"
+      - "tests/test_go_stream.py"
+      - "tests/test_go_pilot.py"
+      - "tests/test_go_scoring_integration.py"
+      - "tests/test_reliability.py"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: go-agent-${{ inputs.run_models && 'live-generation' || format('offline-{0}', github.ref) }}
+  cancel-in-progress: false
+
+env:
+  PLAN: pilot/go-agent-20260923.json
+
+jobs:
+  checks:
+    name: Offline agent protocol, provider adapters, and evidence checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: python -m pip install 'numpy>=1.24,<3'
+      - name: Reject unauthorized live dispatches
+        if: inputs.run_models
+        env:
+          SUBSCRIPTION_ONLY: ${{ inputs.subscription_only }}
+        run: |
+          test "$GITHUB_EVENT_NAME" = workflow_dispatch
+          test "$GITHUB_REF" = refs/heads/main
+          test "$SUBSCRIPTION_ONLY" = true
+      - run: python -m scripts.go_agent validate --plan "$PLAN"
+      - run: python -m unittest tests.test_go_agent tests.test_go_tools tests.test_go_stream tests.test_go_pilot tests.test_reliability -v
+
+  integration:
+    name: Pinned agent sandbox and held-out scorer checks (no model calls)
+    if: github.event_name == 'pull_request' || !inputs.run_models
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: python -m pip install 'numpy>=1.24,<3'
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: sandbox/Dockerfile
+          load: true
+          tags: adpbench-go:ci
+          cache-from: type=gha,scope=adpbench-replay-toolchain
+          cache-to: type=gha,mode=max,scope=adpbench-replay-toolchain
+      - name: Exercise mocked agents, restricted development tools, and scoring recovery
+        env:
+          ADPBENCH_DOCKER_TEST_IMAGE: adpbench-go:ci
+        run: python -m unittest tests.test_go_agent tests.test_go_tools tests.test_go_scoring_integration -v
+      - name: Keep held-out correctness and anti-cheat gates unchanged
+        run: |
+          docker run --rm --network none --memory 5g --cpus 2 --pids-limit 256 \
+            --cap-drop ALL --security-opt no-new-privileges \
+            -e PYTHONPATH=/repo -e ADPBENCH_WORKDIR=/tmp/adpbench \
+            -v "$GITHUB_WORKSPACE:/repo:ro" -w /repo adpbench-go:ci \
+            python -m unittest tests.test_evaluate -v
+
+  prepare:
+    name: Prepare pinned toolchain and validate both baselines (no model calls)
+    needs: checks
+    if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main' && inputs.run_models && inputs.subscription_only
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: python -m pip install 'numpy>=1.24,<3'
+      - name: Verify authorization and the complete twelve-slot matrix
+        run: |
+          python -m scripts.go_agent validate --plan "$PLAN"
+          python - <<'PY'
+          import os
+          from pathlib import Path
+          from scripts.go_pilot import read_plan, due, now_utc
+          plan = read_plan(Path(os.environ['PLAN']))
+          assert plan['generation_enabled'], 'Generation is disabled'
+          assert all(due(plan, model, now_utc()) for model in plan['models']), 'Batch authorization expired or not yet due'
+          assert {model['id'] for model in plan['models']} == {
+              'mimo-v2.5', 'deepseek-v4.1-flash', 'qwen3.8-flash',
+              'glm-5.3-flash', 'kimi-k2.6', 'minimax-m2.7'}, 'Model matrix differs from reviewed plan'
+          assert set(plan['problems']) == {'001_dot_product', '002_gemv'}, 'Problem matrix differs from reviewed plan'
+          assert plan['slot_timeout_s'] <= 7200, 'Slot deadline must leave artifact-upload time'
+          print('Protocol: agent-assisted-v1; twelve independent model/problem slots; no fallback or generation retries.')
+          PY
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: sandbox/Dockerfile
+          load: true
+          tags: adpbench-go:ci
+          cache-from: type=gha,scope=adpbench-replay-toolchain
+          cache-to: type=gha,mode=max,scope=adpbench-replay-toolchain
+      - name: Validate both baselines once before model calls
+        run: |
+          mkdir -p runs/fixtures
+          docker run --rm --network none --memory 5g --cpus 2 --pids-limit 256 \
+            --user "$(id -u):$(id -g)" --cap-drop ALL --security-opt no-new-privileges \
+            -e PYTHONPATH=/repo -e ADPBENCH_WORKDIR=/tmp/adpbench \
+            -v "$GITHUB_WORKSPACE:/repo:ro" -v "$GITHUB_WORKSPACE/runs/fixtures:/output" \
+            -w /repo adpbench-go:ci \
+            python -m scripts.go_pilot fixture --plan "$PLAN" --model mimo-v2.5 --out /output
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: go-agent-baselines-${{ github.run_id }}
+          path: runs/fixtures
+          retention-days: 90
+
+  slots:
+    name: "${{ matrix.model }} · ${{ matrix.problem }}"
+    needs: prepare
+    permissions:
+      contents: write # Delegated only for the reusable generation job's durable claim.
+    strategy:
+      fail-fast: false
+      max-parallel: 6
+      matrix:
+        problem: [001_dot_product, 002_gemv]
+        model: [mimo-v2.5, deepseek-v4.1-flash, qwen3.8-flash, glm-5.3-flash, kimi-k2.6, minimax-m2.7]
+    uses: ./.github/workflows/go-agent-slot.yml
+    with:
+      model: ${{ matrix.model }}
+      problem: ${{ matrix.problem }}
+      subscription_only: ${{ inputs.subscription_only }}
+    secrets:
+      OPENCODE_GO_API_KEY: ${{ secrets.OPENCODE_GO_API_KEY }}

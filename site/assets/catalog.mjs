@@ -7,7 +7,7 @@ export function parseCatalog(value) {
   for (const item of value.evaluations) {
     if (!item || !/^[a-z0-9][a-z0-9-]{0,79}$/.test(item.id) ||
         typeof item.label !== "string" || !item.label || item.label.length > 200 ||
-        !["single-shot", "iterative"].includes(item.protocol) || Object.hasOwn(paths, item.id) ||
+        !["single-shot", "iterative", "agent-assisted-v1"].includes(item.protocol) || Object.hasOwn(paths, item.id) ||
         item.path !== (item.id === "pilot-001" ? "data/leaderboard.json" : `data/${item.id}/leaderboard.json`))
       throw new Error("Unsafe or duplicate evaluation entry");
     paths[item.id] = item.path;

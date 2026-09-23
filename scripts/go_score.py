@@ -38,12 +38,14 @@ def failure_reason(process: dict, container: dict) -> str:
 
 def supervise(plan_path: Path, model_id: str, out: Path, checkpoints: Path,
               diagnostics: Path, *, image: str = "adpbench-go:ci", deadline_s: int = 1200,
-              resume: bool = False) -> bool:
+              resume: bool = False, problem_id: str | None = None) -> bool:
     root = repo_root().resolve()
     plan_path = plan_path.resolve()
     relative_plan = plan_path.relative_to(root)  # Only the read-only reviewed repo plan.
     plan = read_plan(plan_path)
     model = select_model(plan, model_id)
+    if problem_id is not None and problem_id not in plan["problems"]:
+        raise ValueError("problem is not in reviewed plan")
     out, checkpoints, diagnostics = (p.resolve() for p in (out, checkpoints, diagnostics))
     for path in (out, checkpoints, diagnostics):
         path.mkdir(parents=True, exist_ok=True)
@@ -53,6 +55,8 @@ def supervise(plan_path: Path, model_id: str, out: Path, checkpoints: Path,
         raise ValueError("scoring deadline must leave time for two problems and artifact uploads")
     healthy = True
     for problem in plan["problems"]:
+        if problem_id is not None and problem != problem_id:
+            continue
         destination = out / f"opencode-go-{model_id}" / problem / "rep1"
         if not (destination / "generation.json").is_file():
             raise ValueError("missing scheduled generation slot")
@@ -105,7 +109,8 @@ def supervise(plan_path: Path, model_id: str, out: Path, checkpoints: Path,
             result = record.get("result") or {}
             failure = result.get("metadata", {}).get("failure_kind", "")
             # Wrong RTL/protocol remains a valid failed benchmark measurement.
-            if (record.get("error") or failure in {"wall_timeout", "signal", "log_limit", "interrupted"}
+            has_error = record.get("execution_health") == "failed" if plan.get("protocol") == "agent-assisted-v1" else record.get("error")
+            if (has_error or failure in {"wall_timeout", "signal", "log_limit", "interrupted"}
                     or failure.startswith("launch_error")):
                 healthy = False
         summarize(plan, model, out)
@@ -117,6 +122,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--plan", required=True, type=Path)
     parser.add_argument("--model", required=True)
+    parser.add_argument("--problem")
     parser.add_argument("--out", required=True, type=Path)
     parser.add_argument("--checkpoints", required=True, type=Path)
     parser.add_argument("--diagnostics", required=True, type=Path)
@@ -124,7 +130,7 @@ def main():
     parser.add_argument("--resume", action="store_true")
     args = parser.parse_args()
     if not supervise(args.plan, args.model, args.out, args.checkpoints, args.diagnostics,
-                     image=args.image, resume=args.resume):
+                     image=args.image, resume=args.resume, problem_id=args.problem):
         raise SystemExit("Scoring or generation infrastructure failed; inspect saved records and diagnostics")
 
 

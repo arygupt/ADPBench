@@ -34,6 +34,8 @@ class RunSummary:
     error: str
     timed_out: bool
     group: str = ""
+    outcome: str = ""
+    execution_health: str = ""
 
     @property
     def kind(self) -> str:
@@ -45,6 +47,10 @@ class RunSummary:
         """
         if self.correct:
             return "ok"
+        if self.outcome:
+            if self.execution_health == "failed":
+                return "infrastructure"
+            return "wrong_rtl" if self.outcome == "incorrect" else "submission_failure"
         if self.error:
             return "infrastructure"
         if self.stage in INFRASTRUCTURE_STAGES:
@@ -70,6 +76,8 @@ def _summary_from_record(path: Path) -> RunSummary:
         error=str(error),
         timed_out=bool(record.get("timed_out")),
         group=record.get("group", ""),
+        outcome=record.get("outcome", ""),
+        execution_health=record.get("execution_health", ""),
     )
 
 
@@ -119,7 +127,7 @@ def _bucket(runs: list[RunSummary]) -> dict:
     correct = [run for run in runs if run.correct]
     beating = [run for run in correct if run.ratio > 1.0]
     kinds = Counter(run.kind for run in runs)
-    return {
+    bucket = {
         "attempts": attempts,
         "correct": len(correct),
         "correctness_rate": round(len(correct) / attempts, 4) if attempts else 0.0,
@@ -134,6 +142,10 @@ def _bucket(runs: list[RunSummary]) -> dict:
         },
         "repetitions": max((run.attempt for run in runs), default=0),
     }
+    if any(run.outcome for run in runs):
+        bucket["outcomes"] = dict(Counter(run.outcome for run in runs))
+        bucket["failures"]["submission_failure"] = kinds.get("submission_failure", 0)
+    return bucket
 
 
 def summarize(runs: list[RunSummary]) -> dict:
@@ -189,6 +201,11 @@ def markdown(report: dict) -> str:
             infra=totals["failures"]["infrastructure"],
         )
     )
+    if totals.get("outcomes"):
+        lines += ["", "Agent-assisted outcomes (separate from execution health):", ""]
+        for outcome, count in sorted(totals["outcomes"].items()):
+            lines.append(f"- {outcome}: {count}")
+        lines += ["", "Rates use all scheduled slots. Unscored submissions and interrupted jobs are not claims of incorrect arithmetic. Development checks are not held-out benchmark passes."]
     return "\n".join(lines) + "\n"
 
 
