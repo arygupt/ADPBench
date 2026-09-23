@@ -25,7 +25,7 @@ import { agentState } from "./outcomes.mjs";
   const pct = (n) => (Number.isFinite(n) ? `${Math.round(n * 100)}%` : "—");
   const ratio = (n) => (n > 0 ? `${n.toFixed(2)}×` : "—");
   const short = (label) =>
-    label.replace(/^opencode\//, "").replace(/-free$/, "");
+    label.split("/").pop().replace(/\s*\[.*\]$/, "").replace(/-free$/, "");
   let data, dialog, returnFocus, evidence;
   let datasets = {};
   let datasetKey = "";
@@ -85,16 +85,34 @@ import { agentState } from "./outcomes.mjs";
     "opencode-go/minimax-m2.7 [single-shot]": "MiniMax M2.7",
   };
   const displayName = (model) => names[model.label.replace("[agent-assisted-v1]", "[single-shot]")] || short(model.label);
+  // Matched against the model id after the provider prefix, in order.
   const logos = [
     [/deepseek/i, "deepseek"],
-    [/qwen/i, "qwen"],
-    [/kimi/i, "kimi"],
+    [/qwen|qwq/i, "qwen"],
+    [/kimi|moonshot/i, "kimi"],
     [/minimax/i, "minimax"],
-    [/glm/i, "zai"],
-    [/mimo/i, "xiaomi"],
+    [/glm|zhipu|z-?ai/i, "zai"],
+    [/mimo|xiaomi/i, "xiaomi"],
+    [/claude|anthropic/i, "claude"],
+    [/gpt|openai|codex/i, "openai"],
+    [/gemini|gemma/i, "gemini"],
+    [/grok|^xai/i, "grok"],
+    [/llama/i, "meta"],
+    [/mistral|codestral|devstral|magistral/i, "mistral"],
+    [/nemotron|nvidia/i, "nvidia"],
+    [/doubao/i, "doubao"],
+    [/hunyuan/i, "hunyuan"],
+    [/stepfun|^step-/i, "stepfun"],
+    [/cohere|^command/i, "cohere"],
+    [/longcat/i, "longcat"],
+    [/ernie/i, "ernie"],
+    [/^yi-/i, "yi"],
+    [/internlm|intern-s/i, "internlm"],
+    [/^nova-|amazon/i, "nova"],
   ];
   function modelIcon(model) {
-    const logo = logos.find(([pattern]) => pattern.test(model.label))?.[1];
+    const id = short(model.label);
+    const logo = logos.find(([pattern]) => pattern.test(id))?.[1];
     return logo
       ? `<img src="assets/logos/${logo}.svg" alt="" width="15" height="15">`
       : esc(displayName(model).slice(0, 1));
