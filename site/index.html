@@ -34,24 +34,6 @@
         <h1>Results</h1>
         <a class="download-link" data-results-download href="data/leaderboard.json" download>Download results <span aria-hidden="true">↓</span></a>
       </div>
-      <section class="compatibility-panel" aria-labelledby="compatibility-title">
-        <div class="compatibility-heading">
-          <h2 id="compatibility-title">Go compatibility checks</h2>
-          <span class="compatibility-label">Diagnostic only · 23 Sep 2026</span>
-        </div>
-        <p>GLM and MiniMax now return complete answers to a tiny XOR task. Both saved modules passed synthesis and all four input cases.</p>
-        <ul class="compatibility-models">
-          <li data-compatibility-model="glm-5.3-flash"><strong>GLM-5.3-Flash</strong><span>Verified XOR · 32 output tokens</span><small>Unsupported thinking field removed.</small></li>
-          <li data-compatibility-model="minimax-m2.7"><strong>MiniMax M2.7</strong><span>Verified XOR · 265 output tokens</span><small>1,024-token allowance let reasoning finish.</small></li>
-        </ul>
-        <p class="compatibility-caveat">Not benchmark scores. Historical benchmark outcomes are unchanged. A new six-model dot-product/GEMV batch is authorized with provider-maximum output limits, not the old 8,192-token allowance. <a href="https://github.com/arygupt/ADPBench/actions/workflows/go-core.yml" target="_blank" rel="noopener">View benchmark runs ↗</a></p>
-        <div class="compatibility-links">
-          <a data-compatibility-link="run" href="https://github.com/arygupt/ADPBench/actions/runs/35817913080" target="_blank" rel="noopener">Successful model run ↗</a>
-          <a data-compatibility-link="verification" href="https://github.com/arygupt/ADPBench/actions/runs/35818209664" target="_blank" rel="noopener">RTL verification checks ↗</a>
-          <a data-compatibility-link="report" href="https://github.com/arygupt/ADPBench/blob/5e01b572e384ae396225975c27a924226591d2e7/pilot/diagnostics/go-canary-followup-20260923.md" target="_blank" rel="noopener">Evidence &amp; limitations ↗</a>
-          <a data-compatibility-link="original" href="https://github.com/arygupt/ADPBench/actions/runs/35816113463" target="_blank" rel="noopener">Original failed diagnostic ↗</a>
-        </div>
-      </section>
       <div class="dataset-picker"><label for="dataset-select">Evaluation</label><select id="dataset-select"><option value="go-core-20260922">OpenCode Go · six-model single-shot screen</option><option value="pilot-001">Pilot-001 · iterative agent runs</option></select><span>Separate protocols · separate rankings</span></div>
       <div class="workspace-toolbar">
         <p class="dataset-summary" id="dataset-summary">Loading results…</p>
