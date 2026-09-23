@@ -85,8 +85,22 @@ import { agentState } from "./outcomes.mjs";
     "opencode-go/minimax-m2.7 [single-shot]": "MiniMax M2.7",
   };
   const displayName = (model) => names[model.label.replace("[agent-assisted-v1]", "[single-shot]")] || short(model.label);
+  const logos = [
+    [/deepseek/i, "deepseek"],
+    [/qwen/i, "qwen"],
+    [/kimi/i, "kimi"],
+    [/minimax/i, "minimax"],
+    [/glm/i, "zai"],
+    [/mimo/i, "xiaomi"],
+  ];
+  function modelIcon(model) {
+    const logo = logos.find(([pattern]) => pattern.test(model.label))?.[1];
+    return logo
+      ? `<img src="assets/logos/${logo}.svg" alt="" width="15" height="15">`
+      : esc(displayName(model).slice(0, 1));
+  }
   function modelButton(model) {
-    return `<button class="model-button" data-model="${esc(model.label)}" title="${esc(model.label)}" aria-label="Inspect ${esc(displayName(model))} runs"><span class="model-icon" aria-hidden="true">${esc(displayName(model).slice(0, 1))}</span><span class="model-label">${esc(displayName(model))}</span></button>`;
+    return `<button class="model-button" data-model="${esc(model.label)}" title="${esc(model.label)}" aria-label="Inspect ${esc(displayName(model))} runs"><span class="model-icon" aria-hidden="true">${modelIcon(model)}</span><span class="model-label">${esc(displayName(model))}</span></button>`;
   }
   function renderResults() {
     if (!$("#leaderboard-rows") || !data) return;

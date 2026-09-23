@@ -306,6 +306,11 @@ input::placeholder {
   border-radius: 50%;
   color: var(--status-text);
 }
+.model-icon img {
+  width: 68%;
+  height: 68%;
+  display: block;
+}
 .model-label {
   overflow: hidden;
   text-overflow: ellipsis;
