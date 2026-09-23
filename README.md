@@ -67,6 +67,11 @@ The current pilot is a 20-run matrix across four operators and five free-tier
 agent configurations. Results are committed under `pilot/results/` and rendered
 into `site/data/` from frozen records.
 
+The OpenCode Go [agent-assisted-v1 track](pilot/agent-assisted-v1.md) adds a
+shared read/write/check/submit loop, independent per-problem Actions jobs,
+and validated results PRs. It is reported separately from single-shot runs;
+green workflow execution is not a correctness claim.
+
 ## Local usage
 
 Requires Python 3.10+, Yosys, and Icarus Verilog. The repository uses a local

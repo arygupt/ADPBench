@@ -142,10 +142,17 @@ def write_json(path: Path, data: dict) -> None:
 
 def prompt_for(problem) -> str:
     baseline = json.loads(problem.baseline_metrics.read_text())
+    # Single-shot callers have neither a filesystem nor tools. Do not reuse the
+    # interactive workspace's instructions to run check.sh or inspect files.
+    spec = render_problem_md(problem, baseline)
+    spec = spec.replace("`dut.py` in this directory", "`dut.py` supplied below")
+    spec = re.sub(r"## How to check your work\n.*?(?=## Rules)",
+                  "## Evaluation\n\nThere are no development tools or repair turns in this single-shot track.\n\n", spec, flags=re.S)
+    skeleton = render_skeleton(problem).replace("// Run ./check.sh for synthesis + simulation feedback.\n", "")
     return (
-        render_problem_md(problem, baseline)
+        spec
         + "\n\n## dut.py\n```python\n" + (problem.root / "dut.py").read_text()
-        + "\n```\n\n## Starting dut.v\n```verilog\n" + render_skeleton(problem) + "\n```\n"
+        + "\n```\n\n## Starting dut.v\n```verilog\n" + skeleton + "\n```\n"
     )
 
 
@@ -352,19 +359,23 @@ def score(plan: dict, model: dict, out: Path, *, problem_id: str | None = None,
         if not generation_path.exists():
             continue
         generation = json.loads(generation_path.read_text())
+        agent_track = generation.get("protocol") == "agent-assisted-v1"
         if (dest / "record.json").exists() and not resume:
             raise FileExistsError("scoring record exists; use --resume or a fresh output directory")
         problem = load_problem(repo_root() / "problems/level1" / selected)
         record = RunRecord(
-            problem=selected, agent_cmd="adpbench Go API single-shot (one request, no repair)",
+            problem=selected, agent_cmd=("adpbench Go agent-assisted-v1 (read/write/check/submit)" if agent_track else "adpbench Go API single-shot (one request, no repair)"),
             label=("scripted/baseline-fixture" if generation.get("protocol") == "fixture"
-                   else "opencode-go/" + model["id"] + " [single-shot]"), group=plan["name"],
+                   else "opencode-go/" + model["id"] + (" [agent-assisted-v1]" if agent_track else " [single-shot]")), group=plan["name"],
             started=generation["started"], duration_s=generation.get("duration_s", 0),
             error=generation.get("error", "") or generation.get("invalid_rtl", ""), sandbox="docker",
         )
         source = dest / "dut.v"
         frozen = None
         if source.exists():
+            if agent_track and (generation.get("outcome") != "submitted" or
+                                generation.get("submission_sha256") != hashlib.sha256(source.read_bytes()).hexdigest()):
+                raise ValueError("agent submission lacks a matching explicit submit receipt")
             frozen = dest.parent / "rep1_frozen/dut.v"
             frozen.parent.mkdir(exist_ok=True)
             if frozen.exists():
@@ -383,17 +394,19 @@ def score(plan: dict, model: dict, out: Path, *, problem_id: str | None = None,
                     continue
             if record.audit["ok"] and not record.error:
                 # A hard kill leaves a truthful, publishable incomplete record.
-                record.manifest = build_manifest(problem, record, frozen, plan["request_timeout_s"], "docker", "adpbench-go:ci", "none")
+                record.manifest = build_manifest(problem, record, frozen, plan.get("slot_timeout_s", plan["request_timeout_s"]), "docker", "adpbench-go:ci", "none")
                 record.manifest["generation"] = generation
                 progress = json.loads(record.to_json())
                 progress["error"] = "scoring interrupted before completion; see scoring checkpoints"
+                if agent_track:
+                    progress.update(outcome="scoring_interrupted", execution_health="failed")
                 write_json(dest / "manifest.json", record.manifest)
                 write_json(dest / "record.json", progress)
                 write_json(dest / "scoring-state.json", {"state":"running"})
                 try:
                     print(f"{selected}: scoring frozen RTL on held-out cases", flush=True)
                     checkpoint = checkpoint_root / model["id"] / selected if checkpoint_root else None
-                    record.result = evaluate_multi(problem, [frozen], seeds=EVAL_SEEDS, source="go-single-shot", tag="eval",
+                    record.result = evaluate_multi(problem, [frozen], seeds=EVAL_SEEDS, source="go-agent-assisted-v1" if agent_track else "go-single-shot", tag="eval",
                                                    checkpoint_dir=checkpoint, resume=resume, deadline_s=deadline_s).to_dict()
                     failure = record.result.get("metadata", {}).get("failure_kind", "")
                     if failure in {"wall_timeout", "signal", "log_limit", "interrupted"} or failure.startswith("launch_error"):
@@ -403,15 +416,34 @@ def score(plan: dict, model: dict, out: Path, *, problem_id: str | None = None,
                     print(record.error, flush=True)
         else:
             record.audit = {"ok": False, "violations": [{"line": 0, "match": "", "reason": generation.get("invalid_rtl", "no RTL produced")}], "warnings": []}
-        record.manifest = build_manifest(problem, record, frozen, plan["request_timeout_s"], "docker", "adpbench-go:ci", "none")
+        record.manifest = build_manifest(problem, record, frozen, plan.get("slot_timeout_s", plan["request_timeout_s"]), "docker", "adpbench-go:ci", "none")
         record.manifest["generation"] = generation
         write_json(dest / "manifest.json", record.manifest)
-        write_json(dest / "record.json", json.loads(record.to_json()))
+        payload = json.loads(record.to_json())
+        if agent_track:
+            payload.update(agent_outcome(payload, generation))
+        write_json(dest / "record.json", payload)
         write_json(dest / "scoring-state.json", {"state":"completed", "has_result":record.result is not None})
         result = record.result or {}
         print(f"{selected}: scoring complete; correct={bool(result.get('correct'))}; "
               f"stage={(result.get('metadata') or {}).get('stage', 'no submission')}", flush=True)
     summarize(plan, model, out)
+
+
+def agent_outcome(record: dict, generation: dict) -> dict:
+    """Execution health is distinct from a legitimate failed measurement."""
+    outcome = generation.get("outcome", "not_requested")
+    if outcome == "submitted":
+        if record.get("error"):
+            outcome = "scoring_interrupted"
+        elif not record.get("audit", {}).get("ok"):
+            outcome = "audit_rejected"
+        elif record.get("result") is None:
+            outcome = "scoring_interrupted"
+        else:
+            outcome = "correct" if record["result"].get("correct") else "incorrect"
+    failed_health = {"provider_error", "transport_interrupted", "harness_error", "scoring_interrupted", "not_requested", "interrupted"}
+    return {"outcome": outcome, "execution_health": "failed" if outcome in failed_health else "completed"}
 
 
 def summarize(plan: dict, model: dict, out: Path) -> None:
@@ -420,13 +452,17 @@ def summarize(plan: dict, model: dict, out: Path) -> None:
     for problem_id in plan["problems"]:
         path = out / ("opencode-go-" + model["id"]) / problem_id / "rep1/generation.json"
         if not path.exists():
-            incomplete_usage = True
+            # The agent workflow has one independent problem per artifact.
+            # A sibling slot not assigned to this job is not missing usage.
+            if plan.get("protocol") != "agent-assisted-v1":
+                incomplete_usage = True
             continue
         generation = json.loads(path.read_text())
         incomplete_usage |= bool(generation.get("incomplete_usage"))
         usage = generation.get("usage", {})
         # Never turn unknown/invalid accounting into a fabricated numeric total.
-        if usage and valid_usage(usage, model["api"], output_limit(plan, model)):
+        usage_cap = output_limit(plan, model) * (plan.get("max_turns", 1) if plan.get("protocol") == "agent-assisted-v1" else 1)
+        if usage and valid_usage(usage, model["api"], usage_cap):
             total_input += usage.get("prompt_tokens", usage.get("input_tokens", 0))
             total_output += usage.get("completion_tokens", usage.get("output_tokens", 0))
             for key in ("cache_read_input_tokens", "cache_creation_input_tokens"):
@@ -439,6 +475,11 @@ def summarize(plan: dict, model: dict, out: Path) -> None:
     tokens = {"input_tokens_including_cache": total_input, "output_tokens": total_output, "incomplete_usage":incomplete_usage}
     write_json(out / "usage.json", tokens)
     with (out / "REPORT.md").open("a") as handle:
+        if plan.get("protocol") == "agent-assisted-v1":
+            handle.write(f"\nProtocol: agent-assisted-v1; at most {plan['max_turns']} turns and {plan['max_checks']} development checks per slot. Explicit file submission, one held-out evaluation.\n")
+            handle.write(f"\nProvider-reported input (including cache): {total_input}; output: {total_output}. Usage incomplete: {incomplete_usage}.\n")
+            handle.write("\nSeparate track: do not combine with single-shot or pilot-001 scores.\n")
+            return
         handle.write(f"\nProtocol: one generation per problem, no feedback or retries. Output cap: {output_limit(plan, model)} tokens/request ({plan.get('output_budget', 'fixed')}).\n")
         handle.write(f"\nProvider-reported input (including cache): {total_input}; output: {total_output} tokens.\n")
         handle.write(f"\nGeneration settings: `{json.dumps({k: model[k] for k in SETTING_KEYS if k in model})}`.\n")
@@ -458,8 +499,9 @@ def save_scoring_failure(plan: dict, model: dict, out: Path, problem_id: str, re
     else:
         generation = json.loads((dest / "generation.json").read_text())
         problem = load_problem(repo_root() / "problems/level1" / problem_id)
-        run = RunRecord(problem=problem_id, agent_cmd="adpbench Go API single-shot (one request, no repair)",
-                        label=f"opencode-go/{model['id']} [single-shot]",
+        track = "agent-assisted-v1" if generation.get("protocol") == "agent-assisted-v1" else "single-shot"
+        run = RunRecord(problem=problem_id, agent_cmd=f"adpbench Go API {track}",
+                        label=f"opencode-go/{model['id']} [{track}]",
                         group=plan["name"], started=generation["started"], sandbox="docker")
         frozen = dest.parent / "rep1_frozen/dut.v"
         if not frozen.exists() and (dest / "dut.v").exists():
@@ -467,10 +509,12 @@ def save_scoring_failure(plan: dict, model: dict, out: Path, problem_id: str, re
             frozen.write_bytes((dest / "dut.v").read_bytes())
         run.frozen = str(frozen) if frozen.exists() else ""
         run.manifest = build_manifest(problem, run, frozen if frozen.exists() else None,
-                                      plan["request_timeout_s"], "docker", "adpbench-go:ci", "none")
+                                      plan.get("slot_timeout_s", plan["request_timeout_s"]), "docker", "adpbench-go:ci", "none")
         run.manifest["generation"] = generation
         record = json.loads(run.to_json())
     record["error"] = f"scoring infrastructure: {reason}; score unknown; frozen generation preserved"
+    if plan.get("protocol") == "agent-assisted-v1":
+        record.update(outcome="scoring_interrupted", execution_health="failed")
     record["manifest"]["error"] = record["error"]
     write_json(dest / "manifest.json", record["manifest"])
     write_json(path, record)

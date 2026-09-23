@@ -1,0 +1,35 @@
+{
+  "name": "go-agent-20260923",
+  "protocol": "agent-assisted-v1",
+  "generation_enabled": true,
+  "expires_at": "2026-09-25T18:00:00+00:00",
+  "output_budget": "provider_max",
+  "output_limit_source": "https://models.dev/api.json#opencode-go",
+  "output_limits_checked_at": "2026-09-23",
+  "max_output_tokens": {
+    "mimo-v2.5": 128000,
+    "deepseek-v4.1-flash": 384000,
+    "qwen3.8-flash": 131072,
+    "glm-5.3-flash": 131072,
+    "kimi-k2.6": 65536,
+    "minimax-m2.7": 131072
+  },
+  "max_prompt_bytes": 24000,
+  "stream": true,
+  "request_timeout_s": 120,
+  "request_wall_timeout_s": 3600,
+  "max_turns": 12,
+  "max_checks": 3,
+  "slot_timeout_s": 7200,
+  "check_timeout_s": 600,
+  "max_context_bytes": 1500000,
+  "problems": ["001_dot_product", "002_gemv"],
+  "models": [
+    {"id": "mimo-v2.5", "api": "chat/completions", "token_limit_key": "max_completion_tokens", "reasoning": {"enabled": false}, "not_before": "2026-09-23T18:00:00+00:00"},
+    {"id": "deepseek-v4.1-flash", "api": "chat/completions", "thinking": {"type": "disabled"}, "reasoning_effort": "low", "not_before": "2026-09-23T18:00:00+00:00"},
+    {"id": "qwen3.8-flash", "api": "messages", "thinking": {"type": "disabled"}, "not_before": "2026-09-23T18:00:00+00:00"},
+    {"id": "glm-5.3-flash", "api": "chat/completions", "reasoning_effort": "low", "not_before": "2026-09-23T18:00:00+00:00"},
+    {"id": "kimi-k2.6", "api": "chat/completions", "thinking": {"type": "disabled"}, "not_before": "2026-09-23T18:00:00+00:00"},
+    {"id": "minimax-m2.7", "api": "messages", "not_before": "2026-09-23T18:00:00+00:00"}
+  ]
+}

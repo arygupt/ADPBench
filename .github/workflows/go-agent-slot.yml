@@ -1,0 +1,211 @@
+name: OpenCode Go agent slot
+
+on:
+  workflow_call:
+    inputs:
+      model:
+        required: true
+        type: string
+      problem:
+        required: true
+        type: string
+      subscription_only:
+        required: true
+        type: boolean
+    secrets:
+      OPENCODE_GO_API_KEY:
+        required: true
+
+permissions:
+  contents: read
+
+env:
+  PLAN: pilot/go-agent-20260923.json
+  MODEL: ${{ inputs.model }}
+  PROBLEM: ${{ inputs.problem }}
+
+jobs:
+  generate:
+    name: "Generate ${{ inputs.model }} · ${{ inputs.problem }} · agent-assisted-v1"
+    if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main' && inputs.subscription_only
+    runs-on: ubuntu-latest
+    timeout-minutes: 135 # A <=120-minute agent session plus setup and evidence upload.
+    permissions:
+      contents: write # Only the durable-claim step receives a repository write token.
+    outputs:
+      evidence: ${{ steps.evidence.outputs.artifact-id }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: python -m pip install 'numpy>=1.24,<3'
+      - name: Validate the reviewed slot before claiming it
+        run: |
+          python -m scripts.go_agent validate --plan "$PLAN"
+          python - <<'PY'
+          import os
+          from pathlib import Path
+          from scripts.go_pilot import read_plan, select_model, due, now_utc
+          plan = read_plan(Path(os.environ['PLAN']))
+          model = select_model(plan, os.environ['MODEL'])
+          assert os.environ['PROBLEM'] in plan['problems'], 'Unreviewed problem'
+          assert plan['generation_enabled'] and due(plan, model, now_utc()), 'Slot is outside its authorization window'
+          PY
+      - uses: docker/setup-buildx-action@v3
+      - name: Restore the pinned development-check toolchain
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: sandbox/Dockerfile
+          load: true
+          tags: adpbench-go:ci
+          cache-from: type=gha,scope=adpbench-replay-toolchain
+      - name: Claim this slot once, including interrupted attempts
+        id: claim
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          batch=$(python -c 'import os; from pathlib import Path; from scripts.go_pilot import read_plan; print(read_plan(Path(os.environ["PLAN"]))["name"])')
+          ref="tags/$batch-$MODEL-$PROBLEM"
+          if gh api "repos/$GITHUB_REPOSITORY/git/ref/$ref" >/dev/null 2>&1; then
+            echo 'This slot was already claimed. No regeneration or additional spending.' >> "$GITHUB_STEP_SUMMARY"
+            echo 'claimed=false' >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          gh api --method POST "repos/$GITHUB_REPOSITORY/git/refs" -f ref="refs/$ref" -f sha="$GITHUB_SHA" >/dev/null
+          echo 'claimed=true' >> "$GITHUB_OUTPUT"
+      - name: Run standardized agent
+        if: steps.claim.outputs.claimed == 'true'
+        env:
+          OPENCODE_GO_API_KEY: ${{ secrets.OPENCODE_GO_API_KEY }}
+        run: |
+          python -m scripts.go_agent generate --plan "$PLAN" --model "$MODEL" \
+            --problem "$PROBLEM" --out runs/model --image adpbench-go:ci --subscription-only
+      - name: Preserve the canonical submission and generation receipt
+        id: evidence
+        if: always() && steps.claim.outputs.claimed == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: go-agent-generation-${{ inputs.model }}-${{ inputs.problem }}-${{ github.run_id }}
+          path: |
+            runs/model/plan.json
+            runs/model/REPORT.md
+            runs/model/usage.json
+            runs/model/opencode-go-${{ inputs.model }}/${{ inputs.problem }}/rep1/generation.json
+            runs/model/opencode-go-${{ inputs.model }}/${{ inputs.problem }}/rep1/dut.v
+            runs/model/opencode-go-${{ inputs.model }}/${{ inputs.problem }}/rep1/manifest.json
+            runs/model/opencode-go-${{ inputs.model }}/${{ inputs.problem }}/rep1/record.json
+          if-no-files-found: error
+          retention-days: 90
+      - name: Preserve private transcript, development workspace, and transport evidence
+        if: always() && steps.claim.outputs.claimed == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: go-agent-raw-${{ inputs.model }}-${{ inputs.problem }}-${{ github.run_id }}
+          path: |
+            runs/model
+            runs/model-private
+            runs/model-workspace
+          if-no-files-found: error
+          retention-days: 90
+      - name: Explain this slot's generation outcome
+        if: always()
+        run: |
+          {
+            echo "## $MODEL · $PROBLEM · agent-assisted-v1"
+            echo 'Shared read/write/check/submit tools; at most 12 model turns and 3 development checks. No hidden-test feedback, balance fallback, or generation retries.'
+            echo 'Green execution means the attempt was recorded, not that its RTL is correct. Incorrect, missing, and invalid submissions remain failed benchmark outcomes. Provider/transport/harness faults fail execution.'
+          } >> "$GITHUB_STEP_SUMMARY"
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          receipt = Path('runs/model') / ('opencode-go-' + os.environ['MODEL']) / os.environ['PROBLEM'] / 'rep1/generation.json'
+          with open(os.environ['GITHUB_STEP_SUMMARY'], 'a') as summary:
+              if receipt.is_file():
+                  data = json.loads(receipt.read_text())
+                  summary.write(f"\nGeneration outcome: `{data.get('outcome', 'unknown')}`; execution health: `{data.get('execution_health', 'unknown')}`.\n")
+                  summary.write(f"\nModel turns: {data.get('turns', 0)}; development checks: {data.get('checks', 0)}.\n")
+              else:
+                  summary.write('\nNo generation receipt was created. See the claim and generation steps; no correctness claim is made.\n')
+          PY
+          if test -f runs/model/REPORT.md; then
+            cat runs/model/REPORT.md >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+  evaluate:
+    name: "Evaluate ${{ inputs.model }} · ${{ inputs.problem }} · agent-assisted-v1"
+    needs: generate
+    # An expected or unexpected generation failure still deserves a truthful
+    # record. Each slot scores immediately; no other model can block it.
+    if: always() && !cancelled() && needs.generate.outputs.evidence != ''
+    runs-on: ubuntu-latest
+    timeout-minutes: 35 # One <=21-minute scoring container plus setup/upload margin.
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: python -m pip install 'numpy>=1.24,<3'
+      - name: Download the immutable generation receipt (no model credentials)
+        uses: actions/download-artifact@v4
+        with:
+          name: go-agent-generation-${{ inputs.model }}-${{ inputs.problem }}-${{ github.run_id }}
+          path: runs/model
+      - uses: docker/setup-buildx-action@v3
+      - name: Restore the pinned held-out scoring toolchain
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: sandbox/Dockerfile
+          load: true
+          tags: adpbench-go:ci
+          cache-from: type=gha,scope=adpbench-replay-toolchain
+      - name: Score only this frozen submission on held-out cases
+        run: |
+          python -m scripts.go_score --plan "$PLAN" --model "$MODEL" --problem "$PROBLEM" \
+            --out runs/model --checkpoints runs/checkpoints --diagnostics runs/diagnostics
+      - name: Preserve final canonical records before diagnostic uploads
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: go-agent-records-${{ inputs.model }}-${{ inputs.problem }}-${{ github.run_id }}
+          path: |
+            runs/model/plan.json
+            runs/model/REPORT.md
+            runs/model/usage.json
+            runs/model/opencode-go-${{ inputs.model }}/${{ inputs.problem }}/rep1/generation.json
+            runs/model/opencode-go-${{ inputs.model }}/${{ inputs.problem }}/rep1/dut.v
+            runs/model/opencode-go-${{ inputs.model }}/${{ inputs.problem }}/rep1/manifest.json
+            runs/model/opencode-go-${{ inputs.model }}/${{ inputs.problem }}/rep1/record.json
+            runs/model/opencode-go-${{ inputs.model }}/${{ inputs.problem }}/rep1/scoring-state.json
+            runs/model/opencode-go-${{ inputs.model }}/${{ inputs.problem }}/rep1_frozen/dut.v
+          if-no-files-found: error
+          retention-days: 90
+      - name: Preserve private scoring logs and recovery checkpoints
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: go-agent-checkpoints-${{ inputs.model }}-${{ inputs.problem }}-${{ github.run_id }}
+          path: |
+            runs/checkpoints
+            runs/diagnostics
+          if-no-files-found: warn
+          retention-days: 90
+      - name: Summarize measured outcomes separately from execution health
+        if: always()
+        run: |
+          echo "## $MODEL · $PROBLEM · held-out scoring" >> "$GITHUB_STEP_SUMMARY"
+          echo 'This job has no model key. It scores only the submitted frozen RTL and never repairs it. Incorrect RTL is a legitimate failed result; interrupted scoring has an unknown score, not a fabricated pass or failure.' >> "$GITHUB_STEP_SUMMARY"
+          if test -f runs/model/REPORT.md; then
+            cat runs/model/REPORT.md >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo 'Scoring did not produce a report. Inspect the canonical generation receipt and failed step.' >> "$GITHUB_STEP_SUMMARY"
+          fi

@@ -21,6 +21,7 @@ from pathlib import Path, PurePosixPath
 
 from scripts.go_pilot import output_limit, validate_plan, write_json
 from scripts.publish_go import REPOSITORY, publish
+from scripts.publish_agent import PROTOCOL as AGENT_PROTOCOL, WORKFLOW as AGENT_WORKFLOW, OUTCOMES as AGENT_OUTCOMES, slots as agent_slots, matches_job, publish_agent, validate_generation
 
 MAX_ARCHIVE = 32 * 1024 * 1024
 MAX_EXPANDED = 128 * 1024 * 1024
@@ -99,6 +100,35 @@ def validate_source(run: dict, jobs: list[dict], plan: dict, policy: dict) -> No
             or not re.fullmatch(r"[0-9a-f]{40}", run.get("head_sha", ""))
             or run.get("html_url") != f"https://github.com/{REPOSITORY}/actions/runs/{run['id']}"):
         raise ValueError("not an allowed completed main-branch model run")
+    if run.get("path") == AGENT_WORKFLOW:
+        if plan.get("protocol") != AGENT_PROTOCOL:
+            raise ValueError("agent workflow requires agent-assisted protocol")
+        if type(plan.get("max_turns")) is not int or not 1 <= plan["max_turns"] <= 100:
+            raise ValueError("invalid agent turn budget")
+        selected = []
+        for model, problem, _, _ in agent_slots(plan, run["id"]):
+            for stage in ("Generate", "Evaluate"):
+                matches = [j for j in jobs if matches_job(j, stage, model["id"], problem)]
+                if len(matches) != 1:
+                    raise ValueError("missing or duplicate agent slot jobs")
+                selected.extend(matches)
+        generated = False
+        for job in selected:
+            positive_id(job["id"])
+            if (job.get("run_id") != run["id"] or job.get("status") != "completed"
+                    or job.get("conclusion") not in {"success", "failure", "cancelled", "timed_out"}
+                    or not re.fullmatch(r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z", job.get("completed_at", ""))):
+                raise ValueError("invalid agent slot job provenance")
+            generated |= any(s.get("name") == "Run standardized agent"
+                             and (s.get("conclusion") in {"success", "failure"}
+                                  or (s.get("conclusion") in {"cancelled", "timed_out"}
+                                      and re.fullmatch(r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z", s.get("started_at") or "")))
+                             for s in job.get("steps", []))
+        if not generated:
+            raise ValueError("preparation-only or duplicate-claim agent run")
+        return
+    if plan.get("protocol", "single-shot") != "single-shot":
+        raise ValueError("single-shot workflow cannot publish another protocol")
     names = [f"Evaluate {model['id']} · dot product + GEMV" for model in plan["models"]]
     evaluated = [j for j in jobs if j.get("name") in names]
     if len(evaluated) != len(names) or len({j["name"] for j in evaluated}) != len(names):
@@ -158,12 +188,17 @@ def extract_archive(raw: bytes, target: Path) -> None:
 def validate_records(artifacts: Path, plan: dict, run: dict) -> None:
     """Reject fabricated passing records, unexpected budgets and sensitive fields."""
     for model in plan["models"]:
-        root = artifacts / f"go-core-{model['id']}-{run['id']}"
-        if not root.exists():
-            continue  # publish() explicitly distinguishes missing failed-job evidence.
         for problem in plan["problems"]:
+            agent = plan.get("protocol") == AGENT_PROTOCOL
+            name = (f"go-agent-records-{model['id']}-{problem}-{run['id']}" if agent
+                    else f"go-core-{model['id']}-{run['id']}")
+            root = artifacts / name
+            if not root.exists():
+                continue  # publish() explicitly distinguishes missing failed-job evidence.
             dest = root / f"opencode-go-{model['id']}" / problem / "rep1"
             generation = strict_json((dest / "generation.json").read_bytes())
+            if agent:
+                validate_generation(generation, model, problem, plan)
             if generation.get("max_output_tokens") != output_limit(plan, model):
                 raise ValueError("generation budget differs from reviewed plan")
             settings = {k: model[k] for k in ("thinking", "reasoning_effort", "reasoning", "token_limit_key") if k in model}
@@ -176,6 +211,29 @@ def validate_records(artifacts: Path, plan: dict, run: dict) -> None:
             if record.get("attempt") != 1 or record.get("group") != plan["name"]:
                 raise ValueError("unexpected record attempt or group")
             result = record.get("result")
+            if agent:
+                outcome = record.get("outcome")
+                if outcome not in {"correct", "incorrect", "audit_rejected", "scoring_interrupted", *AGENT_OUTCOMES}:
+                    raise ValueError("unknown agent record outcome")
+                if record.get("execution_health") not in {"completed", "failed"}:
+                    raise ValueError("missing agent execution health")
+                infra_outcomes = {"provider_error", "transport_interrupted", "harness_error", "scoring_interrupted", "not_requested", "interrupted"}
+                if record["execution_health"] != ("failed" if outcome in infra_outcomes else "completed"):
+                    raise ValueError("agent execution health contradicts typed outcome")
+                if (outcome == "correct") != bool(result and result.get("correct")):
+                    raise ValueError("agent outcome contradicts measured correctness")
+                if outcome == "incorrect" and (result is None or record.get("error") or not record.get("audit", {}).get("ok")):
+                    raise ValueError("incorrect agent outcome requires completed scoring")
+                if outcome == "audit_rejected" and (record.get("audit", {}).get("ok") or generation["outcome"] != "submitted"):
+                    raise ValueError("agent audit outcome contradicts submission")
+                if outcome in AGENT_OUTCOMES and outcome != generation["outcome"]:
+                    raise ValueError("agent generation and record outcomes disagree")
+                if result is not None and generation.get("outcome") != "submitted":
+                    raise ValueError("agent score has no submitted generation")
+                if result is not None and outcome not in {"correct", "incorrect", "scoring_interrupted"}:
+                    raise ValueError("agent outcome contradicts scoring result")
+                if generation["outcome"] == "submitted" and record.get("manifest", {}).get("submission_sha256") != generation["submission_sha256"]:
+                    raise ValueError("agent frozen hash differs from explicit submit receipt")
             if result is not None:
                 if not isinstance(result, dict) or type(result.get("correct")) is not bool:
                     raise ValueError("invalid scorer result")
@@ -192,6 +250,8 @@ def validate_records(artifacts: Path, plan: dict, run: dict) -> None:
             serialized = json.dumps(record)
             if re.search(r'"(?:authorization|api_key|x-api-key|OPENCODE_GO_API_KEY)"\s*:', serialized, re.I):
                 raise ValueError("sensitive credential field in publication record")
+            if agent and re.search(r'"(?:messages|reasoning_content|raw_response|response_text|tool_calls|tool_results)"\s*:', serialized, re.I):
+                raise ValueError("private transcript field in agent publication record")
 
 
 def payload_files(root: Path) -> dict[str, str]:
@@ -203,7 +263,10 @@ def register(catalog: dict, plan: dict) -> dict:
     name = plan["name"]
     if not SAFE_ID.fullmatch(name) or catalog.get("schema_version") != 1:
         raise ValueError("invalid dataset catalog")
-    entry = {"id": name, "label": f"OpenCode Go · {name} · single-shot", "path": f"data/{name}/leaderboard.json", "protocol": "single-shot"}
+    protocol = plan.get("protocol", "single-shot")
+    if protocol not in {"single-shot", AGENT_PROTOCOL}:
+        raise ValueError("unregistered protocol")
+    entry = {"id": name, "label": f"OpenCode Go · {name} · {protocol}", "path": f"data/{name}/leaderboard.json", "protocol": protocol}
     existing = next((e for e in catalog["evaluations"] if e["id"] == name), None)
     if existing:
         if existing["path"] != entry["path"] or existing["protocol"] != entry["protocol"]:
@@ -222,7 +285,8 @@ def stage_publication(repo: Path, artifacts: Path, plan: dict, run: dict, jobs: 
     validate_records(artifacts, plan, run)
     with tempfile.TemporaryDirectory(prefix="adpbench-publish-") as temp:
         draft = Path(temp)
-        board = publish(artifacts, plan, run, jobs, draft / "records", draft / "site")
+        publisher = publish_agent if plan.get("protocol") == AGENT_PROTOCOL else publish
+        board = publisher(artifacts, plan, run, jobs, draft / "records", draft / "site")
         hashes = payload_files(draft / "records")
         if records.exists() or website.exists():
             if not records.is_dir() or not website.is_dir() or payload_files(records) != hashes:
@@ -319,9 +383,10 @@ def main() -> None:
         evidence = []
         # The source workflow selects its reviewed plan, not downloaded artifacts.
         validate_source(run, jobs, plan, policy)
-        for model in plan["models"]:
-            final = f"go-core-{model['id']}-{run['id']}"
-            early = f"go-generation-{model['id']}-{run['id']}"
+        artifacts = ([(final, early) for _, _, final, early in agent_slots(plan, run["id"])]
+                     if plan.get("protocol") == AGENT_PROTOCOL else
+                     [(f"go-core-{m['id']}-{run['id']}", f"go-generation-{m['id']}-{run['id']}") for m in plan["models"]])
+        for final, early in artifacts:
             matches = [a for a in entries if a["name"] == final]
             if not matches:
                 matches = [a for a in entries if a["name"] == early]
