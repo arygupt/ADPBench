@@ -15,6 +15,11 @@ shown. Every result links to its original generation/scoring Actions job, full
 workflow and evaluated code revision. Output-cap, generation, incorrect-RTL and
 successful outcomes remain distinguishable.
 
+Provider logos in `site/assets/logos/` come from
+[LobeHub Icons](https://github.com/lobehub/lobe-icons) (MIT, © LobeHub) and
+[Simple Icons](https://github.com/simple-icons/simple-icons) (CC0, Xiaomi).
+`app.js` maps model labels to logos; unmatched models fall back to an initial.
+
 ## Automatic results PRs
 
 The **Publish validated model results** workflow follows completed, eligible
