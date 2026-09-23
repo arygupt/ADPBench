@@ -14,6 +14,39 @@ const pilot = leaderboard.meta.pilot;
 const first = evidence.runs[0];
 const run = runs.find((r) => r.submission_sha256 === first.submission_sha256);
 
+test("compatibility panel shows frozen diagnostic evidence without changing benchmark outcomes", () => {
+  const html = readFileSync(new URL("../site/index.html", import.meta.url), "utf8");
+  const panel = html.match(/<section class="compatibility-panel"[\s\S]*?<\/section>/)?.[0];
+  assert.ok(panel);
+  const receipt = readJSON("../pilot/diagnostics/go-canary-followup-20260923.json");
+  assert.equal(receipt.benchmark_results, false);
+  assert.equal(receipt.source_conclusion, "success");
+  assert.match(panel, /Not benchmark scores/);
+  assert.match(panel, /Historical benchmark outcomes are unchanged/);
+  assert.match(panel, /batch remains disabled as of this update/);
+  assert.equal(readJSON("../pilot/go-core-provider-max-20260922.json").generation_enabled, false);
+  const rows = [...panel.matchAll(/<li data-compatibility-model="([a-z0-9.-]+)">([\s\S]*?)<\/li>/g)];
+  assert.deepEqual(rows.map(r => r[1]), receipt.models.map(m => m.model));
+  for (const [index, row] of rows.entries()) {
+    const model = receipt.models[index];
+    assert.equal(model.status, "completed");
+    assert.equal(model.xor_input_combinations_passed, 4);
+    assert.equal(model.yosys_synthesis_check, "passed");
+    assert.equal(model.iverilog_compile, "passed");
+    assert.ok(row[2].includes(`Verified XOR · ${model.output_tokens} output tokens`));
+    const source = readFileSync(new URL(`../${model.rtl_file}`, import.meta.url));
+    assert.equal(createHash("sha256").update(source).digest("hex"), model.rtl_sha256);
+  }
+  const links = Object.fromEntries([...panel.matchAll(/data-compatibility-link="([a-z]+)" href="([^"]+)"/g)].map(m => [m[1],m[2]]));
+  assert.equal(links.run, receipt.source_run_url);
+  assert.equal(links.verification, "https://github.com/arygupt/ADPBench/actions/runs/35818209664");
+  assert.equal(links.report, "https://github.com/arygupt/ADPBench/blob/5e01b572e384ae396225975c27a924226591d2e7/pilot/diagnostics/go-canary-followup-20260923.md");
+  assert.equal(links.original, readJSON("../pilot/diagnostics/go-canary-20260923.json").source_run_url);
+  const go = readJSON("../site/data/go-core-20260922/leaderboard.json");
+  assert.equal(go.models.flatMap(m => m.runs).length, 12);
+  assert.equal(go.models.reduce((sum,m) => sum+m.correct, 0), 0);
+});
+
 test("old fixed and new model-maximum budgets are displayed without claiming unlimited output", () => {
   const old = readJSON("../site/data/go-core-20260922/leaderboard.json");
   assert.equal(budgetSummary(old.meta), "8,192 output-token cap/request");
