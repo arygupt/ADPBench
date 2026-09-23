@@ -1,9 +1,13 @@
 name: OpenCode Go model runs
-run-name: "OpenCode Go · ${{ inputs.run_models && 'six-model evaluation' || 'offline checks' }}"
+run-name: "OpenCode Go · ${{ inputs.run_canary && 'compatibility canary' || (inputs.run_models && 'six-model evaluation' || 'offline checks') }}"
 
 on:
   workflow_dispatch:
     inputs:
+      run_canary:
+        description: "Run the finite six-request diagnostic (128 output tokens each; no benchmark)"
+        type: boolean
+        default: false
       run_models:
         description: "Run the reviewed provider-maximum batch (requires an enabled, current plan)"
         type: boolean
@@ -18,6 +22,9 @@ on:
       - "scripts/go_pilot.py"
       - "scripts/go_stream.py"
       - "scripts/go_score.py"
+      - "scripts/go_canary.py"
+      - "pilot/go-canary-20260923.json"
+      - "tests/test_go_canary.py"
       - "adpbench/**"
       - "pilot/go-core-20260922.json"
       - "pilot/go-core-provider-max-20260922.json"
@@ -49,11 +56,14 @@ jobs:
         with:
           python-version: "3.12"
       - run: python -m pip install 'numpy>=1.24'
-      - run: python -m unittest tests.test_go_pilot tests.test_go_stream tests.test_reliability -v
+      - name: Reject conflicting spending modes
+        if: inputs.run_models && inputs.run_canary
+        run: exit 1
+      - run: python -m unittest tests.test_go_pilot tests.test_go_stream tests.test_reliability tests.test_go_canary -v
 
   scoring-checks:
     name: Pinned-toolchain scoring and recovery (no model calls)
-    if: github.event_name == 'pull_request' || !inputs.run_models
+    if: github.event_name == 'pull_request' || (!inputs.run_models && !inputs.run_canary)
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
@@ -87,7 +97,7 @@ jobs:
   prepare:
     name: Prepare toolchain and validate both baselines (no model calls)
     needs: checks
-    if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main' && inputs.run_models && inputs.subscription_only
+    if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main' && inputs.run_models && !inputs.run_canary && inputs.subscription_only
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
@@ -135,6 +145,73 @@ jobs:
           name: go-core-baselines-${{ github.run_id }}
           path: runs/fixtures
           retention-days: 90
+
+  canary:
+    name: Go compatibility diagnostic (six requests maximum, no benchmark)
+    needs: checks
+    if: >-
+      github.event_name == 'workflow_dispatch' && inputs.run_canary && !inputs.run_models && inputs.subscription_only &&
+      (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/feat/go-compatibility-canary')
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: write # Only claim receives a write token; diagnostic receives only the Go secret.
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: python -m pip install 'numpy>=1.24'
+      - name: Validate finite diagnostic plan
+        run: |
+          python - <<'PY'
+          import json
+          from scripts.go_canary import CONFIG, validate, check_window
+          plan = json.loads(CONFIG.read_text())
+          validate(plan)
+          check_window(plan)
+          print('Maximum output tokens:',len(plan['models'])*plan['max_output_tokens'])
+          PY
+      - name: Claim this diagnostic once, including interrupted attempts
+        id: claim
+        env:
+          GH_TOKEN: ${{ github.token }}
+          OPENCODE_GO_API_KEY: ${{ secrets.OPENCODE_GO_API_KEY }}
+        run: |
+          set -euo pipefail
+          test -n "$OPENCODE_GO_API_KEY"
+          batch=$(python -c 'import json; from scripts.go_canary import CONFIG; print(json.loads(CONFIG.read_text())["name"])')
+          ref="tags/$batch"
+          if gh api "repos/$GITHUB_REPOSITORY/git/ref/$ref" >/dev/null 2>&1; then
+            echo 'Already claimed. No retries or additional requests.' >> "$GITHUB_STEP_SUMMARY"
+            echo 'claimed=false' >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          gh api --method POST "repos/$GITHUB_REPOSITORY/git/refs" -f ref="refs/$ref" -f sha="$GITHUB_SHA" >/dev/null
+          echo 'claimed=true' >> "$GITHUB_OUTPUT"
+      - name: One tiny streamed coding request per model, starting with GLM
+        if: steps.claim.outputs.claimed == 'true'
+        env:
+          OPENCODE_GO_API_KEY: ${{ secrets.OPENCODE_GO_API_KEY }}
+        run: python -m scripts.go_canary --subscription-only --out runs/canary
+      - name: Preserve diagnostic evidence (never publish as benchmark scores)
+        if: always() && steps.claim.outputs.claimed == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: go-canary-${{ github.run_id }}
+          path: runs/canary
+          if-no-files-found: error
+          retention-days: 90
+      - name: Summarize compatibility, not benchmark correctness
+        if: always() && steps.claim.outputs.claimed == 'true'
+        run: |
+          if test -f runs/canary/REPORT.md; then
+            cat runs/canary/REPORT.md >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo 'Canary interrupted before summary; inspect step status. No benchmark batch was enabled.' >> "$GITHUB_STEP_SUMMARY"
+          fi
 
   generate:
     name: "Generate ${{ matrix.model }} · two single-shot submissions"

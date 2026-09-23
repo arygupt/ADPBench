@@ -1,0 +1,13 @@
+{
+  "schema_version": 1,
+  "kind": "provider-compatibility-diagnostic",
+  "name": "go-compatibility-20260923",
+  "not_before": "2026-09-23T03:45:00+00:00",
+  "expires_at": "2026-09-24T00:00:00+00:00",
+  "source_plan": "pilot/go-core-provider-max-20260922.json",
+  "models": ["glm-5.3-flash", "mimo-v2.5", "deepseek-v4.1-flash", "qwen3.8-flash", "kimi-k2.6", "minimax-m2.7"],
+  "max_output_tokens": 128,
+  "max_prompt_bytes": 2048,
+  "idle_timeout_s": 30,
+  "wall_timeout_s": 90
+}
