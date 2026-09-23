@@ -1,0 +1,103 @@
+{
+  "adpbench_version": "unknown",
+  "git_commit": "",
+  "problem": "002_gemv",
+  "problem_sha256": {
+    "dut.py": "b2fb0ace4d2bcaa3744897edf6475ba13c8acdf4a673f099ecf1ccd5b92443f1",
+    "baseline.v": "abb52693edfc89e2d11fd4e0120a104e56a0282957c543c644244b22ee20262d",
+    "baseline.json": "3ff73d6eb56d93dfd4c8b43f104ab5aa7553c0d09ad9d241efe0a1ac0d8a7b19"
+  },
+  "cases": {
+    "seeds": [
+      1000,
+      1001,
+      1002
+    ],
+    "directed": [
+      "zeros",
+      "min_values",
+      "extreme_signs"
+    ],
+    "transactions": 2,
+    "input_lens": {
+      "in_a_flat": 1024,
+      "in_x_flat": 64
+    }
+  },
+  "tools": {
+    "yosys": "Yosys 0.69+ (git sha1 143eb14f9, Release, GNU /usr/bin/c++ 12.2.0)",
+    "iverilog": "Icarus Verilog version 13.0 (stable) (v13_0)"
+  },
+  "submission_sha256": "df00caf35e6503aa80e3ef2120acf36055ac3c0e8931ed903468f9fc6fec3f22",
+  "netlist_sha256": "a518b6b453a21e5e1a9282d6d8a67f90fc26ae69591f81a1c9fd0b1381d263f4",
+  "agent_cmd": "adpbench Go agent-assisted-v1 (read/write/check/submit)",
+  "budget_s": 7200,
+  "sandbox": {
+    "mode": "docker",
+    "image": "adpbench-go:ci",
+    "network": "none"
+  },
+  "result": {
+    "correct": true,
+    "ratio": 4.890564238169297,
+    "cells": 10819,
+    "cycles": 138,
+    "stage": "ok"
+  },
+  "error": "",
+  "timed_out": false,
+  "duration_s": 213.08,
+  "generation": {
+    "model": "glm-5.3-flash",
+    "problem": "002_gemv",
+    "protocol": "agent-assisted-v1",
+    "started": "2026-09-23T19:14:38.775395+00:00",
+    "generation_state": "completed",
+    "outcome": "submitted",
+    "error": "",
+    "turns": 7,
+    "checks": 2,
+    "max_turns": 12,
+    "max_checks": 3,
+    "max_output_tokens": 131072,
+    "usage": {
+      "prompt_tokens": 47919,
+      "completion_tokens": 8043,
+      "total_tokens": 55962
+    },
+    "incomplete_usage": false,
+    "generation_settings": {
+      "reasoning_effort": "low"
+    },
+    "github": {
+      "GITHUB_REPOSITORY": "arygupt/ADPBench",
+      "GITHUB_RUN_ID": "35906631979",
+      "GITHUB_RUN_ATTEMPT": "1",
+      "GITHUB_SHA": "c0e87a0bcf62d32ede038792fcd4fee4b1d1e694"
+    },
+    "finish_reason": "tool_calls",
+    "writes": 3,
+    "development_checks": [
+      {
+        "index": 1,
+        "submission_sha256": "395ed258bad669b9d7a1eabab2a107e72c3562f74b7054527ec246f0a8329eea",
+        "completed": true,
+        "correct": false,
+        "reason": "",
+        "audit_ok": true
+      },
+      {
+        "index": 2,
+        "submission_sha256": "df00caf35e6503aa80e3ef2120acf36055ac3c0e8931ed903468f9fc6fec3f22",
+        "completed": true,
+        "correct": true,
+        "reason": "",
+        "audit_ok": true
+      }
+    ],
+    "submission_sha256": "df00caf35e6503aa80e3ef2120acf36055ac3c0e8931ed903468f9fc6fec3f22",
+    "final_revision_checked": true,
+    "duration_s": 213.08,
+    "execution_health": "completed"
+  }
+}

@@ -1,0 +1,142 @@
+{
+  "problem": "002_gemv",
+  "agent_cmd": "adpbench Go agent-assisted-v1 (read/write/check/submit)",
+  "label": "opencode-go/kimi-k2.6 [agent-assisted-v1]",
+  "attempt": 1,
+  "group": "go-agent-20260923",
+  "sandbox": "docker",
+  "started": "2026-09-23T19:14:38.415947+00:00",
+  "duration_s": 667.56,
+  "exit_code": -1,
+  "timed_out": false,
+  "audit": {
+    "ok": false,
+    "violations": [
+      {
+        "line": 0,
+        "match": "",
+        "reason": "no RTL produced"
+      }
+    ],
+    "warnings": []
+  },
+  "result": null,
+  "error": "incomplete provider stream: stream_disconnected_before_terminal_event; no retry",
+  "frozen": "",
+  "manifest": {
+    "adpbench_version": "unknown",
+    "git_commit": "",
+    "problem": "002_gemv",
+    "problem_sha256": {
+      "dut.py": "b2fb0ace4d2bcaa3744897edf6475ba13c8acdf4a673f099ecf1ccd5b92443f1",
+      "baseline.v": "abb52693edfc89e2d11fd4e0120a104e56a0282957c543c644244b22ee20262d",
+      "baseline.json": "3ff73d6eb56d93dfd4c8b43f104ab5aa7553c0d09ad9d241efe0a1ac0d8a7b19"
+    },
+    "cases": {
+      "seeds": [
+        1000,
+        1001,
+        1002
+      ],
+      "directed": [
+        "zeros",
+        "min_values",
+        "extreme_signs"
+      ],
+      "transactions": 2,
+      "input_lens": {
+        "in_a_flat": 1024,
+        "in_x_flat": 64
+      }
+    },
+    "tools": {
+      "yosys": "Yosys 0.69+ (git sha1 143eb14f9, Release, GNU /usr/bin/c++ 12.2.0)",
+      "iverilog": "Icarus Verilog version 13.0 (stable) (v13_0)"
+    },
+    "submission_sha256": "",
+    "netlist_sha256": "",
+    "agent_cmd": "adpbench Go agent-assisted-v1 (read/write/check/submit)",
+    "budget_s": 7200,
+    "sandbox": {
+      "mode": "docker",
+      "image": "adpbench-go:ci",
+      "network": "none"
+    },
+    "result": {
+      "correct": false,
+      "ratio": -1.0,
+      "cells": -1,
+      "cycles": -1,
+      "stage": "error"
+    },
+    "error": "incomplete provider stream: stream_disconnected_before_terminal_event; no retry",
+    "timed_out": false,
+    "duration_s": 667.56,
+    "generation": {
+      "model": "kimi-k2.6",
+      "problem": "002_gemv",
+      "protocol": "agent-assisted-v1",
+      "started": "2026-09-23T19:14:38.415947+00:00",
+      "generation_state": "failed",
+      "outcome": "transport_interrupted",
+      "error": "incomplete provider stream: stream_disconnected_before_terminal_event; no retry",
+      "turns": 6,
+      "checks": 2,
+      "max_turns": 12,
+      "max_checks": 3,
+      "max_output_tokens": 65536,
+      "usage": {
+        "prompt_tokens": 97071,
+        "completion_tokens": 34837,
+        "total_tokens": 131908
+      },
+      "incomplete_usage": true,
+      "generation_settings": {
+        "thinking": {
+          "type": "disabled"
+        }
+      },
+      "github": {
+        "GITHUB_REPOSITORY": "arygupt/ADPBench",
+        "GITHUB_RUN_ID": "35906631979",
+        "GITHUB_RUN_ATTEMPT": "1",
+        "GITHUB_SHA": "c0e87a0bcf62d32ede038792fcd4fee4b1d1e694"
+      },
+      "finish_reason": "tool_calls",
+      "writes": 2,
+      "development_checks": [
+        {
+          "index": 1,
+          "submission_sha256": "8b3d724f04c180f4254d77030abf4fa577740b41d2f7d812de16e83f1003d479",
+          "completed": true,
+          "correct": true,
+          "reason": "",
+          "audit_ok": true
+        },
+        {
+          "index": 2,
+          "submission_sha256": "539529df7d460e99ff97a1b12d1eea07a4d5711ff9f0fca5b945e28ccda5d90c",
+          "completed": true,
+          "correct": true,
+          "reason": "",
+          "audit_ok": true
+        }
+      ],
+      "duration_s": 667.56,
+      "execution_health": "failed"
+    }
+  },
+  "history": [],
+  "outcome": "transport_interrupted",
+  "execution_health": "failed",
+  "execution": {
+    "kind": "model-evaluation",
+    "repository": "arygupt/ADPBench",
+    "run_id": 35906631979,
+    "run_attempt": 1,
+    "job_id": 107344661981,
+    "commit": "c0e87a0bcf62d32ede038792fcd4fee4b1d1e694",
+    "completed_at": "2026-09-23T19:26:26Z",
+    "job_conclusion": "failure"
+  }
+}

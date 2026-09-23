@@ -1,0 +1,266 @@
+{
+  "problem": "002_gemv",
+  "agent_cmd": "adpbench Go agent-assisted-v1 (read/write/check/submit)",
+  "label": "opencode-go/deepseek-v4.1-flash [agent-assisted-v1]",
+  "attempt": 1,
+  "group": "go-agent-20260923",
+  "sandbox": "docker",
+  "started": "2026-09-23T19:10:28.468266+00:00",
+  "duration_s": 624.23,
+  "exit_code": -1,
+  "timed_out": false,
+  "audit": {
+    "ok": true,
+    "violations": [],
+    "warnings": []
+  },
+  "result": {
+    "problem": "002_gemv",
+    "source": "go-agent-assisted-v1",
+    "compiled": true,
+    "synthesizable": true,
+    "correct": true,
+    "cells": 10216,
+    "cycles": 132,
+    "adp": 1348512.0,
+    "ratio": 5.414649628627703,
+    "metadata": {
+      "cases": [
+        1000,
+        1001,
+        1002,
+        "zeros",
+        "min_values",
+        "extreme_signs"
+      ],
+      "job": "941417be",
+      "per_case": [
+        {
+          "case": 1000,
+          "synthesizable": true,
+          "correct": true,
+          "cells": 10216,
+          "cycles": 132,
+          "stage": "ok",
+          "correctness": "exact match under score and backpressure runs",
+          "netlist_sha256": "3af2a47843dc1ff71de1ddd3bb1ce947197388fffcacc8b375713b6e4df3c9e1"
+        },
+        {
+          "case": 1001,
+          "synthesizable": true,
+          "correct": true,
+          "cells": 10216,
+          "cycles": 132,
+          "stage": "ok",
+          "correctness": "exact match under score and backpressure runs",
+          "netlist_sha256": "3af2a47843dc1ff71de1ddd3bb1ce947197388fffcacc8b375713b6e4df3c9e1"
+        },
+        {
+          "case": 1002,
+          "synthesizable": true,
+          "correct": true,
+          "cells": 10216,
+          "cycles": 132,
+          "stage": "ok",
+          "correctness": "exact match under score and backpressure runs",
+          "netlist_sha256": "3af2a47843dc1ff71de1ddd3bb1ce947197388fffcacc8b375713b6e4df3c9e1"
+        },
+        {
+          "case": "zeros",
+          "synthesizable": true,
+          "correct": true,
+          "cells": 10216,
+          "cycles": 132,
+          "stage": "ok",
+          "correctness": "exact match under score and backpressure runs",
+          "netlist_sha256": "3af2a47843dc1ff71de1ddd3bb1ce947197388fffcacc8b375713b6e4df3c9e1"
+        },
+        {
+          "case": "min_values",
+          "synthesizable": true,
+          "correct": true,
+          "cells": 10216,
+          "cycles": 132,
+          "stage": "ok",
+          "correctness": "exact match under score and backpressure runs",
+          "netlist_sha256": "3af2a47843dc1ff71de1ddd3bb1ce947197388fffcacc8b375713b6e4df3c9e1"
+        },
+        {
+          "case": "extreme_signs",
+          "synthesizable": true,
+          "correct": true,
+          "cells": 10216,
+          "cycles": 132,
+          "stage": "ok",
+          "correctness": "exact match under score and backpressure runs",
+          "netlist_sha256": "3af2a47843dc1ff71de1ddd3bb1ce947197388fffcacc8b375713b6e4df3c9e1"
+        }
+      ],
+      "stage": "ok",
+      "correctness": "exact match on 6 cases",
+      "baseline": {
+        "problem": "002_gemv",
+        "seeds": [
+          1000,
+          1001,
+          1002
+        ],
+        "directed": [
+          "zeros",
+          "min_values",
+          "extreme_signs"
+        ],
+        "transactions": 2,
+        "params": {
+          "ROWS": 16,
+          "COLS": 64,
+          "LANES": 16,
+          "DATA_W": 8,
+          "ACC_W": 32
+        },
+        "input_lens": {
+          "in_a_flat": 1024,
+          "in_x_flat": 64
+        },
+        "flow_sha256": "8864f13cd77efe923ff82e77b4573a29ae4da7008af77dbb387b3d0d39555776",
+        "tools": {
+          "yosys": "Yosys 0.69+post (git sha1 143eb14f9cc55d6f8927e68523b0c9d2166ed02c, Release, AppleClang clang++ 21.0.0.21000101)",
+          "iverilog": "Icarus Verilog version 13.0 (stable) (v13_0)"
+        },
+        "cells": 3295,
+        "cycles": 2216,
+        "adp": 7301720.0,
+        "source": "baseline.v"
+      }
+    }
+  },
+  "error": "",
+  "frozen": "/output/opencode-go-deepseek-v4.1-flash/002_gemv/rep1_frozen/dut.v",
+  "manifest": {
+    "adpbench_version": "unknown",
+    "git_commit": "",
+    "problem": "002_gemv",
+    "problem_sha256": {
+      "dut.py": "b2fb0ace4d2bcaa3744897edf6475ba13c8acdf4a673f099ecf1ccd5b92443f1",
+      "baseline.v": "abb52693edfc89e2d11fd4e0120a104e56a0282957c543c644244b22ee20262d",
+      "baseline.json": "3ff73d6eb56d93dfd4c8b43f104ab5aa7553c0d09ad9d241efe0a1ac0d8a7b19"
+    },
+    "cases": {
+      "seeds": [
+        1000,
+        1001,
+        1002
+      ],
+      "directed": [
+        "zeros",
+        "min_values",
+        "extreme_signs"
+      ],
+      "transactions": 2,
+      "input_lens": {
+        "in_a_flat": 1024,
+        "in_x_flat": 64
+      }
+    },
+    "tools": {
+      "yosys": "Yosys 0.69+ (git sha1 143eb14f9, Release, GNU /usr/bin/c++ 12.2.0)",
+      "iverilog": "Icarus Verilog version 13.0 (stable) (v13_0)"
+    },
+    "submission_sha256": "109760e6893e9c8c17e4272c9c21b60aaa7108410153e3d97232ef6d016c2472",
+    "netlist_sha256": "3af2a47843dc1ff71de1ddd3bb1ce947197388fffcacc8b375713b6e4df3c9e1",
+    "agent_cmd": "adpbench Go agent-assisted-v1 (read/write/check/submit)",
+    "budget_s": 7200,
+    "sandbox": {
+      "mode": "docker",
+      "image": "adpbench-go:ci",
+      "network": "none"
+    },
+    "result": {
+      "correct": true,
+      "ratio": 5.414649628627703,
+      "cells": 10216,
+      "cycles": 132,
+      "stage": "ok"
+    },
+    "error": "",
+    "timed_out": false,
+    "duration_s": 624.23,
+    "generation": {
+      "model": "deepseek-v4.1-flash",
+      "problem": "002_gemv",
+      "protocol": "agent-assisted-v1",
+      "started": "2026-09-23T19:10:28.468266+00:00",
+      "generation_state": "completed",
+      "outcome": "submitted",
+      "error": "",
+      "turns": 8,
+      "checks": 3,
+      "max_turns": 12,
+      "max_checks": 3,
+      "max_output_tokens": 384000,
+      "usage": {
+        "prompt_tokens": 347448,
+        "completion_tokens": 77607,
+        "total_tokens": 425055
+      },
+      "incomplete_usage": false,
+      "generation_settings": {
+        "thinking": {
+          "type": "disabled"
+        },
+        "reasoning_effort": "low"
+      },
+      "github": {
+        "GITHUB_REPOSITORY": "arygupt/ADPBench",
+        "GITHUB_RUN_ID": "35906631979",
+        "GITHUB_RUN_ATTEMPT": "1",
+        "GITHUB_SHA": "c0e87a0bcf62d32ede038792fcd4fee4b1d1e694"
+      },
+      "finish_reason": "tool_calls",
+      "writes": 3,
+      "development_checks": [
+        {
+          "index": 1,
+          "submission_sha256": "6a173be1432cadf003a2715aa7741e9eee784db9240579443fead9d3841e5be4",
+          "completed": true,
+          "correct": true,
+          "reason": "",
+          "audit_ok": true
+        },
+        {
+          "index": 2,
+          "submission_sha256": "4a5edf2d09281466020e96905dd58c9323138908a7f6aced509cb607eb9a736a",
+          "completed": true,
+          "correct": true,
+          "reason": "",
+          "audit_ok": true
+        },
+        {
+          "index": 3,
+          "submission_sha256": "109760e6893e9c8c17e4272c9c21b60aaa7108410153e3d97232ef6d016c2472",
+          "completed": true,
+          "correct": true,
+          "reason": "",
+          "audit_ok": true
+        }
+      ],
+      "submission_sha256": "109760e6893e9c8c17e4272c9c21b60aaa7108410153e3d97232ef6d016c2472",
+      "final_revision_checked": true,
+      "duration_s": 624.23,
+      "execution_health": "completed"
+    }
+  },
+  "history": [],
+  "outcome": "correct",
+  "execution_health": "completed",
+  "execution": {
+    "kind": "model-evaluation",
+    "repository": "arygupt/ADPBench",
+    "run_id": 35906631979,
+    "run_attempt": 1,
+    "job_id": 107342833890,
+    "commit": "c0e87a0bcf62d32ede038792fcd4fee4b1d1e694",
+    "completed_at": "2026-09-23T19:22:20Z",
+    "job_conclusion": "success"
+  }
+}

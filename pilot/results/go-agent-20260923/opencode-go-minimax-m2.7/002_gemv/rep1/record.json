@@ -1,0 +1,229 @@
+{
+  "problem": "002_gemv",
+  "agent_cmd": "adpbench Go agent-assisted-v1 (read/write/check/submit)",
+  "label": "opencode-go/minimax-m2.7 [agent-assisted-v1]",
+  "attempt": 1,
+  "group": "go-agent-20260923",
+  "sandbox": "docker",
+  "started": "2026-09-23T19:16:10.534428+00:00",
+  "duration_s": 1321.21,
+  "exit_code": -1,
+  "timed_out": false,
+  "audit": {
+    "ok": true,
+    "violations": [],
+    "warnings": []
+  },
+  "result": {
+    "problem": "002_gemv",
+    "source": "go-agent-assisted-v1",
+    "compiled": true,
+    "synthesizable": true,
+    "correct": false,
+    "cells": 7015,
+    "cycles": -1,
+    "adp": -1.0,
+    "ratio": -1.0,
+    "metadata": {
+      "cases": [
+        1000,
+        1001,
+        1002,
+        "zeros",
+        "min_values",
+        "extreme_signs"
+      ],
+      "job": "07c4635c",
+      "per_case": [
+        {
+          "case": 1000,
+          "synthesizable": true,
+          "correct": false,
+          "cells": 7015,
+          "cycles": -1,
+          "stage": "timeout",
+          "correctness": "timeout in the timing run - DUT never produced a full result",
+          "netlist_sha256": "daedea3f03c58ce5d505d4cb235507f616acb0b729415c115a4817ac9d4aec50"
+        },
+        {
+          "case": 1001,
+          "synthesizable": true,
+          "correct": false,
+          "cells": 7015,
+          "cycles": -1,
+          "stage": "timeout",
+          "correctness": "timeout in the timing run - DUT never produced a full result",
+          "netlist_sha256": "daedea3f03c58ce5d505d4cb235507f616acb0b729415c115a4817ac9d4aec50"
+        },
+        {
+          "case": 1002,
+          "synthesizable": true,
+          "correct": false,
+          "cells": 7015,
+          "cycles": -1,
+          "stage": "timeout",
+          "correctness": "timeout in the timing run - DUT never produced a full result",
+          "netlist_sha256": "daedea3f03c58ce5d505d4cb235507f616acb0b729415c115a4817ac9d4aec50"
+        },
+        {
+          "case": "zeros",
+          "synthesizable": true,
+          "correct": false,
+          "cells": 7015,
+          "cycles": -1,
+          "stage": "timeout",
+          "correctness": "timeout in the timing run - DUT never produced a full result",
+          "netlist_sha256": "daedea3f03c58ce5d505d4cb235507f616acb0b729415c115a4817ac9d4aec50"
+        },
+        {
+          "case": "min_values",
+          "synthesizable": true,
+          "correct": false,
+          "cells": 7015,
+          "cycles": -1,
+          "stage": "timeout",
+          "correctness": "timeout in the timing run - DUT never produced a full result",
+          "netlist_sha256": "daedea3f03c58ce5d505d4cb235507f616acb0b729415c115a4817ac9d4aec50"
+        },
+        {
+          "case": "extreme_signs",
+          "synthesizable": true,
+          "correct": false,
+          "cells": 7015,
+          "cycles": -1,
+          "stage": "timeout",
+          "correctness": "timeout in the timing run - DUT never produced a full result",
+          "netlist_sha256": "daedea3f03c58ce5d505d4cb235507f616acb0b729415c115a4817ac9d4aec50"
+        }
+      ],
+      "stage": "timeout",
+      "correctness": "timeout in the timing run - DUT never produced a full result",
+      "case_failed": 1000
+    }
+  },
+  "error": "",
+  "frozen": "/output/opencode-go-minimax-m2.7/002_gemv/rep1_frozen/dut.v",
+  "manifest": {
+    "adpbench_version": "unknown",
+    "git_commit": "",
+    "problem": "002_gemv",
+    "problem_sha256": {
+      "dut.py": "b2fb0ace4d2bcaa3744897edf6475ba13c8acdf4a673f099ecf1ccd5b92443f1",
+      "baseline.v": "abb52693edfc89e2d11fd4e0120a104e56a0282957c543c644244b22ee20262d",
+      "baseline.json": "3ff73d6eb56d93dfd4c8b43f104ab5aa7553c0d09ad9d241efe0a1ac0d8a7b19"
+    },
+    "cases": {
+      "seeds": [
+        1000,
+        1001,
+        1002
+      ],
+      "directed": [
+        "zeros",
+        "min_values",
+        "extreme_signs"
+      ],
+      "transactions": 2,
+      "input_lens": {
+        "in_a_flat": 1024,
+        "in_x_flat": 64
+      }
+    },
+    "tools": {
+      "yosys": "Yosys 0.69+ (git sha1 143eb14f9, Release, GNU /usr/bin/c++ 12.2.0)",
+      "iverilog": "Icarus Verilog version 13.0 (stable) (v13_0)"
+    },
+    "submission_sha256": "ec8e270ec17bb79708629d3374d1d4d36dbbb09123da188f6085d097a750be2e",
+    "netlist_sha256": "daedea3f03c58ce5d505d4cb235507f616acb0b729415c115a4817ac9d4aec50",
+    "agent_cmd": "adpbench Go agent-assisted-v1 (read/write/check/submit)",
+    "budget_s": 7200,
+    "sandbox": {
+      "mode": "docker",
+      "image": "adpbench-go:ci",
+      "network": "none"
+    },
+    "result": {
+      "correct": false,
+      "ratio": -1.0,
+      "cells": 7015,
+      "cycles": -1,
+      "stage": "timeout"
+    },
+    "error": "",
+    "timed_out": false,
+    "duration_s": 1321.21,
+    "generation": {
+      "model": "minimax-m2.7",
+      "problem": "002_gemv",
+      "protocol": "agent-assisted-v1",
+      "started": "2026-09-23T19:16:10.534428+00:00",
+      "generation_state": "completed",
+      "outcome": "submitted",
+      "error": "",
+      "turns": 11,
+      "checks": 3,
+      "max_turns": 12,
+      "max_checks": 3,
+      "max_output_tokens": 131072,
+      "usage": {
+        "input_tokens": 48091,
+        "output_tokens": 26353,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 109282
+      },
+      "incomplete_usage": false,
+      "generation_settings": {},
+      "github": {
+        "GITHUB_REPOSITORY": "arygupt/ADPBench",
+        "GITHUB_RUN_ID": "35906631979",
+        "GITHUB_RUN_ATTEMPT": "1",
+        "GITHUB_SHA": "c0e87a0bcf62d32ede038792fcd4fee4b1d1e694"
+      },
+      "finish_reason": "tool_use",
+      "writes": 5,
+      "development_checks": [
+        {
+          "index": 1,
+          "submission_sha256": "8426d9a129fb6c46c0512a9f0f6263087af4d888e7a1b26280e3b54870fc8abc",
+          "completed": true,
+          "correct": false,
+          "reason": "",
+          "audit_ok": true
+        },
+        {
+          "index": 2,
+          "submission_sha256": "2afb79b463971cc6630cdae69665342c47fe88d4b671e98140f09bdbaad84835",
+          "completed": true,
+          "correct": false,
+          "reason": "",
+          "audit_ok": true
+        },
+        {
+          "index": 3,
+          "submission_sha256": "99de96a64501e59b80244075a260889cee45c9eadbbdba655cb3f1f032790ae3",
+          "completed": true,
+          "correct": false,
+          "reason": "",
+          "audit_ok": true
+        }
+      ],
+      "submission_sha256": "ec8e270ec17bb79708629d3374d1d4d36dbbb09123da188f6085d097a750be2e",
+      "final_revision_checked": false,
+      "duration_s": 1321.21,
+      "execution_health": "completed"
+    }
+  },
+  "history": [],
+  "outcome": "incorrect",
+  "execution_health": "completed",
+  "execution": {
+    "kind": "model-evaluation",
+    "repository": "arygupt/ADPBench",
+    "run_id": 35906631979,
+    "run_attempt": 1,
+    "job_id": 107349355998,
+    "commit": "c0e87a0bcf62d32ede038792fcd4fee4b1d1e694",
+    "completed_at": "2026-09-23T19:43:51Z",
+    "job_conclusion": "success"
+  }
+}
