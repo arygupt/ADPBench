@@ -1053,11 +1053,8 @@ dialog::backdrop {
 .comparison-track { display: block; position: relative; width: 100%; height: 17px; background: var(--surface); }
 .comparison-fill { display: block; height: 100%; background: var(--accent); opacity: .75; }
 .comparison-bar.best .comparison-fill, .comparison-bar:hover .comparison-fill { opacity: 1; }
-.confidence-whisker { position: absolute; height: 23px; top: -3px; border-inline: 1px solid var(--text); }
-.confidence-whisker:after { content: ""; position: absolute; left: 0; right: 0; top: 11px; height: 1px; background: var(--text); }
 .primary-stat { text-align: right; }
 .primary-stat strong { display: block; font-size: 16px; font-weight: var(--weight-strong); }
-.interval-range { display: block; color: var(--muted); font-size: 9px; margin-top: 2px; }
 .numeric-stat { color: var(--muted); font-size: 12px; text-align: right; }
 .chart-axis { display: flex; justify-content: space-between; color: var(--faint); font-size: 9px; padding: 13px 0 15px; }
 .workspace .board-caption { font-size: 10px; }

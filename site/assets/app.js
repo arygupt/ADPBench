@@ -65,15 +65,6 @@ import { agentState } from "./outcomes.mjs";
       return { cls: "infra", label: "Infrastructure", value: "infra" };
     return { cls: "fail", label: "Incorrect RTL", value: "wrong" };
   }
-  function wilson(k, n) {
-    if (!n) return [0, 0];
-    const z2 = 1.96 ** 2,
-      p = k / n,
-      d = 1 + z2 / n,
-      c = (p + z2 / (2 * n)) / d,
-      h = (1.96 * Math.sqrt((p * (1 - p)) / n + z2 / (4 * n * n))) / d;
-    return [Math.max(0, c - h), Math.min(1, c + h)];
-  }
   function fill(selector, text) {
     $$(selector).forEach((el) => (el.textContent = text));
   }
@@ -114,12 +105,12 @@ import { agentState } from "./outcomes.mjs";
       geomean: "Geometric mean ADP ratio · correct runs only",
     }[scoreMetric];
     fill("#rank-metric-label", {beat_rate: "Beat baseline", correctness_rate: "Correctness", geomean: "ADP gain"}[scoreMetric]);
-    fill("#interval-label", isRate ? "/ 95% confidence interval" : "/ correct runs only");
+    fill("#interval-label", isRate ? "" : "/ correct runs only");
     $("#chart-axis").innerHTML = [0, .25, .5, .75, 1].map((n) => `<span>${isRate ? pct(n) : `${(n * best).toFixed(1)}×`}</span>`).join("");
     fill(
       "#score-note",
       isRate
-        ? (data.meta.protocol === "agent-assisted-v1" ? "Rates use all scheduled slots. Unscored outcomes are not incorrect RTL; inspect each model. White lines: 95% confidence intervals." : "White lines: 95% confidence intervals.")
+        ? (data.meta.protocol === "agent-assisted-v1" ? "Rates use all scheduled slots. Unscored outcomes are not incorrect RTL; inspect each model." : "Rates use all recorded attempts.")
         : "Geometric mean · correct runs only · higher is better.",
     );
     fill(
@@ -129,11 +120,7 @@ import { agentState } from "./outcomes.mjs";
     $("#leaderboard-rows").innerHTML =
       models
         .map((m) => {
-          const value = m[scoreMetric],
-            [low, high] = wilson(
-              scoreMetric === "beat_rate" ? m.beating : m.correct,
-              m.attempts,
-            );
+          const value = m[scoreMetric];
           const text = isRate ? pct(value) : ratio(value);
           const width = isRate
             ? value * 100
@@ -141,9 +128,9 @@ import { agentState } from "./outcomes.mjs";
               ? (Math.max(0, value) / best) * 100
               : 0;
           const tooltip = isRate
-            ? `${label}: ${text}; 95% Wilson interval ${pct(low)}–${pct(high)}. ${m.correct}/${m.attempts} confirmed correct slots.${m.unscored ? ` ${m.unscored} unscored; inspect typed outcomes.` : ""}`
+            ? `${label}: ${text}. ${m.correct}/${m.attempts} confirmed correct slots.${m.unscored ? ` ${m.unscored} unscored; inspect typed outcomes.` : ""}`
             : `${text} geometric mean across ${m.correct} correct attempts; ${m.attempts} total attempts.`;
-          return `<tr><th scope="row">${modelButton(m)}</th><td><button class="comparison-bar ${value === best && value > 0 ? "best" : ""}" data-model="${esc(m.label)}" title="${esc(tooltip)}" aria-label="${esc(displayName(m))}: ${esc(tooltip)}"><span class="comparison-track" aria-hidden="true"><span class="comparison-fill" style="width:${width}%"></span>${isRate ? `<span class="confidence-whisker" style="left:${low * 100}%;width:${(high - low) * 100}%"></span>` : ""}</span></button></td><td class="primary-stat"><strong>${text}</strong>${isRate ? `<span class="interval-range" title="95% Wilson confidence interval">${pct(low)}–${pct(high)}</span>` : ""}</td><td class="numeric-stat">${m.correct}/${m.attempts}</td><td class="numeric-stat">${ratio(m.geomean)}</td><td class="numeric-stat">${m.attempts}</td></tr>`;
+          return `<tr><th scope="row">${modelButton(m)}</th><td><button class="comparison-bar ${value === best && value > 0 ? "best" : ""}" data-model="${esc(m.label)}" title="${esc(tooltip)}" aria-label="${esc(displayName(m))}: ${esc(tooltip)}"><span class="comparison-track" aria-hidden="true"><span class="comparison-fill" style="width:${width}%"></span></span></button></td><td class="primary-stat"><strong>${text}</strong></td><td class="numeric-stat">${m.correct}/${m.attempts}</td><td class="numeric-stat">${ratio(m.geomean)}</td><td class="numeric-stat">${m.attempts}</td></tr>`;
         })
         .join("") ||
       '<tr><td colspan="6" class="empty-state">No matching models. Try another name.</td></tr>';
@@ -266,11 +253,9 @@ import { agentState } from "./outcomes.mjs";
       .join(
         "",
       )}</div><p class="pilot-note">Ratios are area–delay improvements, not clock-speed measurements. <a href="${datasets[datasetKey]}">Read the source records ↗</a></p></div>`;
-    const interval = (count) =>
-      wilson(count, model.attempts).map(pct).join("–");
     $(".dialog-summary", dialog).insertAdjacentHTML(
       "afterend",
-      `<p class="rc-meta">${esc(model.label)}<br>95% Wilson intervals · beat baseline ${interval(model.beating)} · correctness ${interval(model.correct)}</p>`,
+      `<p class="rc-meta">${esc(model.label)}</p>`,
     );
     if (model.outcomes)
       $(".dialog-summary", dialog).insertAdjacentHTML("afterend", `<p class="rc-meta">${int(model.scored)} scored · ${int(model.unscored)} unscored. ${Object.entries(model.outcomes).map(([kind, count]) => `${esc(kind.replaceAll("_", " "))}: ${int(count)}`).join(" · ")}</p>`);
