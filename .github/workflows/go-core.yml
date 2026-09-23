@@ -24,6 +24,9 @@ on:
       - "scripts/go_score.py"
       - "scripts/go_canary.py"
       - "pilot/go-canary*.json"
+      - "pilot/diagnostics/canary_xor_tb.sv"
+      - "pilot/diagnostics/go-canary-followup-20260923*"
+      - "pilot/diagnostics/go-canary-followup-20260923/**"
       - "tests/test_go_canary.py"
       - "adpbench/**"
       - "pilot/go-core-20260922.json"
@@ -93,6 +96,19 @@ jobs:
             -e PYTHONPATH=/repo -e ADPBENCH_WORKDIR=/tmp/adpbench \
             -v "$GITHUB_WORKSPACE:/repo:ro" -w /repo adpbench-go:ci \
             python -m unittest tests.test_evaluate -v
+      - name: Verify frozen GLM and MiniMax XOR answers (no model calls)
+        run: |
+          for model in glm-5.3-flash minimax-m2.7; do
+            docker run --rm --pull never --network none --memory 512m --cpus 1 \
+              --pids-limit 64 --cap-drop ALL --security-opt no-new-privileges \
+              --read-only --tmpfs /tmp:rw,size=64m --user 65534:65534 \
+              -v "$GITHUB_WORKSPACE/pilot/diagnostics/go-canary-followup-20260923/$model.v:/input/dut.v:ro" \
+              -v "$GITHUB_WORKSPACE/pilot/diagnostics/canary_xor_tb.sv:/input/tb.sv:ro" \
+              -w /tmp adpbench-go:ci sh -c '
+                timeout 20 yosys -q -p "read_verilog -sv /input/dut.v; hierarchy -check -top dut; synth -top dut -noabc; check -assert" &&
+                timeout 20 iverilog -g2012 -s canary_xor_tb -o /tmp/canary.vvp /input/dut.v /input/tb.sv &&
+                timeout 10 vvp /tmp/canary.vvp' || exit 1
+          done
 
   prepare:
     name: Prepare toolchain and validate both baselines (no model calls)

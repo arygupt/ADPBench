@@ -1,4 +1,5 @@
-"""Zero-token tests for the six-request, subscription-only diagnostic guard."""
+"""Zero-token tests for bounded, subscription-only compatibility diagnostics."""
+import hashlib
 import io
 import json
 import tempfile
@@ -161,6 +162,22 @@ class CanaryTest(unittest.TestCase):
                     result = run(config,Path(tmp),subscription_only=True)
                     self.assertNotEqual(result["models"][0]["status"],"completed")
                     self.assertFalse(list(Path(tmp).glob("**/dut.v")))
+
+    def test_followup_receipt_matches_frozen_rtl_and_preserves_original_failure(self):
+        root = CONFIG.parent.parent
+        receipt = json.loads((root / "pilot/diagnostics/go-canary-followup-20260923.json").read_text())
+        self.assertFalse(receipt["benchmark_results"])
+        self.assertEqual(receipt["reported_output_tokens"],sum(m["output_tokens"] for m in receipt["models"]))
+        self.assertEqual(receipt["reported_input_tokens"],sum(m["input_tokens"] for m in receipt["models"]))
+        for model in receipt["models"]:
+            self.assertEqual(model["status"],"completed")
+            self.assertEqual(hashlib.sha256((root / model["rtl_file"]).read_bytes()).hexdigest(),model["rtl_sha256"])
+        verification = receipt["offline_verification"]
+        self.assertEqual(hashlib.sha256((root / verification["testbench"]).read_bytes()).hexdigest(),verification["testbench_sha256"])
+        original = json.loads((root / "pilot/diagnostics/go-canary-20260923.json").read_text())
+        self.assertEqual(original["source_conclusion"],"failure")
+        self.assertEqual(original["models"][0]["status"],"http_400")
+        self.assertEqual(original["models"][-1]["status"],"accepted_output_cap")
 
 
 if __name__ == "__main__":
