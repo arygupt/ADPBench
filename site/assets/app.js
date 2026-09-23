@@ -27,11 +27,8 @@ import { agentState } from "./outcomes.mjs";
   const short = (label) =>
     label.replace(/^opencode\//, "").replace(/-free$/, "");
   let data, dialog, returnFocus, evidence;
-  let datasets = {
-    "pilot-001": "data/leaderboard.json",
-    "go-core-20260922": "data/go-core-20260922/leaderboard.json",
-  };
-  let datasetKey = "pilot-001";
+  let datasets = {};
+  let datasetKey = "";
   const title = (name) =>
     data.problems.find((p) => p.name === name)?.title || name;
   const ranked = (models) =>
@@ -419,20 +416,10 @@ import { agentState } from "./outcomes.mjs";
   document.addEventListener("DOMContentLoaded", async () => {
     setupShell();
     try {
-      const selector = $("#dataset-select");
-      if (selector) {
-        const catalog = parseCatalog(await getJSON("data/evaluations.json"));
-        datasets = catalog.paths;
-        selector.innerHTML = catalog.entries.map(e => `<option value="${esc(e.id)}">${esc(e.label)}</option>`).join("");
-        const requested = new URLSearchParams(location.search).get("dataset");
-        datasetKey = Object.hasOwn(datasets, requested) ? requested : catalog.defaultId;
-        selector.value = datasetKey;
-        selector.addEventListener("change", () => {
-          const url = new URL(location.href);
-          url.searchParams.set("dataset", selector.value);
-          location.assign(url.href);
-        });
-      }
+      // The leaderboard is the newest agent-assisted-v1 batch; the publisher prepends new batches.
+      const catalog = parseCatalog(await getJSON("data/evaluations.json"));
+      datasets = catalog.paths;
+      datasetKey = (catalog.entries.find((e) => e.protocol === "agent-assisted-v1") || {}).id || catalog.defaultId;
       const [leaderboard, problems, publishedEvidence] = await Promise.all([
         getJSON(datasets[datasetKey]),
         getJSON("data/problems.json").catch(() => null),

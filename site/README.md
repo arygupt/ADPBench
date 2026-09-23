@@ -8,11 +8,12 @@ adpbench site sanity --out pilot/sanity.json
 adpbench site export --pilot runs/<pilot> --out site/data --sanity pilot/sanity.json
 ```
 
-The evaluation selector keeps **OpenCode Go single-shot** results separate from
-**iterative pilot-001**. The default is the new six-model Go screen. Every Go
-result links to its original model-generation/scoring Actions job, full workflow
-and evaluated code revision. It is never called a verified replay. Output-cap,
-generation, incorrect-RTL and successful outcomes remain distinguishable.
+The results page shows one leaderboard: the newest **agent-assisted-v1** batch in
+`site/data/evaluations.json`, ranked by beat-baseline rate. Earlier single-shot
+and pilot-001 snapshots stay under `site/data/` as frozen records but are not
+shown. Every result links to its original generation/scoring Actions job, full
+workflow and evaluated code revision. Output-cap, generation, incorrect-RTL and
+successful outcomes remain distinguishable.
 
 ## Automatic results PRs
 

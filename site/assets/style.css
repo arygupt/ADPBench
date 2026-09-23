@@ -1,8 +1,4 @@
 /* Typography and base palette match aryamangupta.me. */
-.dataset-picker { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; margin: 0 0 22px; }
-.dataset-picker label { color: var(--muted); }
-.dataset-picker select { max-width: 100%; min-height: 40px; color: var(--text); background: var(--surface); border: 1px solid var(--border-strong); border-radius: 6px; padding: 8px 12px; }
-.dataset-picker > span { font-size: 12px; color: var(--muted); }
 .replay-summary a { color: var(--accent); text-decoration: underline; }
 :root {
   color-scheme: dark;
