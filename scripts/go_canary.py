@@ -15,11 +15,11 @@ from datetime import datetime
 from pathlib import Path
 
 from adpbench.problem import repo_root
-from scripts.go_pilot import (call_model, now_utc, parse_response, provider_error_evidence,
+from scripts.go_pilot import (call_model, extract_rtl, now_utc, parse_response, provider_error_evidence,
                              read_plan, request_body, response_diagnostics, valid_usage, write_json)
 from scripts.go_stream import StreamFailure
 
-CONFIG = repo_root() / "pilot/go-canary-20260923.json"
+CONFIG = repo_root() / "pilot/go-canary-glm-minimax-20260923-01.json"
 SOURCE_PLAN = "pilot/go-core-provider-max-20260922.json"
 PROMPT = ("Return only complete synthesizable SystemVerilog for a combinational XOR: "
           "module dut(input wire a, input wire b, output wire y). Assign y = a ^ b. "
@@ -37,7 +37,12 @@ def validate(config: dict) -> dict:
     if (not isinstance(ids, list) or not 1 <= len(ids) <= 6 or len(set(ids)) != len(ids)
             or not set(ids) <= {m["id"] for m in source["models"]}):
         raise ValueError("unreviewed or duplicate canary models")
-    for field, limit in [("max_output_tokens",128), ("max_prompt_bytes",2048),
+    complete = config.get("require_complete_answer", False)
+    if type(complete) is not bool:
+        raise ValueError("invalid completion requirement")
+    if complete and not set(ids) <= {"glm-5.3-flash", "minimax-m2.7"}:
+        raise ValueError("larger diagnostic budgets are scoped to GLM and MiniMax")
+    for field, limit in [("max_output_tokens",4096 if complete else 128), ("max_prompt_bytes",2048),
                          ("idle_timeout_s",30), ("wall_timeout_s",90)]:
         if type(config.get(field)) is not int or not 0 < config[field] <= limit:
             raise ValueError(f"invalid {field}")
@@ -60,7 +65,8 @@ def summarize(out: Path, config: dict, records: list[dict]) -> dict:
                "requests_started":len(requested), "maximum_output_tokens":len(records)*config["max_output_tokens"],
                "reported_output_tokens":tokens,
                "incomplete_usage":any(not r.get("accounting_valid") for r in requested),
-               "benchmark_results":False, "models":records}
+               "benchmark_results":False, "require_complete_answer":config.get("require_complete_answer",False),
+               "models":records}
     write_json(out / "summary.json", summary)
     lines = ["# OpenCode Go compatibility canary", "",
              "Diagnostic only: no benchmark scores, no retries, no fallback, no full batch.", "",
@@ -74,7 +80,9 @@ def summarize(out: Path, config: dict, records: list[dict]) -> dict:
         finish = finish if finish in {"stop","end_turn","stop_sequence","length","max_tokens"} else "—"
         lines.append(f"| {r['model']} | {r['api']} | {r['status']} | {tokens} | {finish} |")
     lines += ["", f"Reported output tokens: {summary['reported_output_tokens']}. Accounting incomplete: {summary['incomplete_usage']}.",
-              "", "A tiny-cap response can end at its cap and still demonstrate valid streaming. "
+              "", ("This follow-up requires a completed answer; exhausting the cap is a failure. "
+                     if config.get("require_complete_answer") else
+                     "A tiny-cap response can end at its cap and still demonstrate valid streaming. ") +
               "This does not validate full RTL tasks or provider-maximum token limits.", ""]
     (out / "REPORT.md").write_text("\n".join(lines))
     return summary
@@ -128,9 +136,16 @@ def run(config: dict, out: Path, *, subscription_only: bool) -> dict:
                 record["status"] = "invalid_accounting"
                 stop = True  # Do not continue spending against unknown accounting.
             elif finish in {"length","max_tokens"}:
-                record["status"] = "accepted_output_cap"
+                record["status"] = "output_cap_incomplete" if config.get("require_complete_answer") else "accepted_output_cap"
             elif finish in {"stop","end_turn","stop_sequence"} and text.strip():
                 record["status"] = "completed"
+                if config.get("require_complete_answer"):
+                    try:
+                        rtl = extract_rtl(text)
+                    except ValueError:
+                        record["status"] = "invalid_rtl_answer"
+                    else:
+                        (dest / "dut.v").write_text(rtl)
             else:
                 record["status"] = "unexpected_response"
         except urllib.error.HTTPError as exc:

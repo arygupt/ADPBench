@@ -5,7 +5,7 @@ on:
   workflow_dispatch:
     inputs:
       run_canary:
-        description: "Run the finite six-request diagnostic (128 output tokens each; no benchmark)"
+        description: "Run the reviewed GLM/MiniMax diagnostic (1,024 output tokens each; no benchmark)"
         type: boolean
         default: false
       run_models:
@@ -23,7 +23,7 @@ on:
       - "scripts/go_stream.py"
       - "scripts/go_score.py"
       - "scripts/go_canary.py"
-      - "pilot/go-canary-20260923.json"
+      - "pilot/go-canary*.json"
       - "tests/test_go_canary.py"
       - "adpbench/**"
       - "pilot/go-core-20260922.json"
@@ -38,7 +38,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: go-core-provider-max-20260922
+  group: go-core-${{ (inputs.run_canary || inputs.run_models) && 'live-generation' || format('offline-{0}', github.ref) }}
   cancel-in-progress: false
 
 env:
@@ -147,7 +147,7 @@ jobs:
           retention-days: 90
 
   canary:
-    name: Go compatibility diagnostic (six requests maximum, no benchmark)
+    name: Go compatibility diagnostic (two requests maximum, completed answers required)
     needs: checks
     if: >-
       github.event_name == 'workflow_dispatch' && inputs.run_canary && !inputs.run_models && inputs.subscription_only &&
