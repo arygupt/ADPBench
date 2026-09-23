@@ -1,0 +1,105 @@
+{
+  "adpbench_version": "unknown",
+  "git_commit": "",
+  "problem": "001_dot_product",
+  "problem_sha256": {
+    "dut.py": "91fd0433d225e3f9dd67022edc55b1809f6f642019e415e6b921d67086530a45",
+    "baseline.v": "44111a2a04a8b1ef5517f87f9076861c696422ecb301c1e9e551d828a321d3e7",
+    "baseline.json": "06f89f858ee67fdd51e191965e7f3370ea08827ebf2a1bed935a1c74cf09e63e"
+  },
+  "cases": {
+    "seeds": [
+      1000,
+      1001,
+      1002
+    ],
+    "directed": [
+      "zeros",
+      "min_values",
+      "extreme_signs"
+    ],
+    "transactions": 2,
+    "input_lens": {
+      "in_a_flat": 256,
+      "in_b_flat": 256
+    }
+  },
+  "tools": {
+    "yosys": "Yosys 0.69+ (git sha1 143eb14f9, Release, GNU /usr/bin/c++ 12.2.0)",
+    "iverilog": "Icarus Verilog version 13.0 (stable) (v13_0)"
+  },
+  "submission_sha256": "",
+  "netlist_sha256": "",
+  "agent_cmd": "adpbench Go API single-shot (one request, no repair)",
+  "budget_s": 120,
+  "sandbox": {
+    "mode": "docker",
+    "image": "adpbench-go:ci",
+    "network": "none"
+  },
+  "result": {
+    "correct": false,
+    "ratio": -1.0,
+    "cells": -1,
+    "cycles": -1,
+    "stage": "error"
+  },
+  "error": "expected one complete RTL source block",
+  "timed_out": false,
+  "duration_s": 212.95,
+  "generation": {
+    "model": "kimi-k2.6",
+    "problem": "001_dot_product",
+    "protocol": "single-shot",
+    "started": "2026-09-23T18:22:44.587374+00:00",
+    "max_output_tokens": 65536,
+    "error": "",
+    "generation_settings": {
+      "thinking": {
+        "type": "disabled"
+      }
+    },
+    "github": {
+      "GITHUB_REPOSITORY": "arygupt/ADPBench",
+      "GITHUB_RUN_ID": "35901767041",
+      "GITHUB_RUN_ATTEMPT": "1",
+      "GITHUB_SHA": "3227e17cfda3e0e685c0665ea600d1016cb90244"
+    },
+    "prompt_bytes": 6943,
+    "transport": {
+      "stream": true,
+      "idle_timeout_s": 120,
+      "wall_timeout_s": 3600
+    },
+    "finish_reason": "stop",
+    "usage": {
+      "prompt_tokens": 1820,
+      "completion_tokens": 17275,
+      "total_tokens": 19095,
+      "prompt_tokens_details": {
+        "audio_tokens": 0,
+        "cached_tokens": 0,
+        "cache_write_tokens": 0
+      },
+      "completion_tokens_details": {
+        "audio_tokens": 0,
+        "reasoning_tokens": 1
+      }
+    },
+    "response_id": "gen-1790187764-wcMdkZrUxJv3RvJrVMKf",
+    "response_model": "kimi-k2.6",
+    "response_diagnostics": {
+      "message_fields": [
+        "content",
+        "reasoning",
+        "role"
+      ],
+      "answer_chars": 63971,
+      "reasoning_chars": 0,
+      "has_reasoning_details": false
+    },
+    "invalid_rtl": "expected one complete RTL source block",
+    "duration_s": 212.95,
+    "generation_state": "failed"
+  }
+}

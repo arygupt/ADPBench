@@ -1,0 +1,215 @@
+{
+  "problem": "002_gemv",
+  "agent_cmd": "adpbench Go API single-shot (one request, no repair)",
+  "label": "opencode-go/glm-5.3-flash [single-shot]",
+  "attempt": 1,
+  "group": "go-core-provider-max-20260923",
+  "sandbox": "docker",
+  "started": "2026-09-23T18:24:53.759851+00:00",
+  "duration_s": 197.56,
+  "exit_code": -1,
+  "timed_out": false,
+  "audit": {
+    "ok": true,
+    "violations": [],
+    "warnings": []
+  },
+  "result": {
+    "problem": "002_gemv",
+    "source": "go-single-shot",
+    "compiled": false,
+    "synthesizable": false,
+    "correct": false,
+    "cells": -1,
+    "cycles": -1,
+    "adp": -1.0,
+    "ratio": -1.0,
+    "metadata": {
+      "cases": [
+        1000,
+        1001,
+        1002,
+        "zeros",
+        "min_values",
+        "extreme_signs"
+      ],
+      "job": "6fe45baf",
+      "per_case": [
+        {
+          "case": 1000,
+          "synthesizable": false,
+          "correct": false,
+          "cells": -1,
+          "cycles": -1,
+          "stage": "synthesis",
+          "correctness": "",
+          "netlist_sha256": ""
+        },
+        {
+          "case": 1001,
+          "synthesizable": false,
+          "correct": false,
+          "cells": -1,
+          "cycles": -1,
+          "stage": "synthesis",
+          "correctness": "",
+          "netlist_sha256": ""
+        },
+        {
+          "case": 1002,
+          "synthesizable": false,
+          "correct": false,
+          "cells": -1,
+          "cycles": -1,
+          "stage": "synthesis",
+          "correctness": "",
+          "netlist_sha256": ""
+        },
+        {
+          "case": "zeros",
+          "synthesizable": false,
+          "correct": false,
+          "cells": -1,
+          "cycles": -1,
+          "stage": "synthesis",
+          "correctness": "",
+          "netlist_sha256": ""
+        },
+        {
+          "case": "min_values",
+          "synthesizable": false,
+          "correct": false,
+          "cells": -1,
+          "cycles": -1,
+          "stage": "synthesis",
+          "correctness": "",
+          "netlist_sha256": ""
+        },
+        {
+          "case": "extreme_signs",
+          "synthesizable": false,
+          "correct": false,
+          "cells": -1,
+          "cycles": -1,
+          "stage": "synthesis",
+          "correctness": "",
+          "netlist_sha256": ""
+        }
+      ],
+      "stage": "synthesis",
+      "correctness": "synthesis failed",
+      "synthesis_log": "\n /----------------------------------------------------------------------------\\\n |  yosys -- Yosys Open SYnthesis Suite                                       |\n |  Copyright (C) 2012 - 2026  Claire Xenia Wolf <claire@yosyshq.com>         |\n |  Distributed under an ISC-like license, type \"license\" to see terms        |\n \\----------------------------------------------------------------------------/\n Yosys 0.69+ (git sha1 143eb14f9, Release, GNU /usr/bin/c++ 12.2.0)\n\n-- Executing script file `/checkpoints/glm-5.3-flash/002_gemv/synthesis/synth.ys' --\n\n1. Executing Verilog-2005 frontend: /output/opencode-go-glm-5.3-flash/002_gemv/rep1_frozen/dut.v\n/output/opencode-go-glm-5.3-flash/002_gemv/rep1_frozen/dut.v:85: ERROR: syntax error, unexpected ';'\nParsing SystemVerilog input from `/output/opencode-go-glm-5.3-flash/002_gemv/rep1_frozen/dut.v' to AST representation.\n\n[adpbench] yosys: tool_error (exit 1)\n",
+      "failure_kind": "tool_error"
+    }
+  },
+  "error": "",
+  "frozen": "/output/opencode-go-glm-5.3-flash/002_gemv/rep1_frozen/dut.v",
+  "manifest": {
+    "adpbench_version": "unknown",
+    "git_commit": "",
+    "problem": "002_gemv",
+    "problem_sha256": {
+      "dut.py": "b2fb0ace4d2bcaa3744897edf6475ba13c8acdf4a673f099ecf1ccd5b92443f1",
+      "baseline.v": "abb52693edfc89e2d11fd4e0120a104e56a0282957c543c644244b22ee20262d",
+      "baseline.json": "3ff73d6eb56d93dfd4c8b43f104ab5aa7553c0d09ad9d241efe0a1ac0d8a7b19"
+    },
+    "cases": {
+      "seeds": [
+        1000,
+        1001,
+        1002
+      ],
+      "directed": [
+        "zeros",
+        "min_values",
+        "extreme_signs"
+      ],
+      "transactions": 2,
+      "input_lens": {
+        "in_a_flat": 1024,
+        "in_x_flat": 64
+      }
+    },
+    "tools": {
+      "yosys": "Yosys 0.69+ (git sha1 143eb14f9, Release, GNU /usr/bin/c++ 12.2.0)",
+      "iverilog": "Icarus Verilog version 13.0 (stable) (v13_0)"
+    },
+    "submission_sha256": "877ec27a39d7fd6005329efcb21b7aa665ec2005c1c805379ff717026c056a5a",
+    "netlist_sha256": "",
+    "agent_cmd": "adpbench Go API single-shot (one request, no repair)",
+    "budget_s": 120,
+    "sandbox": {
+      "mode": "docker",
+      "image": "adpbench-go:ci",
+      "network": "none"
+    },
+    "result": {
+      "correct": false,
+      "ratio": -1.0,
+      "cells": -1,
+      "cycles": -1,
+      "stage": "synthesis"
+    },
+    "error": "",
+    "timed_out": false,
+    "duration_s": 197.56,
+    "generation": {
+      "model": "glm-5.3-flash",
+      "problem": "002_gemv",
+      "protocol": "single-shot",
+      "started": "2026-09-23T18:24:53.759851+00:00",
+      "max_output_tokens": 131072,
+      "error": "",
+      "generation_settings": {
+        "reasoning_effort": "low"
+      },
+      "github": {
+        "GITHUB_REPOSITORY": "arygupt/ADPBench",
+        "GITHUB_RUN_ID": "35901767041",
+        "GITHUB_RUN_ATTEMPT": "1",
+        "GITHUB_SHA": "3227e17cfda3e0e685c0665ea600d1016cb90244"
+      },
+      "prompt_bytes": 7117,
+      "transport": {
+        "stream": true,
+        "idle_timeout_s": 120,
+        "wall_timeout_s": 3600
+      },
+      "finish_reason": "stop",
+      "usage": {
+        "prompt_tokens": 1931,
+        "completion_tokens": 8532,
+        "total_tokens": 10463,
+        "prompt_tokens_details": {
+          "cached_tokens": 0,
+          "cache_write_tokens": null
+        }
+      },
+      "response_id": "chatcmpl-R46X3DGJ3iZnsv8PW1GB7lyb",
+      "response_model": "glm-5.3-flash",
+      "response_diagnostics": {
+        "message_fields": [
+          "content",
+          "reasoning",
+          "role"
+        ],
+        "answer_chars": 3724,
+        "reasoning_chars": 24431,
+        "has_reasoning_details": false
+      },
+      "duration_s": 197.56,
+      "generation_state": "completed"
+    }
+  },
+  "history": [],
+  "execution": {
+    "kind": "model-evaluation",
+    "repository": "arygupt/ADPBench",
+    "run_id": 35901767041,
+    "run_attempt": 1,
+    "job_id": 107322953026,
+    "commit": "3227e17cfda3e0e685c0665ea600d1016cb90244",
+    "completed_at": "2026-09-23T18:34:06Z",
+    "job_conclusion": "success"
+  }
+}

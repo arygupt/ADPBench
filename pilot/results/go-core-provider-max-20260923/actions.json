@@ -1,0 +1,142 @@
+{
+  "run": {
+    "id": 35901767041,
+    "run_attempt": 1,
+    "head_sha": "3227e17cfda3e0e685c0665ea600d1016cb90244",
+    "html_url": "https://github.com/arygupt/ADPBench/actions/runs/35901767041",
+    "status": "completed",
+    "conclusion": "failure",
+    "event": "workflow_dispatch",
+    "path": ".github/workflows/go-core.yml"
+  },
+  "jobs": [
+    {
+      "id": 107319482177,
+      "name": "Offline request and accounting checks",
+      "status": "completed",
+      "conclusion": "success",
+      "started_at": "2026-09-23T18:20:28Z",
+      "completed_at": "2026-09-23T18:20:40Z"
+    },
+    {
+      "id": 107319484553,
+      "name": "Pinned-toolchain scoring and recovery (no model calls)",
+      "status": "completed",
+      "conclusion": "skipped",
+      "started_at": "2026-09-23T18:20:26Z",
+      "completed_at": "2026-09-23T18:20:25Z"
+    },
+    {
+      "id": 107319581260,
+      "name": "Prepare toolchain and validate both baselines (no model calls)",
+      "status": "completed",
+      "conclusion": "success",
+      "started_at": "2026-09-23T18:20:43Z",
+      "completed_at": "2026-09-23T18:22:33Z"
+    },
+    {
+      "id": 107319583407,
+      "name": "Go compatibility diagnostic (two requests maximum, completed answers required)",
+      "status": "completed",
+      "conclusion": "skipped",
+      "started_at": "2026-09-23T18:20:41Z",
+      "completed_at": "2026-09-23T18:20:41Z"
+    },
+    {
+      "id": 107320307334,
+      "name": "Generate glm-5.3-flash \u00b7 two single-shot submissions",
+      "status": "completed",
+      "conclusion": "success",
+      "started_at": "2026-09-23T18:22:35Z",
+      "completed_at": "2026-09-23T18:28:16Z"
+    },
+    {
+      "id": 107320307439,
+      "name": "Generate kimi-k2.6 \u00b7 two single-shot submissions",
+      "status": "completed",
+      "conclusion": "failure",
+      "started_at": "2026-09-23T18:22:35Z",
+      "completed_at": "2026-09-23T18:26:44Z"
+    },
+    {
+      "id": 107320307468,
+      "name": "Generate deepseek-v4.1-flash \u00b7 two single-shot submissions",
+      "status": "completed",
+      "conclusion": "success",
+      "started_at": "2026-09-23T18:22:35Z",
+      "completed_at": "2026-09-23T18:29:16Z"
+    },
+    {
+      "id": 107320307679,
+      "name": "Generate mimo-v2.5 \u00b7 two single-shot submissions",
+      "status": "completed",
+      "conclusion": "success",
+      "started_at": "2026-09-23T18:22:35Z",
+      "completed_at": "2026-09-23T18:23:16Z"
+    },
+    {
+      "id": 107320307737,
+      "name": "Generate minimax-m2.7 \u00b7 two single-shot submissions",
+      "status": "completed",
+      "conclusion": "success",
+      "started_at": "2026-09-23T18:22:35Z",
+      "completed_at": "2026-09-23T18:28:38Z"
+    },
+    {
+      "id": 107320307880,
+      "name": "Generate qwen3.8-flash \u00b7 two single-shot submissions",
+      "status": "completed",
+      "conclusion": "failure",
+      "started_at": "2026-09-23T18:22:38Z",
+      "completed_at": "2026-09-23T18:23:11Z"
+    },
+    {
+      "id": 107322952796,
+      "name": "Evaluate deepseek-v4.1-flash \u00b7 dot product + GEMV",
+      "status": "completed",
+      "conclusion": "success",
+      "started_at": "2026-09-23T18:29:22Z",
+      "completed_at": "2026-09-23T18:32:16Z"
+    },
+    {
+      "id": 107322952829,
+      "name": "Evaluate qwen3.8-flash \u00b7 dot product + GEMV",
+      "status": "completed",
+      "conclusion": "failure",
+      "started_at": "2026-09-23T18:31:17Z",
+      "completed_at": "2026-09-23T18:32:00Z"
+    },
+    {
+      "id": 107322952841,
+      "name": "Evaluate mimo-v2.5 \u00b7 dot product + GEMV",
+      "status": "completed",
+      "conclusion": "success",
+      "started_at": "2026-09-23T18:29:20Z",
+      "completed_at": "2026-09-23T18:31:14Z"
+    },
+    {
+      "id": 107322952872,
+      "name": "Evaluate minimax-m2.7 \u00b7 dot product + GEMV",
+      "status": "completed",
+      "conclusion": "success",
+      "started_at": "2026-09-23T18:34:09Z",
+      "completed_at": "2026-09-23T18:38:55Z"
+    },
+    {
+      "id": 107322952878,
+      "name": "Evaluate kimi-k2.6 \u00b7 dot product + GEMV",
+      "status": "completed",
+      "conclusion": "failure",
+      "started_at": "2026-09-23T18:32:20Z",
+      "completed_at": "2026-09-23T18:37:14Z"
+    },
+    {
+      "id": 107322953026,
+      "name": "Evaluate glm-5.3-flash \u00b7 dot product + GEMV",
+      "status": "completed",
+      "conclusion": "success",
+      "started_at": "2026-09-23T18:32:04Z",
+      "completed_at": "2026-09-23T18:34:06Z"
+    }
+  ]
+}

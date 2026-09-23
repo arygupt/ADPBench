@@ -1,0 +1,55 @@
+{
+  "model": "mimo-v2.5",
+  "problem": "001_dot_product",
+  "protocol": "single-shot",
+  "started": "2026-09-23T18:22:48.940140+00:00",
+  "max_output_tokens": 128000,
+  "error": "",
+  "generation_settings": {
+    "reasoning": {
+      "enabled": false
+    },
+    "token_limit_key": "max_completion_tokens"
+  },
+  "github": {
+    "GITHUB_REPOSITORY": "arygupt/ADPBench",
+    "GITHUB_RUN_ID": "35901767041",
+    "GITHUB_RUN_ATTEMPT": "1",
+    "GITHUB_SHA": "3227e17cfda3e0e685c0665ea600d1016cb90244"
+  },
+  "prompt_bytes": 6943,
+  "transport": {
+    "stream": true,
+    "idle_timeout_s": 120,
+    "wall_timeout_s": 3600
+  },
+  "finish_reason": "stop",
+  "usage": {
+    "prompt_tokens": 1898,
+    "completion_tokens": 824,
+    "total_tokens": 2722,
+    "prompt_tokens_details": {
+      "audio_tokens": 0,
+      "cached_tokens": 0,
+      "cache_write_tokens": 0
+    },
+    "completion_tokens_details": {
+      "audio_tokens": 0,
+      "reasoning_tokens": 0
+    }
+  },
+  "response_id": "gen-1790187769-bZLwOQ8M5lrUJEDK6pU0",
+  "response_model": "mimo-v2.5",
+  "response_diagnostics": {
+    "message_fields": [
+      "content",
+      "reasoning",
+      "role"
+    ],
+    "answer_chars": 3337,
+    "reasoning_chars": 0,
+    "has_reasoning_details": false
+  },
+  "duration_s": 7.71,
+  "generation_state": "completed"
+}

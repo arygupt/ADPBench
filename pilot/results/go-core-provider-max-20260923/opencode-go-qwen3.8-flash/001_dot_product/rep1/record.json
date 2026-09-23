@@ -1,0 +1,210 @@
+{
+  "problem": "001_dot_product",
+  "agent_cmd": "adpbench Go API single-shot (one request, no repair)",
+  "label": "opencode-go/qwen3.8-flash [single-shot]",
+  "attempt": 1,
+  "group": "go-core-provider-max-20260923",
+  "sandbox": "docker",
+  "started": "2026-09-23T18:22:46.798712+00:00",
+  "duration_s": 16.63,
+  "exit_code": -1,
+  "timed_out": false,
+  "audit": {
+    "ok": true,
+    "violations": [],
+    "warnings": []
+  },
+  "result": {
+    "problem": "001_dot_product",
+    "source": "go-single-shot",
+    "compiled": false,
+    "synthesizable": false,
+    "correct": false,
+    "cells": -1,
+    "cycles": -1,
+    "adp": -1.0,
+    "ratio": -1.0,
+    "metadata": {
+      "cases": [
+        1000,
+        1001,
+        1002,
+        "zeros",
+        "min_values",
+        "extreme_signs"
+      ],
+      "job": "508ff55f",
+      "per_case": [
+        {
+          "case": 1000,
+          "synthesizable": false,
+          "correct": false,
+          "cells": -1,
+          "cycles": -1,
+          "stage": "synthesis",
+          "correctness": "",
+          "netlist_sha256": ""
+        },
+        {
+          "case": 1001,
+          "synthesizable": false,
+          "correct": false,
+          "cells": -1,
+          "cycles": -1,
+          "stage": "synthesis",
+          "correctness": "",
+          "netlist_sha256": ""
+        },
+        {
+          "case": 1002,
+          "synthesizable": false,
+          "correct": false,
+          "cells": -1,
+          "cycles": -1,
+          "stage": "synthesis",
+          "correctness": "",
+          "netlist_sha256": ""
+        },
+        {
+          "case": "zeros",
+          "synthesizable": false,
+          "correct": false,
+          "cells": -1,
+          "cycles": -1,
+          "stage": "synthesis",
+          "correctness": "",
+          "netlist_sha256": ""
+        },
+        {
+          "case": "min_values",
+          "synthesizable": false,
+          "correct": false,
+          "cells": -1,
+          "cycles": -1,
+          "stage": "synthesis",
+          "correctness": "",
+          "netlist_sha256": ""
+        },
+        {
+          "case": "extreme_signs",
+          "synthesizable": false,
+          "correct": false,
+          "cells": -1,
+          "cycles": -1,
+          "stage": "synthesis",
+          "correctness": "",
+          "netlist_sha256": ""
+        }
+      ],
+      "stage": "synthesis",
+      "correctness": "synthesis failed",
+      "synthesis_log": "\n /----------------------------------------------------------------------------\\\n |  yosys -- Yosys Open SYnthesis Suite                                       |\n |  Copyright (C) 2012 - 2026  Claire Xenia Wolf <claire@yosyshq.com>         |\n |  Distributed under an ISC-like license, type \"license\" to see terms        |\n \\----------------------------------------------------------------------------/\n Yosys 0.69+ (git sha1 143eb14f9, Release, GNU /usr/bin/c++ 12.2.0)\n\n-- Executing script file `/checkpoints/qwen3.8-flash/001_dot_product/synthesis/synth.ys' --\n\n1. Executing Verilog-2005 frontend: /output/opencode-go-qwen3.8-flash/001_dot_product/rep1_frozen/dut.v\n/output/opencode-go-qwen3.8-flash/001_dot_product/rep1_frozen/dut.v:60: ERROR: Non-constant expression in constant function\n/output/opencode-go-qwen3.8-flash/001_dot_product/rep1_frozen/dut.v:63.28-63.36: ... called from here. X\nParsing SystemVerilog input from `/output/opencode-go-qwen3.8-flash/001_dot_product/rep1_frozen/dut.v' to AST representation.\nGenerating RTLIL representation for module `\\dut'.\n\n[adpbench] yosys: tool_error (exit 1)\n",
+      "failure_kind": "tool_error"
+    }
+  },
+  "error": "",
+  "frozen": "/output/opencode-go-qwen3.8-flash/001_dot_product/rep1_frozen/dut.v",
+  "manifest": {
+    "adpbench_version": "unknown",
+    "git_commit": "",
+    "problem": "001_dot_product",
+    "problem_sha256": {
+      "dut.py": "91fd0433d225e3f9dd67022edc55b1809f6f642019e415e6b921d67086530a45",
+      "baseline.v": "44111a2a04a8b1ef5517f87f9076861c696422ecb301c1e9e551d828a321d3e7",
+      "baseline.json": "06f89f858ee67fdd51e191965e7f3370ea08827ebf2a1bed935a1c74cf09e63e"
+    },
+    "cases": {
+      "seeds": [
+        1000,
+        1001,
+        1002
+      ],
+      "directed": [
+        "zeros",
+        "min_values",
+        "extreme_signs"
+      ],
+      "transactions": 2,
+      "input_lens": {
+        "in_a_flat": 256,
+        "in_b_flat": 256
+      }
+    },
+    "tools": {
+      "yosys": "Yosys 0.69+ (git sha1 143eb14f9, Release, GNU /usr/bin/c++ 12.2.0)",
+      "iverilog": "Icarus Verilog version 13.0 (stable) (v13_0)"
+    },
+    "submission_sha256": "bd70676929727ebf289e64ecf454c229f4f2a6e39960bb29efe1e825af1176de",
+    "netlist_sha256": "",
+    "agent_cmd": "adpbench Go API single-shot (one request, no repair)",
+    "budget_s": 120,
+    "sandbox": {
+      "mode": "docker",
+      "image": "adpbench-go:ci",
+      "network": "none"
+    },
+    "result": {
+      "correct": false,
+      "ratio": -1.0,
+      "cells": -1,
+      "cycles": -1,
+      "stage": "synthesis"
+    },
+    "error": "",
+    "timed_out": false,
+    "duration_s": 16.63,
+    "generation": {
+      "model": "qwen3.8-flash",
+      "problem": "001_dot_product",
+      "protocol": "single-shot",
+      "started": "2026-09-23T18:22:46.798712+00:00",
+      "max_output_tokens": 131072,
+      "error": "",
+      "generation_settings": {
+        "thinking": {
+          "type": "disabled"
+        }
+      },
+      "github": {
+        "GITHUB_REPOSITORY": "arygupt/ADPBench",
+        "GITHUB_RUN_ID": "35901767041",
+        "GITHUB_RUN_ATTEMPT": "1",
+        "GITHUB_SHA": "3227e17cfda3e0e685c0665ea600d1016cb90244"
+      },
+      "prompt_bytes": 6943,
+      "transport": {
+        "stream": true,
+        "idle_timeout_s": 120,
+        "wall_timeout_s": 3600
+      },
+      "finish_reason": "end_turn",
+      "usage": {
+        "input_tokens": 2009,
+        "output_tokens": 1168,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0
+      },
+      "response_id": "msg_7082e822-768b-49b2-96d8-1a393920b2e9",
+      "response_model": "qwen3.8-flash",
+      "response_diagnostics": {
+        "content_block_types": [
+          "text"
+        ],
+        "reasoning_chars": 0
+      },
+      "duration_s": 16.63,
+      "generation_state": "completed"
+    }
+  },
+  "history": [],
+  "execution": {
+    "kind": "model-evaluation",
+    "repository": "arygupt/ADPBench",
+    "run_id": 35901767041,
+    "run_attempt": 1,
+    "job_id": 107322952829,
+    "commit": "3227e17cfda3e0e685c0665ea600d1016cb90244",
+    "completed_at": "2026-09-23T18:32:00Z",
+    "job_conclusion": "failure"
+  }
+}
