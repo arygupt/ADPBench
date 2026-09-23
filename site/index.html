@@ -15,7 +15,7 @@
       href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
       rel="stylesheet"
     />
-    <link rel="stylesheet" href="assets/style.css?v=agent-leaderboard" />
+    <link rel="stylesheet" href="assets/style.css?v=no-intervals" />
   </head>
   <body class="workspace">
     <a class="skip-link" href="#main">Skip to results</a>
@@ -51,7 +51,7 @@
         <div class="board-scroll ranking-scroll" tabindex="0" role="region" aria-label="Model ranking table">
           <table class="ranking-table">
             <colgroup><col class="model-col"><col class="chart-col"><col class="score-col"><col class="stat-col"><col class="stat-col"><col class="attempt-col"></colgroup>
-            <thead><tr><th scope="col">Model</th><th scope="col" class="chart-heading">Performance <span id="interval-label">/ 95% confidence interval</span></th><th scope="col" id="rank-metric-label">Beat baseline</th><th scope="col">Correct</th><th scope="col">ADP gain</th><th scope="col" id="attempt-heading">Attempts</th></tr></thead>
+            <thead><tr><th scope="col">Model</th><th scope="col" class="chart-heading">Performance <span id="interval-label"></span></th><th scope="col" id="rank-metric-label">Beat baseline</th><th scope="col">Correct</th><th scope="col">ADP gain</th><th scope="col" id="attempt-heading">Attempts</th></tr></thead>
             <tbody id="leaderboard-rows"></tbody>
             <tfoot><tr><td></td><td><div id="chart-axis" class="chart-axis" aria-hidden="true"></div></td><td colspan="4"></td></tr></tfoot>
           </table>
@@ -82,7 +82,7 @@
       <details class="evaluation-notes">
         <summary>Metric definitions &amp; evaluation notes</summary>
         <p>Beat baseline: correct attempts with lower cells × cycles than the baseline, divided by all attempts. Correctness: correct attempts divided by all attempts.</p>
-        <p>ADP = cells × cycles. ADP gain is the geometric mean of baseline ADP / design ADP across correct runs only. White lines show 95% Wilson confidence intervals. Operator bars are relative to the best correct result.</p>
+        <p>ADP = cells × cycles. ADP gain is the geometric mean of baseline ADP / design ADP across correct runs only. Operator bars are relative to the best correct result.</p>
         <p id="pilot-note"></p>
       </details>
       <noscript
@@ -103,6 +103,6 @@
         <code id="meta-commit">—</code>
       </p>
     </footer>
-    <script type="module" src="assets/app.js?v=agent-leaderboard"></script>
+    <script type="module" src="assets/app.js?v=no-intervals"></script>
   </body>
 </html>
