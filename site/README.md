@@ -18,7 +18,10 @@ successful outcomes remain distinguishable.
 Provider logos in `site/assets/logos/` come from
 [LobeHub Icons](https://github.com/lobehub/lobe-icons) (MIT, © LobeHub) and
 [Simple Icons](https://github.com/simple-icons/simple-icons) (CC0, Xiaomi).
-`app.js` maps model labels to logos; unmatched models fall back to an initial.
+`app.js` matches each model id (the label after its provider prefix) against a
+list of 22 model families, so new models from those families get a logo
+automatically; unmatched models fall back to an initial. To add a family, drop
+an SVG into `site/assets/logos/` and add one pattern to `logos` in `app.js`.
 
 ## Automatic results PRs
 
