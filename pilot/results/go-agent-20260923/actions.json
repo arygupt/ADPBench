@@ -1,0 +1,230 @@
+{
+  "run": {
+    "id": 35906631979,
+    "run_attempt": 1,
+    "head_sha": "c0e87a0bcf62d32ede038792fcd4fee4b1d1e694",
+    "html_url": "https://github.com/arygupt/ADPBench/actions/runs/35906631979",
+    "status": "completed",
+    "conclusion": "failure",
+    "event": "workflow_dispatch",
+    "path": ".github/workflows/go-agent.yml"
+  },
+  "jobs": [
+    {
+      "id": 107335844516,
+      "name": "Offline agent protocol, provider adapters, and evidence checks",
+      "status": "completed",
+      "conclusion": "success",
+      "started_at": "2026-09-23T19:02:42Z",
+      "completed_at": "2026-09-23T19:02:54Z"
+    },
+    {
+      "id": 107335846869,
+      "name": "Pinned agent sandbox and held-out scorer checks (no model calls)",
+      "status": "completed",
+      "conclusion": "skipped",
+      "started_at": "2026-09-23T19:02:40Z",
+      "completed_at": "2026-09-23T19:02:40Z"
+    },
+    {
+      "id": 107335934143,
+      "name": "Prepare pinned toolchain and validate both baselines (no model calls)",
+      "status": "completed",
+      "conclusion": "success",
+      "started_at": "2026-09-23T19:02:56Z",
+      "completed_at": "2026-09-23T19:04:32Z"
+    },
+    {
+      "id": 107336568108,
+      "name": "glm-5.3-flash \u00b7 001_dot_product / Generate glm-5.3-flash \u00b7 001_dot_product \u00b7 agent-assisted-v1",
+      "status": "completed",
+      "conclusion": "failure",
+      "started_at": "2026-09-23T19:04:35Z",
+      "completed_at": "2026-09-23T19:26:23Z"
+    },
+    {
+      "id": 107336568137,
+      "name": "minimax-m2.7 \u00b7 001_dot_product / Generate minimax-m2.7 \u00b7 001_dot_product \u00b7 agent-assisted-v1",
+      "status": "completed",
+      "conclusion": "success",
+      "started_at": "2026-09-23T19:04:35Z",
+      "completed_at": "2026-09-23T19:13:05Z"
+    },
+    {
+      "id": 107336568186,
+      "name": "mimo-v2.5 \u00b7 001_dot_product / Generate mimo-v2.5 \u00b7 001_dot_product \u00b7 agent-assisted-v1",
+      "status": "completed",
+      "conclusion": "success",
+      "started_at": "2026-09-23T19:04:35Z",
+      "completed_at": "2026-09-23T19:08:35Z"
+    },
+    {
+      "id": 107336568191,
+      "name": "qwen3.8-flash \u00b7 001_dot_product / Generate qwen3.8-flash \u00b7 001_dot_product \u00b7 agent-assisted-v1",
+      "status": "completed",
+      "conclusion": "success",
+      "started_at": "2026-09-23T19:04:35Z",
+      "completed_at": "2026-09-23T19:08:27Z"
+    },
+    {
+      "id": 107336568237,
+      "name": "kimi-k2.6 \u00b7 001_dot_product / Generate kimi-k2.6 \u00b7 001_dot_product \u00b7 agent-assisted-v1",
+      "status": "completed",
+      "conclusion": "success",
+      "started_at": "2026-09-23T19:04:35Z",
+      "completed_at": "2026-09-23T19:09:04Z"
+    },
+    {
+      "id": 107336568289,
+      "name": "deepseek-v4.1-flash \u00b7 001_dot_product / Generate deepseek-v4.1-flash \u00b7 001_dot_product \u00b7 agent-assisted-v1",
+      "status": "completed",
+      "conclusion": "success",
+      "started_at": "2026-09-23T19:04:35Z",
+      "completed_at": "2026-09-23T19:12:43Z"
+    },
+    {
+      "id": 107338079469,
+      "name": "qwen3.8-flash \u00b7 001_dot_product / Evaluate qwen3.8-flash \u00b7 001_dot_product \u00b7 agent-assisted-v1",
+      "status": "completed",
+      "conclusion": "success",
+      "started_at": "2026-09-23T19:08:30Z",
+      "completed_at": "2026-09-23T19:09:10Z"
+    },
+    {
+      "id": 107338127712,
+      "name": "mimo-v2.5 \u00b7 001_dot_product / Evaluate mimo-v2.5 \u00b7 001_dot_product \u00b7 agent-assisted-v1",
+      "status": "completed",
+      "conclusion": "success",
+      "started_at": "2026-09-23T19:08:37Z",
+      "completed_at": "2026-09-23T19:09:49Z"
+    },
+    {
+      "id": 107338307651,
+      "name": "kimi-k2.6 \u00b7 001_dot_product / Evaluate kimi-k2.6 \u00b7 001_dot_product \u00b7 agent-assisted-v1",
+      "status": "completed",
+      "conclusion": "success",
+      "started_at": "2026-09-23T19:09:06Z",
+      "completed_at": "2026-09-23T19:10:23Z"
+    },
+    {
+      "id": 107338350863,
+      "name": "mimo-v2.5 \u00b7 002_gemv / Generate mimo-v2.5 \u00b7 002_gemv \u00b7 agent-assisted-v1",
+      "status": "completed",
+      "conclusion": "success",
+      "started_at": "2026-09-23T19:09:15Z",
+      "completed_at": "2026-09-23T19:21:47Z"
+    },
+    {
+      "id": 107338593240,
+      "name": "deepseek-v4.1-flash \u00b7 002_gemv / Generate deepseek-v4.1-flash \u00b7 002_gemv \u00b7 agent-assisted-v1",
+      "status": "completed",
+      "conclusion": "success",
+      "started_at": "2026-09-23T19:09:51Z",
+      "completed_at": "2026-09-23T19:21:01Z"
+    },
+    {
+      "id": 107338810312,
+      "name": "qwen3.8-flash \u00b7 002_gemv / Generate qwen3.8-flash \u00b7 002_gemv \u00b7 agent-assisted-v1",
+      "status": "completed",
+      "conclusion": "success",
+      "started_at": "2026-09-23T19:10:26Z",
+      "completed_at": "2026-09-23T19:14:49Z"
+    },
+    {
+      "id": 107339685369,
+      "name": "deepseek-v4.1-flash \u00b7 001_dot_product / Evaluate deepseek-v4.1-flash \u00b7 001_dot_product \u00b7 agent-assisted-v1",
+      "status": "completed",
+      "conclusion": "success",
+      "started_at": "2026-09-23T19:12:45Z",
+      "completed_at": "2026-09-23T19:13:56Z"
+    },
+    {
+      "id": 107339826096,
+      "name": "minimax-m2.7 \u00b7 001_dot_product / Evaluate minimax-m2.7 \u00b7 001_dot_product \u00b7 agent-assisted-v1",
+      "status": "completed",
+      "conclusion": "success",
+      "started_at": "2026-09-23T19:13:07Z",
+      "completed_at": "2026-09-23T19:14:09Z"
+    },
+    {
+      "id": 107340146540,
+      "name": "glm-5.3-flash \u00b7 002_gemv / Generate glm-5.3-flash \u00b7 002_gemv \u00b7 agent-assisted-v1",
+      "status": "completed",
+      "conclusion": "success",
+      "started_at": "2026-09-23T19:13:58Z",
+      "completed_at": "2026-09-23T19:18:20Z"
+    },
+    {
+      "id": 107340229472,
+      "name": "kimi-k2.6 \u00b7 002_gemv / Generate kimi-k2.6 \u00b7 002_gemv \u00b7 agent-assisted-v1",
+      "status": "completed",
+      "conclusion": "failure",
+      "started_at": "2026-09-23T19:14:11Z",
+      "completed_at": "2026-09-23T19:25:54Z"
+    },
+    {
+      "id": 107340477199,
+      "name": "qwen3.8-flash \u00b7 002_gemv / Evaluate qwen3.8-flash \u00b7 002_gemv \u00b7 agent-assisted-v1",
+      "status": "completed",
+      "conclusion": "success",
+      "started_at": "2026-09-23T19:14:51Z",
+      "completed_at": "2026-09-23T19:15:29Z"
+    },
+    {
+      "id": 107340736225,
+      "name": "minimax-m2.7 \u00b7 002_gemv / Generate minimax-m2.7 \u00b7 002_gemv \u00b7 agent-assisted-v1",
+      "status": "completed",
+      "conclusion": "success",
+      "started_at": "2026-09-23T19:15:33Z",
+      "completed_at": "2026-09-23T19:38:21Z"
+    },
+    {
+      "id": 107341814943,
+      "name": "glm-5.3-flash \u00b7 002_gemv / Evaluate glm-5.3-flash \u00b7 002_gemv \u00b7 agent-assisted-v1",
+      "status": "completed",
+      "conclusion": "success",
+      "started_at": "2026-09-23T19:18:23Z",
+      "completed_at": "2026-09-23T19:20:09Z"
+    },
+    {
+      "id": 107342833890,
+      "name": "deepseek-v4.1-flash \u00b7 002_gemv / Evaluate deepseek-v4.1-flash \u00b7 002_gemv \u00b7 agent-assisted-v1",
+      "status": "completed",
+      "conclusion": "success",
+      "started_at": "2026-09-23T19:21:04Z",
+      "completed_at": "2026-09-23T19:22:20Z"
+    },
+    {
+      "id": 107343115014,
+      "name": "mimo-v2.5 \u00b7 002_gemv / Evaluate mimo-v2.5 \u00b7 002_gemv \u00b7 agent-assisted-v1",
+      "status": "completed",
+      "conclusion": "success",
+      "started_at": "2026-09-23T19:21:49Z",
+      "completed_at": "2026-09-23T19:25:46Z"
+    },
+    {
+      "id": 107344661981,
+      "name": "kimi-k2.6 \u00b7 002_gemv / Evaluate kimi-k2.6 \u00b7 002_gemv \u00b7 agent-assisted-v1",
+      "status": "completed",
+      "conclusion": "failure",
+      "started_at": "2026-09-23T19:25:56Z",
+      "completed_at": "2026-09-23T19:26:26Z"
+    },
+    {
+      "id": 107344846620,
+      "name": "glm-5.3-flash \u00b7 001_dot_product / Evaluate glm-5.3-flash \u00b7 001_dot_product \u00b7 agent-assisted-v1",
+      "status": "completed",
+      "conclusion": "failure",
+      "started_at": "2026-09-23T19:26:27Z",
+      "completed_at": "2026-09-23T19:27:02Z"
+    },
+    {
+      "id": 107349355998,
+      "name": "minimax-m2.7 \u00b7 002_gemv / Evaluate minimax-m2.7 \u00b7 002_gemv \u00b7 agent-assisted-v1",
+      "status": "completed",
+      "conclusion": "success",
+      "started_at": "2026-09-23T19:38:24Z",
+      "completed_at": "2026-09-23T19:43:51Z"
+    }
+  ]
+}

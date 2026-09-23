@@ -1,7 +1,13 @@
 {
   "schema_version": 1,
-  "default": "go-core-20260922",
+  "default": "go-agent-20260923",
   "evaluations": [
+    {
+      "id": "go-agent-20260923",
+      "label": "OpenCode Go \u00b7 go-agent-20260923 \u00b7 agent-assisted-v1",
+      "path": "data/go-agent-20260923/leaderboard.json",
+      "protocol": "agent-assisted-v1"
+    },
     {
       "id": "go-core-20260922",
       "label": "OpenCode Go \u00b7 six-model single-shot screen",

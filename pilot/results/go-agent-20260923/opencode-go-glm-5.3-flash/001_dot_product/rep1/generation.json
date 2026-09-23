@@ -1,0 +1,51 @@
+{
+  "model": "glm-5.3-flash",
+  "problem": "001_dot_product",
+  "protocol": "agent-assisted-v1",
+  "started": "2026-09-23T19:05:01.556435+00:00",
+  "generation_state": "failed",
+  "outcome": "transport_interrupted",
+  "error": "incomplete provider stream: invalid_or_interrupted_stream; no retry",
+  "turns": 6,
+  "checks": 2,
+  "max_turns": 12,
+  "max_checks": 3,
+  "max_output_tokens": 131072,
+  "usage": {
+    "prompt_tokens": 77365,
+    "completion_tokens": 44895,
+    "total_tokens": 122260
+  },
+  "incomplete_usage": true,
+  "generation_settings": {
+    "reasoning_effort": "low"
+  },
+  "github": {
+    "GITHUB_REPOSITORY": "arygupt/ADPBench",
+    "GITHUB_RUN_ID": "35906631979",
+    "GITHUB_RUN_ATTEMPT": "1",
+    "GITHUB_SHA": "c0e87a0bcf62d32ede038792fcd4fee4b1d1e694"
+  },
+  "finish_reason": "tool_calls",
+  "writes": 2,
+  "development_checks": [
+    {
+      "index": 1,
+      "submission_sha256": "6ab99103eb7aa7ac4d1d3ec7ef6f7759e3c8355171869261333cc8fd96bd7d40",
+      "completed": true,
+      "correct": true,
+      "reason": "",
+      "audit_ok": true
+    },
+    {
+      "index": 2,
+      "submission_sha256": "bf82a12845ebf288726b8f0a97ed001eeaff0293c8bf513ae5d5206103eae755",
+      "completed": true,
+      "correct": false,
+      "reason": "",
+      "audit_ok": true
+    }
+  ],
+  "duration_s": 1271.96,
+  "execution_health": "failed"
+}

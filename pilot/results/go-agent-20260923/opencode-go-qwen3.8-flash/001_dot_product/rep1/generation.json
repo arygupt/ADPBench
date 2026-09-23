@@ -1,0 +1,54 @@
+{
+  "model": "qwen3.8-flash",
+  "problem": "001_dot_product",
+  "protocol": "agent-assisted-v1",
+  "started": "2026-09-23T19:05:24.504092+00:00",
+  "generation_state": "failed",
+  "outcome": "turn_limit",
+  "error": "model turn budget exhausted without explicit submission",
+  "turns": 12,
+  "checks": 2,
+  "max_turns": 12,
+  "max_checks": 3,
+  "max_output_tokens": 131072,
+  "usage": {
+    "input_tokens": 20745,
+    "output_tokens": 11931,
+    "cache_creation_input_tokens": 0,
+    "cache_read_input_tokens": 73216
+  },
+  "incomplete_usage": false,
+  "generation_settings": {
+    "thinking": {
+      "type": "disabled"
+    }
+  },
+  "github": {
+    "GITHUB_REPOSITORY": "arygupt/ADPBench",
+    "GITHUB_RUN_ID": "35906631979",
+    "GITHUB_RUN_ATTEMPT": "1",
+    "GITHUB_SHA": "c0e87a0bcf62d32ede038792fcd4fee4b1d1e694"
+  },
+  "finish_reason": "tool_use",
+  "writes": 8,
+  "development_checks": [
+    {
+      "index": 1,
+      "submission_sha256": "2a81932ef69d667801583fb2664ddf4fb1dbc342f79db2542a18ce1b1d35f520",
+      "completed": true,
+      "correct": false,
+      "reason": "tool_error",
+      "audit_ok": true
+    },
+    {
+      "index": 2,
+      "submission_sha256": "635a384624b9d4c18b3ae2cb9d0371c47d84ec301a0b5c90e7dfe0ba5234d987",
+      "completed": true,
+      "correct": false,
+      "reason": "tool_error",
+      "audit_ok": true
+    }
+  ],
+  "duration_s": 175.23,
+  "execution_health": "completed"
+}
