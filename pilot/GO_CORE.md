@@ -84,6 +84,12 @@ The publisher preserves failed/unknown outcomes, does not call models, and never
 approves or merges PRs. Human review and merge update the site build; public
 Pages deployment remains separately controlled.
 
+The [September 23 live compatibility canary](diagnostics/go-canary-20260923.md)
+tested six tiny requests through the production streaming transport. Four models
+completed answers, MiniMax streamed thinking until its diagnostic cap, and GLM
+explicitly rejected the `thinking` field. The full benchmark remains disabled.
+Canary dispatches are labeled separately and never published as benchmark scores.
+
 ## Interruption-safe execution
 
 - **Stream and preserve:** Chat Completions and Messages SSE are assembled into

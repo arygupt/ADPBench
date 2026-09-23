@@ -1,0 +1,30 @@
+{
+  "schema_version": 1,
+  "kind": "provider-compatibility-diagnostic",
+  "benchmark_results": false,
+  "source_run_id": 35816113463,
+  "source_attempt": 1,
+  "source_commit": "f896f473cf0629f2263b83c8f745bb899e9a2682",
+  "source_run_url": "https://github.com/arygupt/ADPBench/actions/runs/35816113463",
+  "source_conclusion": "failure",
+  "artifact_id": 10731316751,
+  "artifact_digest_reported_by_github": "sha256:a7517797fd60850594f1f0aa01d0593862dc168d68cb65d9ed5349a3bae4007b",
+  "downloaded_summary_sha256": "e8f0fbc40f9a6d6359a5ef36f87cc1caf53b527c618c2e097b7912aa03d18967",
+  "downloaded_glm_error_sha256": "f2216a35273d4feda91e63a8f297540e53c97dc9d8bfe97ca8a3ba655a286d40",
+  "requests_started": 6,
+  "maximum_output_tokens_per_request": 128,
+  "maximum_output_tokens_total": 768,
+  "reported_input_tokens": 695,
+  "reported_output_tokens": 267,
+  "incomplete_usage": true,
+  "retries": 0,
+  "fallback": false,
+  "models": [
+    {"model":"glm-5.3-flash", "api":"chat/completions", "status":"http_400", "error_param":"thinking", "error_type":"invalid_request_error", "finding":"Upstream rejects the unknown thinking field", "input_tokens":null, "output_tokens":null},
+    {"model":"mimo-v2.5", "api":"chat/completions", "status":"completed", "finish_reason":"stop", "answer_present":true, "input_tokens":140, "output_tokens":32},
+    {"model":"deepseek-v4.1-flash", "api":"chat/completions", "status":"completed", "finish_reason":"stop", "answer_present":true, "input_tokens":133, "output_tokens":37},
+    {"model":"qwen3.8-flash", "api":"messages", "status":"completed", "finish_reason":"end_turn", "answer_present":true, "input_tokens":144, "output_tokens":32},
+    {"model":"kimi-k2.6", "api":"chat/completions", "status":"completed", "finish_reason":"stop", "answer_present":true, "input_tokens":137, "output_tokens":38},
+    {"model":"minimax-m2.7", "api":"messages", "status":"accepted_output_cap", "finish_reason":"max_tokens", "answer_present":false, "input_tokens":141, "output_tokens":128, "reported_thinking_tokens":128}
+  ]
+}
