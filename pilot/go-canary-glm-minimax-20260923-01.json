@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "kind": "provider-compatibility-diagnostic",
+  "name": "go-compatibility-glm-minimax-20260923-01",
+  "not_before": "2026-09-23T04:00:00+00:00",
+  "expires_at": "2026-09-24T00:00:00+00:00",
+  "source_plan": "pilot/go-core-provider-max-20260922.json",
+  "models": ["glm-5.3-flash", "minimax-m2.7"],
+  "require_complete_answer": true,
+  "max_output_tokens": 1024,
+  "max_prompt_bytes": 2048,
+  "idle_timeout_s": 30,
+  "wall_timeout_s": 90
+}

@@ -84,6 +84,20 @@ The publisher preserves failed/unknown outcomes, does not call models, and never
 approves or merges PRs. Human review and merge update the site build; public
 Pages deployment remains separately controlled.
 
+The [September 23 live compatibility canary](diagnostics/go-canary-20260923.md)
+tested six tiny requests through the production streaming transport. Four models
+completed answers, MiniMax streamed thinking until its diagnostic cap, and GLM
+explicitly rejected the `thinking` field. The full benchmark remains disabled.
+Canary dispatches are labeled separately and never published as benchmark scores.
+
+The [authorized GLM/MiniMax follow-up](diagnostics/go-canary-followup-20260923.md)
+then completed both answers using one additional request each. GLM's future
+profile omits the rejected `thinking` field and keeps low effort. MiniMax keeps
+native Messages behavior; its answer needed more than the original 128-token
+diagnostic cap. Both saved XOR modules passed offline synthesis and all four
+input cases. The follow-up used 297 output tokens total, with a 1,024-token cap
+per request. This verifies small-task compatibility, not benchmark performance.
+
 ## Interruption-safe execution
 
 - **Stream and preserve:** Chat Completions and Messages SSE are assembled into
