@@ -1,0 +1,97 @@
+{
+  "adpbench_version": "unknown",
+  "git_commit": "",
+  "problem": "002_gemv",
+  "problem_sha256": {
+    "dut.py": "b2fb0ace4d2bcaa3744897edf6475ba13c8acdf4a673f099ecf1ccd5b92443f1",
+    "baseline.v": "abb52693edfc89e2d11fd4e0120a104e56a0282957c543c644244b22ee20262d",
+    "baseline.json": "3ff73d6eb56d93dfd4c8b43f104ab5aa7553c0d09ad9d241efe0a1ac0d8a7b19"
+  },
+  "cases": {
+    "seeds": [
+      1000,
+      1001,
+      1002
+    ],
+    "directed": [
+      "zeros",
+      "min_values",
+      "extreme_signs"
+    ],
+    "transactions": 2,
+    "input_lens": {
+      "in_a_flat": 1024,
+      "in_x_flat": 64
+    }
+  },
+  "tools": {
+    "yosys": "Yosys 0.69+ (git sha1 143eb14f9, Release, GNU /usr/bin/c++ 12.2.0)",
+    "iverilog": "Icarus Verilog version 13.0 (stable) (v13_0)"
+  },
+  "submission_sha256": "877ec27a39d7fd6005329efcb21b7aa665ec2005c1c805379ff717026c056a5a",
+  "netlist_sha256": "",
+  "agent_cmd": "adpbench Go API single-shot (one request, no repair)",
+  "budget_s": 120,
+  "sandbox": {
+    "mode": "docker",
+    "image": "adpbench-go:ci",
+    "network": "none"
+  },
+  "result": {
+    "correct": false,
+    "ratio": -1.0,
+    "cells": -1,
+    "cycles": -1,
+    "stage": "synthesis"
+  },
+  "error": "",
+  "timed_out": false,
+  "duration_s": 197.56,
+  "generation": {
+    "model": "glm-5.3-flash",
+    "problem": "002_gemv",
+    "protocol": "single-shot",
+    "started": "2026-09-23T18:24:53.759851+00:00",
+    "max_output_tokens": 131072,
+    "error": "",
+    "generation_settings": {
+      "reasoning_effort": "low"
+    },
+    "github": {
+      "GITHUB_REPOSITORY": "arygupt/ADPBench",
+      "GITHUB_RUN_ID": "35901767041",
+      "GITHUB_RUN_ATTEMPT": "1",
+      "GITHUB_SHA": "3227e17cfda3e0e685c0665ea600d1016cb90244"
+    },
+    "prompt_bytes": 7117,
+    "transport": {
+      "stream": true,
+      "idle_timeout_s": 120,
+      "wall_timeout_s": 3600
+    },
+    "finish_reason": "stop",
+    "usage": {
+      "prompt_tokens": 1931,
+      "completion_tokens": 8532,
+      "total_tokens": 10463,
+      "prompt_tokens_details": {
+        "cached_tokens": 0,
+        "cache_write_tokens": null
+      }
+    },
+    "response_id": "chatcmpl-R46X3DGJ3iZnsv8PW1GB7lyb",
+    "response_model": "glm-5.3-flash",
+    "response_diagnostics": {
+      "message_fields": [
+        "content",
+        "reasoning",
+        "role"
+      ],
+      "answer_chars": 3724,
+      "reasoning_chars": 24431,
+      "has_reasoning_details": false
+    },
+    "duration_s": 197.56,
+    "generation_state": "completed"
+  }
+}

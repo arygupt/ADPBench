@@ -1,0 +1,97 @@
+{
+  "adpbench_version": "unknown",
+  "git_commit": "",
+  "problem": "001_dot_product",
+  "problem_sha256": {
+    "dut.py": "91fd0433d225e3f9dd67022edc55b1809f6f642019e415e6b921d67086530a45",
+    "baseline.v": "44111a2a04a8b1ef5517f87f9076861c696422ecb301c1e9e551d828a321d3e7",
+    "baseline.json": "06f89f858ee67fdd51e191965e7f3370ea08827ebf2a1bed935a1c74cf09e63e"
+  },
+  "cases": {
+    "seeds": [
+      1000,
+      1001,
+      1002
+    ],
+    "directed": [
+      "zeros",
+      "min_values",
+      "extreme_signs"
+    ],
+    "transactions": 2,
+    "input_lens": {
+      "in_a_flat": 256,
+      "in_b_flat": 256
+    }
+  },
+  "tools": {
+    "yosys": "Yosys 0.69+ (git sha1 143eb14f9, Release, GNU /usr/bin/c++ 12.2.0)",
+    "iverilog": "Icarus Verilog version 13.0 (stable) (v13_0)"
+  },
+  "submission_sha256": "b87fcef6aafa854691f2b8511c49a3406a780866e63e9de4c6dd28c1d0ea89ab",
+  "netlist_sha256": "d4267775c0fa06aeccb4f9f7ca689bcf32ba1081039111783ba2e8ad15102f88",
+  "agent_cmd": "adpbench Go API single-shot (one request, no repair)",
+  "budget_s": 120,
+  "sandbox": {
+    "mode": "docker",
+    "image": "adpbench-go:ci",
+    "network": "none"
+  },
+  "result": {
+    "correct": true,
+    "ratio": 2.5591509846827134,
+    "cells": 22850,
+    "cycles": 20,
+    "stage": "ok"
+  },
+  "error": "",
+  "timed_out": false,
+  "duration_s": 128.11,
+  "generation": {
+    "model": "glm-5.3-flash",
+    "problem": "001_dot_product",
+    "protocol": "single-shot",
+    "started": "2026-09-23T18:22:45.643745+00:00",
+    "max_output_tokens": 131072,
+    "error": "",
+    "generation_settings": {
+      "reasoning_effort": "low"
+    },
+    "github": {
+      "GITHUB_REPOSITORY": "arygupt/ADPBench",
+      "GITHUB_RUN_ID": "35901767041",
+      "GITHUB_RUN_ATTEMPT": "1",
+      "GITHUB_SHA": "3227e17cfda3e0e685c0665ea600d1016cb90244"
+    },
+    "prompt_bytes": 6943,
+    "transport": {
+      "stream": true,
+      "idle_timeout_s": 120,
+      "wall_timeout_s": 3600
+    },
+    "finish_reason": "stop",
+    "usage": {
+      "prompt_tokens": 1842,
+      "completion_tokens": 5623,
+      "total_tokens": 7465,
+      "prompt_tokens_details": {
+        "cached_tokens": 0,
+        "cache_write_tokens": null
+      }
+    },
+    "response_id": "chatcmpl-RRPyPgSHqpE18rUX7dci3X8y",
+    "response_model": "glm-5.3-flash",
+    "response_diagnostics": {
+      "message_fields": [
+        "content",
+        "reasoning",
+        "role"
+      ],
+      "answer_chars": 3549,
+      "reasoning_chars": 16044,
+      "has_reasoning_details": false
+    },
+    "duration_s": 128.11,
+    "generation_state": "completed"
+  }
+}

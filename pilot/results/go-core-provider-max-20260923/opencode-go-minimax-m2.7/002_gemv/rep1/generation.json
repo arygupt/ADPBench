@@ -1,0 +1,40 @@
+{
+  "model": "minimax-m2.7",
+  "problem": "002_gemv",
+  "protocol": "single-shot",
+  "started": "2026-09-23T18:25:17.140320+00:00",
+  "max_output_tokens": 131072,
+  "error": "",
+  "generation_settings": {},
+  "github": {
+    "GITHUB_REPOSITORY": "arygupt/ADPBench",
+    "GITHUB_RUN_ID": "35901767041",
+    "GITHUB_RUN_ATTEMPT": "1",
+    "GITHUB_SHA": "3227e17cfda3e0e685c0665ea600d1016cb90244"
+  },
+  "prompt_bytes": 7117,
+  "transport": {
+    "stream": true,
+    "idle_timeout_s": 120,
+    "wall_timeout_s": 3600
+  },
+  "finish_reason": "end_turn",
+  "usage": {
+    "input_tokens": 1913,
+    "output_tokens": 11772,
+    "output_tokens_details": {
+      "thinking_tokens": 10404
+    }
+  },
+  "response_id": "07034c8d5825a124d813e6bd2e692030",
+  "response_model": "minimax-m2.7",
+  "response_diagnostics": {
+    "content_block_types": [
+      "thinking",
+      "text"
+    ],
+    "reasoning_chars": 44092
+  },
+  "duration_s": 197.02,
+  "generation_state": "completed"
+}

@@ -1,0 +1,90 @@
+{
+  "adpbench_version": "unknown",
+  "git_commit": "",
+  "problem": "002_gemv",
+  "problem_sha256": {
+    "dut.py": "b2fb0ace4d2bcaa3744897edf6475ba13c8acdf4a673f099ecf1ccd5b92443f1",
+    "baseline.v": "abb52693edfc89e2d11fd4e0120a104e56a0282957c543c644244b22ee20262d",
+    "baseline.json": "3ff73d6eb56d93dfd4c8b43f104ab5aa7553c0d09ad9d241efe0a1ac0d8a7b19"
+  },
+  "cases": {
+    "seeds": [
+      1000,
+      1001,
+      1002
+    ],
+    "directed": [
+      "zeros",
+      "min_values",
+      "extreme_signs"
+    ],
+    "transactions": 2,
+    "input_lens": {
+      "in_a_flat": 1024,
+      "in_x_flat": 64
+    }
+  },
+  "tools": {
+    "yosys": "Yosys 0.69+ (git sha1 143eb14f9, Release, GNU /usr/bin/c++ 12.2.0)",
+    "iverilog": "Icarus Verilog version 13.0 (stable) (v13_0)"
+  },
+  "submission_sha256": "d475871839c8bf6b8043ad515fe7323425f003399499d991d713d1b657c9b37f",
+  "netlist_sha256": "efc9658991748c10a61a66471c8a72d554c9c16e39deafd78a33ab9ee5248494",
+  "agent_cmd": "adpbench Go API single-shot (one request, no repair)",
+  "budget_s": 120,
+  "sandbox": {
+    "mode": "docker",
+    "image": "adpbench-go:ci",
+    "network": "none"
+  },
+  "result": {
+    "correct": false,
+    "ratio": -1.0,
+    "cells": 25075,
+    "cycles": -1,
+    "stage": "timeout"
+  },
+  "error": "",
+  "timed_out": false,
+  "duration_s": 197.02,
+  "generation": {
+    "model": "minimax-m2.7",
+    "problem": "002_gemv",
+    "protocol": "single-shot",
+    "started": "2026-09-23T18:25:17.140320+00:00",
+    "max_output_tokens": 131072,
+    "error": "",
+    "generation_settings": {},
+    "github": {
+      "GITHUB_REPOSITORY": "arygupt/ADPBench",
+      "GITHUB_RUN_ID": "35901767041",
+      "GITHUB_RUN_ATTEMPT": "1",
+      "GITHUB_SHA": "3227e17cfda3e0e685c0665ea600d1016cb90244"
+    },
+    "prompt_bytes": 7117,
+    "transport": {
+      "stream": true,
+      "idle_timeout_s": 120,
+      "wall_timeout_s": 3600
+    },
+    "finish_reason": "end_turn",
+    "usage": {
+      "input_tokens": 1913,
+      "output_tokens": 11772,
+      "output_tokens_details": {
+        "thinking_tokens": 10404
+      }
+    },
+    "response_id": "07034c8d5825a124d813e6bd2e692030",
+    "response_model": "minimax-m2.7",
+    "response_diagnostics": {
+      "content_block_types": [
+        "thinking",
+        "text"
+      ],
+      "reasoning_chars": 44092
+    },
+    "duration_s": 197.02,
+    "generation_state": "completed"
+  }
+}

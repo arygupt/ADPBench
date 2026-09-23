@@ -1,0 +1,47 @@
+{
+  "model": "glm-5.3-flash",
+  "problem": "002_gemv",
+  "protocol": "single-shot",
+  "started": "2026-09-23T18:24:53.759851+00:00",
+  "max_output_tokens": 131072,
+  "error": "",
+  "generation_settings": {
+    "reasoning_effort": "low"
+  },
+  "github": {
+    "GITHUB_REPOSITORY": "arygupt/ADPBench",
+    "GITHUB_RUN_ID": "35901767041",
+    "GITHUB_RUN_ATTEMPT": "1",
+    "GITHUB_SHA": "3227e17cfda3e0e685c0665ea600d1016cb90244"
+  },
+  "prompt_bytes": 7117,
+  "transport": {
+    "stream": true,
+    "idle_timeout_s": 120,
+    "wall_timeout_s": 3600
+  },
+  "finish_reason": "stop",
+  "usage": {
+    "prompt_tokens": 1931,
+    "completion_tokens": 8532,
+    "total_tokens": 10463,
+    "prompt_tokens_details": {
+      "cached_tokens": 0,
+      "cache_write_tokens": null
+    }
+  },
+  "response_id": "chatcmpl-R46X3DGJ3iZnsv8PW1GB7lyb",
+  "response_model": "glm-5.3-flash",
+  "response_diagnostics": {
+    "message_fields": [
+      "content",
+      "reasoning",
+      "role"
+    ],
+    "answer_chars": 3724,
+    "reasoning_chars": 24431,
+    "has_reasoning_details": false
+  },
+  "duration_s": 197.56,
+  "generation_state": "completed"
+}

@@ -1,7 +1,13 @@
 {
   "schema_version": 1,
-  "default": "go-core-20260922",
+  "default": "go-core-provider-max-20260923",
   "evaluations": [
+    {
+      "id": "go-core-provider-max-20260923",
+      "label": "OpenCode Go \u00b7 go-core-provider-max-20260923 \u00b7 single-shot",
+      "path": "data/go-core-provider-max-20260923/leaderboard.json",
+      "protocol": "single-shot"
+    },
     {
       "id": "go-core-20260922",
       "label": "OpenCode Go \u00b7 six-model single-shot screen",

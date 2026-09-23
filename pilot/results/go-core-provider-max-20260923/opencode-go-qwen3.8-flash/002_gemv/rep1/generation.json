@@ -1,0 +1,43 @@
+{
+  "model": "qwen3.8-flash",
+  "problem": "002_gemv",
+  "protocol": "single-shot",
+  "started": "2026-09-23T18:23:03.433917+00:00",
+  "max_output_tokens": 131072,
+  "error": "",
+  "generation_settings": {
+    "thinking": {
+      "type": "disabled"
+    }
+  },
+  "github": {
+    "GITHUB_REPOSITORY": "arygupt/ADPBench",
+    "GITHUB_RUN_ID": "35901767041",
+    "GITHUB_RUN_ATTEMPT": "1",
+    "GITHUB_SHA": "3227e17cfda3e0e685c0665ea600d1016cb90244"
+  },
+  "prompt_bytes": 7117,
+  "transport": {
+    "stream": true,
+    "idle_timeout_s": 120,
+    "wall_timeout_s": 3600
+  },
+  "finish_reason": "end_turn",
+  "usage": {
+    "input_tokens": 2101,
+    "output_tokens": 68,
+    "cache_creation_input_tokens": 0,
+    "cache_read_input_tokens": 0
+  },
+  "response_id": "msg_856af0cd-82b3-45a1-8adb-5988b194cae4",
+  "response_model": "qwen3.8-flash",
+  "response_diagnostics": {
+    "content_block_types": [
+      "text"
+    ],
+    "reasoning_chars": 0
+  },
+  "invalid_rtl": "response contains no complete dut module",
+  "duration_s": 2.67,
+  "generation_state": "failed"
+}

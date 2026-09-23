@@ -1,0 +1,92 @@
+{
+  "schema_version": 1,
+  "kind": "validated-model-results-publication",
+  "source_run_id": 35901767041,
+  "source_attempt": 1,
+  "source_commit": "3227e17cfda3e0e685c0665ea600d1016cb90244",
+  "source_workflow": ".github/workflows/go-core.yml",
+  "dataset": "go-core-provider-max-20260923",
+  "confirmed_correct": 3,
+  "result_slots": 12,
+  "artifacts": [
+    {
+      "id": 10769139425,
+      "name": "go-core-mimo-v2.5-35901767041",
+      "digest": "sha256:ffeebac4801bf5ff6e605320555378e05ef5d0b1fc2e9af7bed2ca25234e96e2"
+    },
+    {
+      "id": 10770001943,
+      "name": "go-core-deepseek-v4.1-flash-35901767041",
+      "digest": "sha256:3402e9d285b0123afe8c343d76be736aa2b0d7c321c16362999a906a30da0276"
+    },
+    {
+      "id": 10769289233,
+      "name": "go-core-qwen3.8-flash-35901767041",
+      "digest": "sha256:f3d4d6f525ea4c35e05e17a5bb612a3c52a8fb939d052baab9d5317eed9a9b74"
+    },
+    {
+      "id": 10769274520,
+      "name": "go-core-glm-5.3-flash-35901767041",
+      "digest": "sha256:ee8ee4bbf0b53855bfe5983f67f693de99137d446e0064342ae600041112c2a7"
+    },
+    {
+      "id": 10770326284,
+      "name": "go-core-kimi-k2.6-35901767041",
+      "digest": "sha256:53b96ca6d4fafd4a4322b333be359782225b87feeaf9b7b85476829d49985999"
+    },
+    {
+      "id": 10770690406,
+      "name": "go-core-minimax-m2.7-35901767041",
+      "digest": "sha256:e35ef2bd0958ddcb65b79ebe49e08126e99c6ad699ed5b89565177c67f9f3545"
+    }
+  ],
+  "record_file_sha256": {
+    "opencode-go-deepseek-v4.1-flash/001_dot_product/rep1/generation.json": "9b65fd46400791fc6edf049b95c0dd7859bd7d1507b5c3198c78ad99e111d441",
+    "opencode-go-deepseek-v4.1-flash/001_dot_product/rep1/manifest.json": "8fcc759bc94b1b12d66da4b0e45aa416610fe7f153f492d09e9c786b231b30cd",
+    "opencode-go-deepseek-v4.1-flash/001_dot_product/rep1/record.json": "d25f6436e5776dcb20141512c997f0f216ec9c821795e7d8802f839b7d4ca233",
+    "opencode-go-deepseek-v4.1-flash/001_dot_product/rep1_frozen/dut.v": "6661d363079cce7db2dfd32f389c471b62843c2df2d12a27938c5ff9535a4b56",
+    "opencode-go-deepseek-v4.1-flash/002_gemv/rep1/generation.json": "937e1b53eb10bc30074046c5def8bf2c5494fa8f1ebf5bc7f1fff9365051a2f4",
+    "opencode-go-deepseek-v4.1-flash/002_gemv/rep1/manifest.json": "b19f13fe6e74c869aecc90890a03245a67d54ea1f3d4e50117f1bb92e3aed8ef",
+    "opencode-go-deepseek-v4.1-flash/002_gemv/rep1/record.json": "5a3827c805a15950f08b682fb7232e352f89202284e148a0fcf70c5f074723e2",
+    "opencode-go-deepseek-v4.1-flash/002_gemv/rep1_frozen/dut.v": "c0b2dd294c25e61418153591df97e7e4e3f10749d54dd5668df976605b5fdef0",
+    "opencode-go-glm-5.3-flash/001_dot_product/rep1/generation.json": "f44bf93d9ba05a01e590a55b46b2d598afd456d0afc3deb7dc78c10b9cbabc32",
+    "opencode-go-glm-5.3-flash/001_dot_product/rep1/manifest.json": "491c6c1f90ffadd9dcdf2224b82ad5e8965a519ea9fbb7d0abde5c3a8bf4e233",
+    "opencode-go-glm-5.3-flash/001_dot_product/rep1/record.json": "58737565277491e97bab4cb7d54b7fbbf6a76011b2c890f40300917456385eb5",
+    "opencode-go-glm-5.3-flash/001_dot_product/rep1_frozen/dut.v": "b87fcef6aafa854691f2b8511c49a3406a780866e63e9de4c6dd28c1d0ea89ab",
+    "opencode-go-glm-5.3-flash/002_gemv/rep1/generation.json": "33e6dbae0d48fd24a54136c042049da3990fa233682571a71f12eb7133a50c1d",
+    "opencode-go-glm-5.3-flash/002_gemv/rep1/manifest.json": "bfb6bb3e9db05fffa9bada91dcd782c09b6ef55ad3696a3d7e934dca58facbdf",
+    "opencode-go-glm-5.3-flash/002_gemv/rep1/record.json": "00fcac263c7b6a094466e78a60170d8263baef55240df5259a8176cc4747af32",
+    "opencode-go-glm-5.3-flash/002_gemv/rep1_frozen/dut.v": "877ec27a39d7fd6005329efcb21b7aa665ec2005c1c805379ff717026c056a5a",
+    "opencode-go-kimi-k2.6/001_dot_product/rep1/generation.json": "5165cc8fcef6246edc616ff42bed0a7ebe235029ff496e1cd9a99cd0b8ae2410",
+    "opencode-go-kimi-k2.6/001_dot_product/rep1/manifest.json": "cb21dfc2b71305f295ea240965af6d767d07992cda07bca2ed3e14ec281e4f4e",
+    "opencode-go-kimi-k2.6/001_dot_product/rep1/record.json": "2cdb285304a839f116220ccad31778e84322660dfa0850ac8dc413971918aa4d",
+    "opencode-go-kimi-k2.6/002_gemv/rep1/generation.json": "8b0d86525412069ad938ca461038ed82c9606d415ad5311cde09399dc87b2d46",
+    "opencode-go-kimi-k2.6/002_gemv/rep1/manifest.json": "71e3b38aec4ab773536bdc03ee3888f9c91ae06c16b3006899fb82b1cb6e9896",
+    "opencode-go-kimi-k2.6/002_gemv/rep1/record.json": "a1d65dbab0d949b698c8f12afd0720c5480519a28120465747897c567b99cd25",
+    "opencode-go-kimi-k2.6/002_gemv/rep1_frozen/dut.v": "6705a730ec4a3e96180f2efa678cbe1381df5177339c24e1ff3e35b213ea9e79",
+    "opencode-go-mimo-v2.5/001_dot_product/rep1/generation.json": "1e2e080ebe8d3c4aff32db6d0be58cdc701c11949b2ed8b2458438a050b8f075",
+    "opencode-go-mimo-v2.5/001_dot_product/rep1/manifest.json": "a583c7a198b2b8b1a5f7cfa299481adef01fb46b2831277422ddf521e5b21711",
+    "opencode-go-mimo-v2.5/001_dot_product/rep1/record.json": "0209dc92a5571d3f00e1d67278e413c8e2ead8baac5a0e608710e2f62547b08f",
+    "opencode-go-mimo-v2.5/001_dot_product/rep1_frozen/dut.v": "19b38adf0b1da10a51b594203fe9127b56e7ab937e6c8a37bc2e7fafecee0c90",
+    "opencode-go-mimo-v2.5/002_gemv/rep1/generation.json": "8cccc3f630dd4cef5f7b8785ad8494f3a596d72f213e2498f25f366f4258a0d3",
+    "opencode-go-mimo-v2.5/002_gemv/rep1/manifest.json": "249bb1b6ea84c571aac1b1c44f7f5ce774216ec3bac6001c16c18806915cf304",
+    "opencode-go-mimo-v2.5/002_gemv/rep1/record.json": "ed8d252b2720c83872e6d7aca466d2f7e5fd4f97897b67a9d8fec20901941999",
+    "opencode-go-mimo-v2.5/002_gemv/rep1_frozen/dut.v": "055121e20a40e143727d8f02f2e272654b0afb2e53e0e011696014cff3d41f67",
+    "opencode-go-minimax-m2.7/001_dot_product/rep1/generation.json": "878f20389c95b2bee10c63b09eb3a01fcd312dc21a55dd10cb10f2f07b24dbe6",
+    "opencode-go-minimax-m2.7/001_dot_product/rep1/manifest.json": "1ae2ad89cc4add14b25756b33d9fd95da1da44eb9644b7277d8019e2234a36dd",
+    "opencode-go-minimax-m2.7/001_dot_product/rep1/record.json": "d4b600a8f06a37df964a66769a3d9275c4d3847b0bba731907660e97b935c2c8",
+    "opencode-go-minimax-m2.7/001_dot_product/rep1_frozen/dut.v": "58764c10ccd98a6cb7b9a9e44d711832bf458bfddb3636e35f10525c2832fb49",
+    "opencode-go-minimax-m2.7/002_gemv/rep1/generation.json": "a6b1a522a57dad3acbbc79892a8e30a8048a4e096ea74a58114bf82b4417fd4f",
+    "opencode-go-minimax-m2.7/002_gemv/rep1/manifest.json": "1e670118b23cf911a78129fcd397e85fd598e9e87b43cf723c511b33e9b5f747",
+    "opencode-go-minimax-m2.7/002_gemv/rep1/record.json": "9f5aadf9c4ec187807427fbee29dac1d805bc071183ef0e08d447f44d69d07b6",
+    "opencode-go-minimax-m2.7/002_gemv/rep1_frozen/dut.v": "d475871839c8bf6b8043ad515fe7323425f003399499d991d713d1b657c9b37f",
+    "opencode-go-qwen3.8-flash/001_dot_product/rep1/generation.json": "e723f179cb7773682ce0cd9918e501bbc22c0258c531646d6070646cec77d800",
+    "opencode-go-qwen3.8-flash/001_dot_product/rep1/manifest.json": "66c65fd6f74762b8c490132d032611a77c1dee57449474ffb2e090c57b15f2fb",
+    "opencode-go-qwen3.8-flash/001_dot_product/rep1/record.json": "a926b3902498752bdd5e21cba58381b3c84246a9aee191b63bd75331792a8c79",
+    "opencode-go-qwen3.8-flash/001_dot_product/rep1_frozen/dut.v": "bd70676929727ebf289e64ecf454c229f4f2a6e39960bb29efe1e825af1176de",
+    "opencode-go-qwen3.8-flash/002_gemv/rep1/generation.json": "de9d6b078448b8172cb7d0bfff040cc2af5e78b2362fe18fd326a4b8903a5659",
+    "opencode-go-qwen3.8-flash/002_gemv/rep1/manifest.json": "4f2971c6f13a77b334a4416f29d190ebd233b2a78842d11e69d268a79a316f1c",
+    "opencode-go-qwen3.8-flash/002_gemv/rep1/record.json": "0a6c06c2b362dfbaecc86bea6c5416e5bb6d1dcae05c48c71af4c9130a9825f3",
+    "plan.json": "b82711ff3d2094f8d60cbf1cdb31ec2426f39e408b75ca6d38f113c351724949"
+  }
+}

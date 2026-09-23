@@ -1,0 +1,962 @@
+{
+  "meta": {
+    "generated": "2026-09-23T18:39:34",
+    "git_commit": "3227e17cfda3e0e685c0665ea600d1016cb90244",
+    "pilot": "go-core-provider-max-20260923",
+    "problems_planned": [
+      "001_dot_product",
+      "002_gemv"
+    ],
+    "sandbox": {
+      "mode": "docker \u00b7 network disabled"
+    },
+    "budget_s": null,
+    "repetitions": 1,
+    "jobs": null,
+    "cases": {
+      "seeds": [
+        1000,
+        1001,
+        1002
+      ],
+      "dev_seeds": [
+        0,
+        1
+      ],
+      "transactions": 2
+    },
+    "tools": {
+      "yosys": "Yosys 0.69+ (git sha1 143eb14f9, Release, GNU /usr/bin/c++ 12.2.0)",
+      "iverilog": "Icarus Verilog version 13.0 (stable) (v13_0)"
+    },
+    "adpbench_version": "unknown",
+    "protocol": "single-shot",
+    "max_output_tokens": {
+      "mimo-v2.5": 128000,
+      "deepseek-v4.1-flash": 384000,
+      "qwen3.8-flash": 131072,
+      "glm-5.3-flash": 131072,
+      "kimi-k2.6": 65536,
+      "minimax-m2.7": 131072
+    },
+    "workflow_url": "https://github.com/arygupt/ADPBench/actions/runs/35901767041",
+    "generation_requests": 12,
+    "incomplete_evidence": false,
+    "incomplete_usage": false,
+    "output_tokens": 120143,
+    "output_budget": "provider_max"
+  },
+  "problems": [
+    {
+      "name": "001_dot_product",
+      "title": "Dot product",
+      "level": 1,
+      "params": {
+        "LEN": 256,
+        "LANES": 32,
+        "DATA_W": 8,
+        "ACC_W": 32
+      },
+      "input_lens": {
+        "in_a_flat": 256,
+        "in_b_flat": 256
+      },
+      "out_len": 1,
+      "transactions": 2,
+      "directed": [
+        "zeros",
+        "min_values",
+        "extreme_signs"
+      ],
+      "quant": {
+        "in_a_flat": "int8 two's complement",
+        "in_b_flat": "int8 two's complement",
+        "out_c": "int32 two's complement, exact",
+        "accumulator": "int32, no saturation, no rounding",
+        "tolerance": "none - bit exact"
+      },
+      "baseline": {
+        "cells": 2142,
+        "cycles": 546,
+        "adp": 1169532.0
+      },
+      "sanity": {
+        "correct": true,
+        "cells": 20200,
+        "cycles": 20,
+        "adp": 404000.0,
+        "ratio": 2.894881188118812
+      }
+    },
+    {
+      "name": "002_gemv",
+      "title": "Matrix-vector (GEMV)",
+      "level": 1,
+      "params": {
+        "ROWS": 16,
+        "COLS": 64,
+        "LANES": 16,
+        "DATA_W": 8,
+        "ACC_W": 32
+      },
+      "input_lens": {
+        "in_a_flat": 1024,
+        "in_x_flat": 64
+      },
+      "out_len": 16,
+      "transactions": 2,
+      "directed": [
+        "zeros",
+        "min_values",
+        "extreme_signs"
+      ],
+      "quant": {
+        "in_a_flat": "int8 two's complement, row-major A",
+        "in_x_flat": "int8 two's complement",
+        "out_c": "int32 two's complement, exact, one word per row",
+        "accumulator": "int32, no saturation, no rounding",
+        "tolerance": "none - bit exact"
+      },
+      "baseline": {
+        "cells": 3295,
+        "cycles": 2216,
+        "adp": 7301720.0
+      },
+      "sanity": {
+        "correct": true,
+        "cells": 11657,
+        "cycles": 298,
+        "adp": 3473786.0,
+        "ratio": 2.101948709563571
+      }
+    }
+  ],
+  "models": [
+    {
+      "label": "opencode-go/deepseek-v4.1-flash [single-shot]",
+      "attempts": 2,
+      "correct": 2,
+      "beating": 2,
+      "correctness_rate": 1.0,
+      "beat_rate": 1.0,
+      "geomean": 3.8834,
+      "wrong_rtl": 0,
+      "infra": 0,
+      "score_ci": "\u00b133%",
+      "correctness_ci": "\u00b133%",
+      "runs": [
+        {
+          "label": "opencode-go/deepseek-v4.1-flash [single-shot]",
+          "problem": "001_dot_product",
+          "attempt": 1,
+          "correct": true,
+          "ratio": 3.2136709862498765,
+          "cells": 20218,
+          "cycles": 18,
+          "adp": 363924.0,
+          "stage": "ok",
+          "correctness": "exact match on 6 cases",
+          "duration_s": 121.73,
+          "timed_out": false,
+          "error": "",
+          "audit_ok": true,
+          "submission_sha256": "6661d363079cce7db2dfd32f389c471b62843c2df2d12a27938c5ff9535a4b56",
+          "netlist_sha256": "68d0598d8e937696061e0c38439b794c9fcbd72ed7a4c4dcb6bfd8128bceaef9",
+          "history": 0,
+          "execution": {
+            "kind": "model-evaluation",
+            "repository": "arygupt/ADPBench",
+            "run_id": 35901767041,
+            "run_attempt": 1,
+            "job_id": 107322952796,
+            "commit": "3227e17cfda3e0e685c0665ea600d1016cb90244",
+            "completed_at": "2026-09-23T18:32:16Z",
+            "job_conclusion": "success"
+          },
+          "record_origin": "scorer",
+          "generation": {
+            "model": "deepseek-v4.1-flash",
+            "finish_reason": "stop",
+            "usage": {
+              "prompt_tokens": 1921,
+              "completion_tokens": 18997,
+              "total_tokens": 20918,
+              "prompt_tokens_details": {
+                "audio_tokens": 0,
+                "cached_tokens": 0,
+                "cache_creation_input_tokens": 0,
+                "cache_write_tokens": 0
+              },
+              "completion_tokens_details": {
+                "accepted_prediction_tokens": 0,
+                "audio_tokens": 0,
+                "reasoning_tokens": 18025,
+                "rejected_prediction_tokens": 0
+              }
+            },
+            "generation_settings": {
+              "thinking": {
+                "type": "disabled"
+              },
+              "reasoning_effort": "low"
+            },
+            "response_diagnostics": {
+              "message_fields": [
+                "content",
+                "reasoning",
+                "role"
+              ],
+              "answer_chars": 3300,
+              "reasoning_chars": 62974,
+              "has_reasoning_details": false
+            },
+            "error": "",
+            "invalid_rtl": null,
+            "evidence_unavailable": null
+          }
+        },
+        {
+          "label": "opencode-go/deepseek-v4.1-flash [single-shot]",
+          "problem": "002_gemv",
+          "attempt": 1,
+          "correct": true,
+          "ratio": 4.6927729040136255,
+          "cells": 11275,
+          "cycles": 138,
+          "adp": 1555950.0,
+          "stage": "ok",
+          "correctness": "exact match on 6 cases",
+          "duration_s": 265.21,
+          "timed_out": false,
+          "error": "",
+          "audit_ok": true,
+          "submission_sha256": "c0b2dd294c25e61418153591df97e7e4e3f10749d54dd5668df976605b5fdef0",
+          "netlist_sha256": "0660a0c99bed6b7ca2f8a95d8b87590fbf70bfc0e95437d67ad1f57970676fa4",
+          "history": 0,
+          "execution": {
+            "kind": "model-evaluation",
+            "repository": "arygupt/ADPBench",
+            "run_id": 35901767041,
+            "run_attempt": 1,
+            "job_id": 107322952796,
+            "commit": "3227e17cfda3e0e685c0665ea600d1016cb90244",
+            "completed_at": "2026-09-23T18:32:16Z",
+            "job_conclusion": "success"
+          },
+          "record_origin": "scorer",
+          "generation": {
+            "model": "deepseek-v4.1-flash",
+            "finish_reason": "stop",
+            "usage": {
+              "prompt_tokens": 2021,
+              "completion_tokens": 43413,
+              "total_tokens": 45434,
+              "prompt_tokens_details": {
+                "audio_tokens": 0,
+                "cached_tokens": 0,
+                "cache_creation_input_tokens": 0,
+                "cache_write_tokens": 0
+              },
+              "completion_tokens_details": {
+                "accepted_prediction_tokens": 0,
+                "audio_tokens": 0,
+                "reasoning_tokens": 41956,
+                "rejected_prediction_tokens": 0
+              }
+            },
+            "generation_settings": {
+              "thinking": {
+                "type": "disabled"
+              },
+              "reasoning_effort": "low"
+            },
+            "response_diagnostics": {
+              "message_fields": [
+                "content",
+                "reasoning",
+                "role"
+              ],
+              "answer_chars": 5181,
+              "reasoning_chars": 139609,
+              "has_reasoning_details": false
+            },
+            "error": "",
+            "invalid_rtl": null,
+            "evidence_unavailable": null
+          }
+        }
+      ]
+    },
+    {
+      "label": "opencode-go/glm-5.3-flash [single-shot]",
+      "attempts": 2,
+      "correct": 1,
+      "beating": 1,
+      "correctness_rate": 0.5,
+      "beat_rate": 0.5,
+      "geomean": 2.5592,
+      "wrong_rtl": 1,
+      "infra": 0,
+      "score_ci": "\u00b141%",
+      "correctness_ci": "\u00b141%",
+      "runs": [
+        {
+          "label": "opencode-go/glm-5.3-flash [single-shot]",
+          "problem": "001_dot_product",
+          "attempt": 1,
+          "correct": true,
+          "ratio": 2.5591509846827134,
+          "cells": 22850,
+          "cycles": 20,
+          "adp": 457000.0,
+          "stage": "ok",
+          "correctness": "exact match on 6 cases",
+          "duration_s": 128.11,
+          "timed_out": false,
+          "error": "",
+          "audit_ok": true,
+          "submission_sha256": "b87fcef6aafa854691f2b8511c49a3406a780866e63e9de4c6dd28c1d0ea89ab",
+          "netlist_sha256": "d4267775c0fa06aeccb4f9f7ca689bcf32ba1081039111783ba2e8ad15102f88",
+          "history": 0,
+          "execution": {
+            "kind": "model-evaluation",
+            "repository": "arygupt/ADPBench",
+            "run_id": 35901767041,
+            "run_attempt": 1,
+            "job_id": 107322953026,
+            "commit": "3227e17cfda3e0e685c0665ea600d1016cb90244",
+            "completed_at": "2026-09-23T18:34:06Z",
+            "job_conclusion": "success"
+          },
+          "record_origin": "scorer",
+          "generation": {
+            "model": "glm-5.3-flash",
+            "finish_reason": "stop",
+            "usage": {
+              "prompt_tokens": 1842,
+              "completion_tokens": 5623,
+              "total_tokens": 7465,
+              "prompt_tokens_details": {
+                "cached_tokens": 0,
+                "cache_write_tokens": null
+              }
+            },
+            "generation_settings": {
+              "reasoning_effort": "low"
+            },
+            "response_diagnostics": {
+              "message_fields": [
+                "content",
+                "reasoning",
+                "role"
+              ],
+              "answer_chars": 3549,
+              "reasoning_chars": 16044,
+              "has_reasoning_details": false
+            },
+            "error": "",
+            "invalid_rtl": null,
+            "evidence_unavailable": null
+          }
+        },
+        {
+          "label": "opencode-go/glm-5.3-flash [single-shot]",
+          "problem": "002_gemv",
+          "attempt": 1,
+          "correct": false,
+          "ratio": -1.0,
+          "cells": -1,
+          "cycles": -1,
+          "adp": -1.0,
+          "stage": "synthesis",
+          "correctness": "synthesis failed",
+          "duration_s": 197.56,
+          "timed_out": false,
+          "error": "",
+          "audit_ok": true,
+          "submission_sha256": "877ec27a39d7fd6005329efcb21b7aa665ec2005c1c805379ff717026c056a5a",
+          "netlist_sha256": "",
+          "history": 0,
+          "execution": {
+            "kind": "model-evaluation",
+            "repository": "arygupt/ADPBench",
+            "run_id": 35901767041,
+            "run_attempt": 1,
+            "job_id": 107322953026,
+            "commit": "3227e17cfda3e0e685c0665ea600d1016cb90244",
+            "completed_at": "2026-09-23T18:34:06Z",
+            "job_conclusion": "success"
+          },
+          "record_origin": "scorer",
+          "generation": {
+            "model": "glm-5.3-flash",
+            "finish_reason": "stop",
+            "usage": {
+              "prompt_tokens": 1931,
+              "completion_tokens": 8532,
+              "total_tokens": 10463,
+              "prompt_tokens_details": {
+                "cached_tokens": 0,
+                "cache_write_tokens": null
+              }
+            },
+            "generation_settings": {
+              "reasoning_effort": "low"
+            },
+            "response_diagnostics": {
+              "message_fields": [
+                "content",
+                "reasoning",
+                "role"
+              ],
+              "answer_chars": 3724,
+              "reasoning_chars": 24431,
+              "has_reasoning_details": false
+            },
+            "error": "",
+            "invalid_rtl": null,
+            "evidence_unavailable": null
+          }
+        }
+      ]
+    },
+    {
+      "label": "opencode-go/kimi-k2.6 [single-shot]",
+      "attempts": 2,
+      "correct": 0,
+      "beating": 0,
+      "correctness_rate": 0.0,
+      "beat_rate": 0.0,
+      "geomean": -1.0,
+      "wrong_rtl": 1,
+      "infra": 1,
+      "score_ci": "\u00b133%",
+      "correctness_ci": "\u00b133%",
+      "runs": [
+        {
+          "label": "opencode-go/kimi-k2.6 [single-shot]",
+          "problem": "001_dot_product",
+          "attempt": 1,
+          "correct": false,
+          "ratio": -1.0,
+          "cells": -1,
+          "cycles": -1,
+          "adp": -1.0,
+          "stage": "",
+          "correctness": "",
+          "duration_s": 212.95,
+          "timed_out": false,
+          "error": "expected one complete RTL source block",
+          "audit_ok": false,
+          "submission_sha256": "",
+          "netlist_sha256": "",
+          "history": 0,
+          "execution": {
+            "kind": "model-evaluation",
+            "repository": "arygupt/ADPBench",
+            "run_id": 35901767041,
+            "run_attempt": 1,
+            "job_id": 107322952878,
+            "commit": "3227e17cfda3e0e685c0665ea600d1016cb90244",
+            "completed_at": "2026-09-23T18:37:14Z",
+            "job_conclusion": "failure"
+          },
+          "record_origin": "scorer",
+          "generation": {
+            "model": "kimi-k2.6",
+            "finish_reason": "stop",
+            "usage": {
+              "prompt_tokens": 1820,
+              "completion_tokens": 17275,
+              "total_tokens": 19095,
+              "prompt_tokens_details": {
+                "audio_tokens": 0,
+                "cached_tokens": 0,
+                "cache_write_tokens": 0
+              },
+              "completion_tokens_details": {
+                "audio_tokens": 0,
+                "reasoning_tokens": 1
+              }
+            },
+            "generation_settings": {
+              "thinking": {
+                "type": "disabled"
+              }
+            },
+            "response_diagnostics": {
+              "message_fields": [
+                "content",
+                "reasoning",
+                "role"
+              ],
+              "answer_chars": 63971,
+              "reasoning_chars": 0,
+              "has_reasoning_details": false
+            },
+            "error": "",
+            "invalid_rtl": "expected one complete RTL source block",
+            "evidence_unavailable": null
+          }
+        },
+        {
+          "label": "opencode-go/kimi-k2.6 [single-shot]",
+          "problem": "002_gemv",
+          "attempt": 1,
+          "correct": false,
+          "ratio": -1.0,
+          "cells": 13631,
+          "cycles": -1,
+          "adp": -1.0,
+          "stage": "timeout",
+          "correctness": "timeout in the timing run - DUT never produced a full result",
+          "duration_s": 23.49,
+          "timed_out": false,
+          "error": "",
+          "audit_ok": true,
+          "submission_sha256": "6705a730ec4a3e96180f2efa678cbe1381df5177339c24e1ff3e35b213ea9e79",
+          "netlist_sha256": "2e2def35428cce718185ce3803905fdb7793582b53c6a0c3cc67ffb6397739ca",
+          "history": 0,
+          "execution": {
+            "kind": "model-evaluation",
+            "repository": "arygupt/ADPBench",
+            "run_id": 35901767041,
+            "run_attempt": 1,
+            "job_id": 107322952878,
+            "commit": "3227e17cfda3e0e685c0665ea600d1016cb90244",
+            "completed_at": "2026-09-23T18:37:14Z",
+            "job_conclusion": "failure"
+          },
+          "record_origin": "scorer",
+          "generation": {
+            "model": "kimi-k2.6",
+            "finish_reason": "stop",
+            "usage": {
+              "prompt_tokens": 1902,
+              "completion_tokens": 1885,
+              "total_tokens": 3787,
+              "prompt_tokens_details": {
+                "audio_tokens": 0,
+                "cached_tokens": 0,
+                "cache_write_tokens": 0
+              },
+              "completion_tokens_details": {
+                "audio_tokens": 0,
+                "reasoning_tokens": 1
+              }
+            },
+            "generation_settings": {
+              "thinking": {
+                "type": "disabled"
+              }
+            },
+            "response_diagnostics": {
+              "message_fields": [
+                "content",
+                "reasoning",
+                "role"
+              ],
+              "answer_chars": 7254,
+              "reasoning_chars": 0,
+              "has_reasoning_details": false
+            },
+            "error": "",
+            "invalid_rtl": null,
+            "evidence_unavailable": null
+          }
+        }
+      ]
+    },
+    {
+      "label": "opencode-go/mimo-v2.5 [single-shot]",
+      "attempts": 2,
+      "correct": 0,
+      "beating": 0,
+      "correctness_rate": 0.0,
+      "beat_rate": 0.0,
+      "geomean": -1.0,
+      "wrong_rtl": 2,
+      "infra": 0,
+      "score_ci": "\u00b133%",
+      "correctness_ci": "\u00b133%",
+      "runs": [
+        {
+          "label": "opencode-go/mimo-v2.5 [single-shot]",
+          "problem": "001_dot_product",
+          "attempt": 1,
+          "correct": false,
+          "ratio": -1.0,
+          "cells": 19204,
+          "cycles": -1,
+          "adp": -1.0,
+          "stage": "protocol_timeout",
+          "correctness": "timeout under backpressure - DUT never produced a full result",
+          "duration_s": 7.71,
+          "timed_out": false,
+          "error": "",
+          "audit_ok": true,
+          "submission_sha256": "19b38adf0b1da10a51b594203fe9127b56e7ab937e6c8a37bc2e7fafecee0c90",
+          "netlist_sha256": "f451c127839e6fa1008db79d6955fec260f752d5fec3a84112dd8851581c7a1b",
+          "history": 0,
+          "execution": {
+            "kind": "model-evaluation",
+            "repository": "arygupt/ADPBench",
+            "run_id": 35901767041,
+            "run_attempt": 1,
+            "job_id": 107322952841,
+            "commit": "3227e17cfda3e0e685c0665ea600d1016cb90244",
+            "completed_at": "2026-09-23T18:31:14Z",
+            "job_conclusion": "success"
+          },
+          "record_origin": "scorer",
+          "generation": {
+            "model": "mimo-v2.5",
+            "finish_reason": "stop",
+            "usage": {
+              "prompt_tokens": 1898,
+              "completion_tokens": 824,
+              "total_tokens": 2722,
+              "prompt_tokens_details": {
+                "audio_tokens": 0,
+                "cached_tokens": 0,
+                "cache_write_tokens": 0
+              },
+              "completion_tokens_details": {
+                "audio_tokens": 0,
+                "reasoning_tokens": 0
+              }
+            },
+            "generation_settings": {
+              "reasoning": {
+                "enabled": false
+              },
+              "token_limit_key": "max_completion_tokens"
+            },
+            "response_diagnostics": {
+              "message_fields": [
+                "content",
+                "reasoning",
+                "role"
+              ],
+              "answer_chars": 3337,
+              "reasoning_chars": 0,
+              "has_reasoning_details": false
+            },
+            "error": "",
+            "invalid_rtl": null,
+            "evidence_unavailable": null
+          }
+        },
+        {
+          "label": "opencode-go/mimo-v2.5 [single-shot]",
+          "problem": "002_gemv",
+          "attempt": 1,
+          "correct": false,
+          "ratio": -1.0,
+          "cells": 11366,
+          "cycles": 168,
+          "adp": -1.0,
+          "stage": "incorrect",
+          "correctness": "first mismatch at index 0: expected 15724, got -10975",
+          "duration_s": 14.58,
+          "timed_out": false,
+          "error": "",
+          "audit_ok": true,
+          "submission_sha256": "055121e20a40e143727d8f02f2e272654b0afb2e53e0e011696014cff3d41f67",
+          "netlist_sha256": "0743029fe85b947e0e11c25acccd4b4369f23c25669e79b682867b0c30bed88e",
+          "history": 0,
+          "execution": {
+            "kind": "model-evaluation",
+            "repository": "arygupt/ADPBench",
+            "run_id": 35901767041,
+            "run_attempt": 1,
+            "job_id": 107322952841,
+            "commit": "3227e17cfda3e0e685c0665ea600d1016cb90244",
+            "completed_at": "2026-09-23T18:31:14Z",
+            "job_conclusion": "success"
+          },
+          "record_origin": "scorer",
+          "generation": {
+            "model": "mimo-v2.5",
+            "finish_reason": "stop",
+            "usage": {
+              "prompt_tokens": 1986,
+              "completion_tokens": 1940,
+              "total_tokens": 3926,
+              "prompt_tokens_details": {
+                "audio_tokens": 0,
+                "cached_tokens": 0,
+                "cache_write_tokens": 0
+              },
+              "completion_tokens_details": {
+                "audio_tokens": 0,
+                "reasoning_tokens": 0
+              }
+            },
+            "generation_settings": {
+              "reasoning": {
+                "enabled": false
+              },
+              "token_limit_key": "max_completion_tokens"
+            },
+            "response_diagnostics": {
+              "message_fields": [
+                "content",
+                "reasoning",
+                "role"
+              ],
+              "answer_chars": 7641,
+              "reasoning_chars": 0,
+              "has_reasoning_details": false
+            },
+            "error": "",
+            "invalid_rtl": null,
+            "evidence_unavailable": null
+          }
+        }
+      ]
+    },
+    {
+      "label": "opencode-go/minimax-m2.7 [single-shot]",
+      "attempts": 2,
+      "correct": 0,
+      "beating": 0,
+      "correctness_rate": 0.0,
+      "beat_rate": 0.0,
+      "geomean": -1.0,
+      "wrong_rtl": 2,
+      "infra": 0,
+      "score_ci": "\u00b133%",
+      "correctness_ci": "\u00b133%",
+      "runs": [
+        {
+          "label": "opencode-go/minimax-m2.7 [single-shot]",
+          "problem": "001_dot_product",
+          "attempt": 1,
+          "correct": false,
+          "ratio": -1.0,
+          "cells": 1148,
+          "cycles": -1,
+          "adp": -1.0,
+          "stage": "timeout",
+          "correctness": "timeout in the timing run - DUT never produced a full result",
+          "duration_s": 152.68,
+          "timed_out": false,
+          "error": "",
+          "audit_ok": true,
+          "submission_sha256": "58764c10ccd98a6cb7b9a9e44d711832bf458bfddb3636e35f10525c2832fb49",
+          "netlist_sha256": "03281081dd44de9579bc3ae2ee2554d8681ac37b30643b4490720988d9b14b91",
+          "history": 0,
+          "execution": {
+            "kind": "model-evaluation",
+            "repository": "arygupt/ADPBench",
+            "run_id": 35901767041,
+            "run_attempt": 1,
+            "job_id": 107322952872,
+            "commit": "3227e17cfda3e0e685c0665ea600d1016cb90244",
+            "completed_at": "2026-09-23T18:38:55Z",
+            "job_conclusion": "success"
+          },
+          "record_origin": "scorer",
+          "generation": {
+            "model": "minimax-m2.7",
+            "finish_reason": "end_turn",
+            "usage": {
+              "input_tokens": 1832,
+              "output_tokens": 8646,
+              "output_tokens_details": {
+                "thinking_tokens": 7733
+              }
+            },
+            "generation_settings": {},
+            "response_diagnostics": {
+              "content_block_types": [
+                "thinking",
+                "text"
+              ],
+              "reasoning_chars": 36851
+            },
+            "error": "",
+            "invalid_rtl": null,
+            "evidence_unavailable": null
+          }
+        },
+        {
+          "label": "opencode-go/minimax-m2.7 [single-shot]",
+          "problem": "002_gemv",
+          "attempt": 1,
+          "correct": false,
+          "ratio": -1.0,
+          "cells": 25075,
+          "cycles": -1,
+          "adp": -1.0,
+          "stage": "timeout",
+          "correctness": "timeout in the timing run - DUT never produced a full result",
+          "duration_s": 197.02,
+          "timed_out": false,
+          "error": "",
+          "audit_ok": true,
+          "submission_sha256": "d475871839c8bf6b8043ad515fe7323425f003399499d991d713d1b657c9b37f",
+          "netlist_sha256": "efc9658991748c10a61a66471c8a72d554c9c16e39deafd78a33ab9ee5248494",
+          "history": 0,
+          "execution": {
+            "kind": "model-evaluation",
+            "repository": "arygupt/ADPBench",
+            "run_id": 35901767041,
+            "run_attempt": 1,
+            "job_id": 107322952872,
+            "commit": "3227e17cfda3e0e685c0665ea600d1016cb90244",
+            "completed_at": "2026-09-23T18:38:55Z",
+            "job_conclusion": "success"
+          },
+          "record_origin": "scorer",
+          "generation": {
+            "model": "minimax-m2.7",
+            "finish_reason": "end_turn",
+            "usage": {
+              "input_tokens": 1913,
+              "output_tokens": 11772,
+              "output_tokens_details": {
+                "thinking_tokens": 10404
+              }
+            },
+            "generation_settings": {},
+            "response_diagnostics": {
+              "content_block_types": [
+                "thinking",
+                "text"
+              ],
+              "reasoning_chars": 44092
+            },
+            "error": "",
+            "invalid_rtl": null,
+            "evidence_unavailable": null
+          }
+        }
+      ]
+    },
+    {
+      "label": "opencode-go/qwen3.8-flash [single-shot]",
+      "attempts": 2,
+      "correct": 0,
+      "beating": 0,
+      "correctness_rate": 0.0,
+      "beat_rate": 0.0,
+      "geomean": -1.0,
+      "wrong_rtl": 1,
+      "infra": 1,
+      "score_ci": "\u00b133%",
+      "correctness_ci": "\u00b133%",
+      "runs": [
+        {
+          "label": "opencode-go/qwen3.8-flash [single-shot]",
+          "problem": "001_dot_product",
+          "attempt": 1,
+          "correct": false,
+          "ratio": -1.0,
+          "cells": -1,
+          "cycles": -1,
+          "adp": -1.0,
+          "stage": "synthesis",
+          "correctness": "synthesis failed",
+          "duration_s": 16.63,
+          "timed_out": false,
+          "error": "",
+          "audit_ok": true,
+          "submission_sha256": "bd70676929727ebf289e64ecf454c229f4f2a6e39960bb29efe1e825af1176de",
+          "netlist_sha256": "",
+          "history": 0,
+          "execution": {
+            "kind": "model-evaluation",
+            "repository": "arygupt/ADPBench",
+            "run_id": 35901767041,
+            "run_attempt": 1,
+            "job_id": 107322952829,
+            "commit": "3227e17cfda3e0e685c0665ea600d1016cb90244",
+            "completed_at": "2026-09-23T18:32:00Z",
+            "job_conclusion": "failure"
+          },
+          "record_origin": "scorer",
+          "generation": {
+            "model": "qwen3.8-flash",
+            "finish_reason": "end_turn",
+            "usage": {
+              "input_tokens": 2009,
+              "output_tokens": 1168,
+              "cache_creation_input_tokens": 0,
+              "cache_read_input_tokens": 0
+            },
+            "generation_settings": {
+              "thinking": {
+                "type": "disabled"
+              }
+            },
+            "response_diagnostics": {
+              "content_block_types": [
+                "text"
+              ],
+              "reasoning_chars": 0
+            },
+            "error": "",
+            "invalid_rtl": null,
+            "evidence_unavailable": null
+          }
+        },
+        {
+          "label": "opencode-go/qwen3.8-flash [single-shot]",
+          "problem": "002_gemv",
+          "attempt": 1,
+          "correct": false,
+          "ratio": -1.0,
+          "cells": -1,
+          "cycles": -1,
+          "adp": -1.0,
+          "stage": "",
+          "correctness": "",
+          "duration_s": 2.67,
+          "timed_out": false,
+          "error": "response contains no complete dut module",
+          "audit_ok": false,
+          "submission_sha256": "",
+          "netlist_sha256": "",
+          "history": 0,
+          "execution": {
+            "kind": "model-evaluation",
+            "repository": "arygupt/ADPBench",
+            "run_id": 35901767041,
+            "run_attempt": 1,
+            "job_id": 107322952829,
+            "commit": "3227e17cfda3e0e685c0665ea600d1016cb90244",
+            "completed_at": "2026-09-23T18:32:00Z",
+            "job_conclusion": "failure"
+          },
+          "record_origin": "scorer",
+          "generation": {
+            "model": "qwen3.8-flash",
+            "finish_reason": "end_turn",
+            "usage": {
+              "input_tokens": 2101,
+              "output_tokens": 68,
+              "cache_creation_input_tokens": 0,
+              "cache_read_input_tokens": 0
+            },
+            "generation_settings": {
+              "thinking": {
+                "type": "disabled"
+              }
+            },
+            "response_diagnostics": {
+              "content_block_types": [
+                "text"
+              ],
+              "reasoning_chars": 0
+            },
+            "error": "",
+            "invalid_rtl": "response contains no complete dut module",
+            "evidence_unavailable": null
+          }
+        }
+      ]
+    }
+  ]
+}

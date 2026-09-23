@@ -1,0 +1,221 @@
+{
+  "problem": "002_gemv",
+  "agent_cmd": "adpbench Go API single-shot (one request, no repair)",
+  "label": "opencode-go/kimi-k2.6 [single-shot]",
+  "attempt": 1,
+  "group": "go-core-provider-max-20260923",
+  "sandbox": "docker",
+  "started": "2026-09-23T18:26:17.539069+00:00",
+  "duration_s": 23.49,
+  "exit_code": -1,
+  "timed_out": false,
+  "audit": {
+    "ok": true,
+    "violations": [],
+    "warnings": []
+  },
+  "result": {
+    "problem": "002_gemv",
+    "source": "go-single-shot",
+    "compiled": true,
+    "synthesizable": true,
+    "correct": false,
+    "cells": 13631,
+    "cycles": -1,
+    "adp": -1.0,
+    "ratio": -1.0,
+    "metadata": {
+      "cases": [
+        1000,
+        1001,
+        1002,
+        "zeros",
+        "min_values",
+        "extreme_signs"
+      ],
+      "job": "f438e201",
+      "per_case": [
+        {
+          "case": 1000,
+          "synthesizable": true,
+          "correct": false,
+          "cells": 13631,
+          "cycles": -1,
+          "stage": "timeout",
+          "correctness": "timeout in the timing run - DUT never produced a full result",
+          "netlist_sha256": "2e2def35428cce718185ce3803905fdb7793582b53c6a0c3cc67ffb6397739ca"
+        },
+        {
+          "case": 1001,
+          "synthesizable": true,
+          "correct": false,
+          "cells": 13631,
+          "cycles": -1,
+          "stage": "timeout",
+          "correctness": "timeout in the timing run - DUT never produced a full result",
+          "netlist_sha256": "2e2def35428cce718185ce3803905fdb7793582b53c6a0c3cc67ffb6397739ca"
+        },
+        {
+          "case": 1002,
+          "synthesizable": true,
+          "correct": false,
+          "cells": 13631,
+          "cycles": -1,
+          "stage": "timeout",
+          "correctness": "timeout in the timing run - DUT never produced a full result",
+          "netlist_sha256": "2e2def35428cce718185ce3803905fdb7793582b53c6a0c3cc67ffb6397739ca"
+        },
+        {
+          "case": "zeros",
+          "synthesizable": true,
+          "correct": false,
+          "cells": 13631,
+          "cycles": -1,
+          "stage": "timeout",
+          "correctness": "timeout in the timing run - DUT never produced a full result",
+          "netlist_sha256": "2e2def35428cce718185ce3803905fdb7793582b53c6a0c3cc67ffb6397739ca"
+        },
+        {
+          "case": "min_values",
+          "synthesizable": true,
+          "correct": false,
+          "cells": 13631,
+          "cycles": -1,
+          "stage": "timeout",
+          "correctness": "timeout in the timing run - DUT never produced a full result",
+          "netlist_sha256": "2e2def35428cce718185ce3803905fdb7793582b53c6a0c3cc67ffb6397739ca"
+        },
+        {
+          "case": "extreme_signs",
+          "synthesizable": true,
+          "correct": false,
+          "cells": 13631,
+          "cycles": -1,
+          "stage": "timeout",
+          "correctness": "timeout in the timing run - DUT never produced a full result",
+          "netlist_sha256": "2e2def35428cce718185ce3803905fdb7793582b53c6a0c3cc67ffb6397739ca"
+        }
+      ],
+      "stage": "timeout",
+      "correctness": "timeout in the timing run - DUT never produced a full result",
+      "case_failed": 1000
+    }
+  },
+  "error": "",
+  "frozen": "/output/opencode-go-kimi-k2.6/002_gemv/rep1_frozen/dut.v",
+  "manifest": {
+    "adpbench_version": "unknown",
+    "git_commit": "",
+    "problem": "002_gemv",
+    "problem_sha256": {
+      "dut.py": "b2fb0ace4d2bcaa3744897edf6475ba13c8acdf4a673f099ecf1ccd5b92443f1",
+      "baseline.v": "abb52693edfc89e2d11fd4e0120a104e56a0282957c543c644244b22ee20262d",
+      "baseline.json": "3ff73d6eb56d93dfd4c8b43f104ab5aa7553c0d09ad9d241efe0a1ac0d8a7b19"
+    },
+    "cases": {
+      "seeds": [
+        1000,
+        1001,
+        1002
+      ],
+      "directed": [
+        "zeros",
+        "min_values",
+        "extreme_signs"
+      ],
+      "transactions": 2,
+      "input_lens": {
+        "in_a_flat": 1024,
+        "in_x_flat": 64
+      }
+    },
+    "tools": {
+      "yosys": "Yosys 0.69+ (git sha1 143eb14f9, Release, GNU /usr/bin/c++ 12.2.0)",
+      "iverilog": "Icarus Verilog version 13.0 (stable) (v13_0)"
+    },
+    "submission_sha256": "6705a730ec4a3e96180f2efa678cbe1381df5177339c24e1ff3e35b213ea9e79",
+    "netlist_sha256": "2e2def35428cce718185ce3803905fdb7793582b53c6a0c3cc67ffb6397739ca",
+    "agent_cmd": "adpbench Go API single-shot (one request, no repair)",
+    "budget_s": 120,
+    "sandbox": {
+      "mode": "docker",
+      "image": "adpbench-go:ci",
+      "network": "none"
+    },
+    "result": {
+      "correct": false,
+      "ratio": -1.0,
+      "cells": 13631,
+      "cycles": -1,
+      "stage": "timeout"
+    },
+    "error": "",
+    "timed_out": false,
+    "duration_s": 23.49,
+    "generation": {
+      "model": "kimi-k2.6",
+      "problem": "002_gemv",
+      "protocol": "single-shot",
+      "started": "2026-09-23T18:26:17.539069+00:00",
+      "max_output_tokens": 65536,
+      "error": "",
+      "generation_settings": {
+        "thinking": {
+          "type": "disabled"
+        }
+      },
+      "github": {
+        "GITHUB_REPOSITORY": "arygupt/ADPBench",
+        "GITHUB_RUN_ID": "35901767041",
+        "GITHUB_RUN_ATTEMPT": "1",
+        "GITHUB_SHA": "3227e17cfda3e0e685c0665ea600d1016cb90244"
+      },
+      "prompt_bytes": 7117,
+      "transport": {
+        "stream": true,
+        "idle_timeout_s": 120,
+        "wall_timeout_s": 3600
+      },
+      "finish_reason": "stop",
+      "usage": {
+        "prompt_tokens": 1902,
+        "completion_tokens": 1885,
+        "total_tokens": 3787,
+        "prompt_tokens_details": {
+          "audio_tokens": 0,
+          "cached_tokens": 0,
+          "cache_write_tokens": 0
+        },
+        "completion_tokens_details": {
+          "audio_tokens": 0,
+          "reasoning_tokens": 1
+        }
+      },
+      "response_id": "gen-1790187977-v19R69TIvyxCJtH6sZKD",
+      "response_model": "kimi-k2.6",
+      "response_diagnostics": {
+        "message_fields": [
+          "content",
+          "reasoning",
+          "role"
+        ],
+        "answer_chars": 7254,
+        "reasoning_chars": 0,
+        "has_reasoning_details": false
+      },
+      "duration_s": 23.49,
+      "generation_state": "completed"
+    }
+  },
+  "history": [],
+  "execution": {
+    "kind": "model-evaluation",
+    "repository": "arygupt/ADPBench",
+    "run_id": 35901767041,
+    "run_attempt": 1,
+    "job_id": 107322952878,
+    "commit": "3227e17cfda3e0e685c0665ea600d1016cb90244",
+    "completed_at": "2026-09-23T18:37:14Z",
+    "job_conclusion": "failure"
+  }
+}

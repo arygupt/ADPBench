@@ -1,0 +1,222 @@
+{
+  "problem": "001_dot_product",
+  "agent_cmd": "adpbench Go API single-shot (one request, no repair)",
+  "label": "opencode-go/mimo-v2.5 [single-shot]",
+  "attempt": 1,
+  "group": "go-core-provider-max-20260923",
+  "sandbox": "docker",
+  "started": "2026-09-23T18:22:48.940140+00:00",
+  "duration_s": 7.71,
+  "exit_code": -1,
+  "timed_out": false,
+  "audit": {
+    "ok": true,
+    "violations": [],
+    "warnings": []
+  },
+  "result": {
+    "problem": "001_dot_product",
+    "source": "go-single-shot",
+    "compiled": true,
+    "synthesizable": true,
+    "correct": false,
+    "cells": 19204,
+    "cycles": -1,
+    "adp": -1.0,
+    "ratio": -1.0,
+    "metadata": {
+      "cases": [
+        1000,
+        1001,
+        1002,
+        "zeros",
+        "min_values",
+        "extreme_signs"
+      ],
+      "job": "b336248d",
+      "per_case": [
+        {
+          "case": 1000,
+          "synthesizable": true,
+          "correct": false,
+          "cells": 19204,
+          "cycles": -1,
+          "stage": "protocol_timeout",
+          "correctness": "timeout under backpressure - DUT never produced a full result",
+          "netlist_sha256": "f451c127839e6fa1008db79d6955fec260f752d5fec3a84112dd8851581c7a1b"
+        },
+        {
+          "case": 1001,
+          "synthesizable": true,
+          "correct": false,
+          "cells": 19204,
+          "cycles": -1,
+          "stage": "protocol_timeout",
+          "correctness": "timeout under backpressure - DUT never produced a full result",
+          "netlist_sha256": "f451c127839e6fa1008db79d6955fec260f752d5fec3a84112dd8851581c7a1b"
+        },
+        {
+          "case": 1002,
+          "synthesizable": true,
+          "correct": false,
+          "cells": 19204,
+          "cycles": -1,
+          "stage": "protocol_timeout",
+          "correctness": "timeout under backpressure - DUT never produced a full result",
+          "netlist_sha256": "f451c127839e6fa1008db79d6955fec260f752d5fec3a84112dd8851581c7a1b"
+        },
+        {
+          "case": "zeros",
+          "synthesizable": true,
+          "correct": false,
+          "cells": 19204,
+          "cycles": -1,
+          "stage": "protocol_timeout",
+          "correctness": "timeout under backpressure - DUT never produced a full result",
+          "netlist_sha256": "f451c127839e6fa1008db79d6955fec260f752d5fec3a84112dd8851581c7a1b"
+        },
+        {
+          "case": "min_values",
+          "synthesizable": true,
+          "correct": false,
+          "cells": 19204,
+          "cycles": -1,
+          "stage": "protocol_timeout",
+          "correctness": "timeout under backpressure - DUT never produced a full result",
+          "netlist_sha256": "f451c127839e6fa1008db79d6955fec260f752d5fec3a84112dd8851581c7a1b"
+        },
+        {
+          "case": "extreme_signs",
+          "synthesizable": true,
+          "correct": false,
+          "cells": 19204,
+          "cycles": -1,
+          "stage": "protocol_timeout",
+          "correctness": "timeout under backpressure - DUT never produced a full result",
+          "netlist_sha256": "f451c127839e6fa1008db79d6955fec260f752d5fec3a84112dd8851581c7a1b"
+        }
+      ],
+      "stage": "protocol_timeout",
+      "correctness": "timeout under backpressure - DUT never produced a full result",
+      "case_failed": 1000
+    }
+  },
+  "error": "",
+  "frozen": "/output/opencode-go-mimo-v2.5/001_dot_product/rep1_frozen/dut.v",
+  "manifest": {
+    "adpbench_version": "unknown",
+    "git_commit": "",
+    "problem": "001_dot_product",
+    "problem_sha256": {
+      "dut.py": "91fd0433d225e3f9dd67022edc55b1809f6f642019e415e6b921d67086530a45",
+      "baseline.v": "44111a2a04a8b1ef5517f87f9076861c696422ecb301c1e9e551d828a321d3e7",
+      "baseline.json": "06f89f858ee67fdd51e191965e7f3370ea08827ebf2a1bed935a1c74cf09e63e"
+    },
+    "cases": {
+      "seeds": [
+        1000,
+        1001,
+        1002
+      ],
+      "directed": [
+        "zeros",
+        "min_values",
+        "extreme_signs"
+      ],
+      "transactions": 2,
+      "input_lens": {
+        "in_a_flat": 256,
+        "in_b_flat": 256
+      }
+    },
+    "tools": {
+      "yosys": "Yosys 0.69+ (git sha1 143eb14f9, Release, GNU /usr/bin/c++ 12.2.0)",
+      "iverilog": "Icarus Verilog version 13.0 (stable) (v13_0)"
+    },
+    "submission_sha256": "19b38adf0b1da10a51b594203fe9127b56e7ab937e6c8a37bc2e7fafecee0c90",
+    "netlist_sha256": "f451c127839e6fa1008db79d6955fec260f752d5fec3a84112dd8851581c7a1b",
+    "agent_cmd": "adpbench Go API single-shot (one request, no repair)",
+    "budget_s": 120,
+    "sandbox": {
+      "mode": "docker",
+      "image": "adpbench-go:ci",
+      "network": "none"
+    },
+    "result": {
+      "correct": false,
+      "ratio": -1.0,
+      "cells": 19204,
+      "cycles": -1,
+      "stage": "protocol_timeout"
+    },
+    "error": "",
+    "timed_out": false,
+    "duration_s": 7.71,
+    "generation": {
+      "model": "mimo-v2.5",
+      "problem": "001_dot_product",
+      "protocol": "single-shot",
+      "started": "2026-09-23T18:22:48.940140+00:00",
+      "max_output_tokens": 128000,
+      "error": "",
+      "generation_settings": {
+        "reasoning": {
+          "enabled": false
+        },
+        "token_limit_key": "max_completion_tokens"
+      },
+      "github": {
+        "GITHUB_REPOSITORY": "arygupt/ADPBench",
+        "GITHUB_RUN_ID": "35901767041",
+        "GITHUB_RUN_ATTEMPT": "1",
+        "GITHUB_SHA": "3227e17cfda3e0e685c0665ea600d1016cb90244"
+      },
+      "prompt_bytes": 6943,
+      "transport": {
+        "stream": true,
+        "idle_timeout_s": 120,
+        "wall_timeout_s": 3600
+      },
+      "finish_reason": "stop",
+      "usage": {
+        "prompt_tokens": 1898,
+        "completion_tokens": 824,
+        "total_tokens": 2722,
+        "prompt_tokens_details": {
+          "audio_tokens": 0,
+          "cached_tokens": 0,
+          "cache_write_tokens": 0
+        },
+        "completion_tokens_details": {
+          "audio_tokens": 0,
+          "reasoning_tokens": 0
+        }
+      },
+      "response_id": "gen-1790187769-bZLwOQ8M5lrUJEDK6pU0",
+      "response_model": "mimo-v2.5",
+      "response_diagnostics": {
+        "message_fields": [
+          "content",
+          "reasoning",
+          "role"
+        ],
+        "answer_chars": 3337,
+        "reasoning_chars": 0,
+        "has_reasoning_details": false
+      },
+      "duration_s": 7.71,
+      "generation_state": "completed"
+    }
+  },
+  "history": [],
+  "execution": {
+    "kind": "model-evaluation",
+    "repository": "arygupt/ADPBench",
+    "run_id": 35901767041,
+    "run_attempt": 1,
+    "job_id": 107322952841,
+    "commit": "3227e17cfda3e0e685c0665ea600d1016cb90244",
+    "completed_at": "2026-09-23T18:31:14Z",
+    "job_conclusion": "success"
+  }
+}
