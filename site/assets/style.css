@@ -1150,3 +1150,23 @@ dialog::backdrop {
 .evaluation-notes { color: var(--muted); font-size: 11px; line-height: 1.8; margin-top: 18px; }
 .evaluation-notes summary { cursor: pointer; }
 .evaluation-notes p { max-width: 920px; margin-top: 12px; }
+
+/* Dated API/RTL diagnostics stay outside benchmark datasets and rankings. */
+.compatibility-panel { margin-bottom: 26px; padding: 18px 20px; border: 1px solid var(--border-strong); border-left: 3px solid var(--accent); background: var(--surface); }
+.compatibility-heading { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px 20px; margin-bottom: 8px; }
+.compatibility-heading h2 { font-size: 15px; font-weight: 500; letter-spacing: -.2px; }
+.compatibility-label { font-size: 10px; color: var(--accent); }
+.compatibility-panel p { font-size: 11px; line-height: 1.7; color: var(--muted); }
+.compatibility-models { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px 30px; list-style: none; margin: 15px 0; padding: 0; }
+.compatibility-models li { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 12px; font-size: 11px; }
+.compatibility-models strong { font-weight: 500; font-size: 12px; }
+.compatibility-models span { color: var(--text); }
+.compatibility-models small { display: block; flex-basis: 100%; color: var(--muted); font-size: 10px; }
+.compatibility-panel .compatibility-caveat { color: var(--text); }
+.compatibility-links { display: flex; flex-wrap: wrap; gap: 8px 20px; margin-top: 12px; font-size: 10px; }
+.compatibility-links a { display: inline-flex; align-items: center; min-height: 28px; text-decoration: underline; text-underline-offset: 3px; }
+@media (max-width: 620px) {
+  .compatibility-panel { padding: 15px; }
+  .compatibility-models { grid-template-columns: 1fr; }
+  .compatibility-links { column-gap: 16px; }
+}

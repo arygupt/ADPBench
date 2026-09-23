@@ -14,6 +14,14 @@ result links to its original model-generation/scoring Actions job, full workflow
 and evaluated code revision. It is never called a verified replay. Output-cap,
 generation, incorrect-RTL and successful outcomes remain distinguishable.
 
+The dated **Go compatibility checks** panel is a separately reviewed diagnostic
+snapshot, outside the dataset selector and rankings. It links the successful
+GLM/MiniMax request run, frozen-XOR verification, evidence report, and original
+failed diagnostic. It does not turn compatibility probes into benchmark scores
+or overwrite historical failures. Site tests bind its model names, output-token
+counts and verification claims to the committed diagnostic receipt and RTL
+hashes. Updating the panel launches no model requests.
+
 ## Automatic results PRs
 
 The **Publish validated model results** workflow follows completed, eligible
