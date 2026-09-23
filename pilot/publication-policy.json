@@ -3,7 +3,7 @@
   "workflows": {
     ".github/workflows/go-core.yml": {
       "name": "OpenCode Go model runs",
-      "plans": ["pilot/go-core-20260922.json", "pilot/go-core-provider-max-20260922.json"],
+      "plans": ["pilot/go-core-20260922.json", "pilot/go-core-provider-max-20260922.json", "pilot/go-core-provider-max-20260923.json"],
       "artifact_prefix": "go-core-"
     }
   }

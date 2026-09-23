@@ -31,6 +31,7 @@ on:
       - "adpbench/**"
       - "pilot/go-core-20260922.json"
       - "pilot/go-core-provider-max-20260922.json"
+      - "pilot/go-core-provider-max-20260923.json"
       - "tests/test_go_pilot.py"
       - "tests/test_go_stream.py"
       - "tests/test_reliability.py"
@@ -45,7 +46,7 @@ concurrency:
   cancel-in-progress: false
 
 env:
-  PLAN: pilot/go-core-provider-max-20260922.json
+  PLAN: pilot/go-core-provider-max-20260923.json
 
 jobs:
   checks:
@@ -134,7 +135,7 @@ jobs:
           assert plan.get('generation_enabled', True), 'Generation is disabled; authorize a new batch before running'
           assert all(due(plan, m, now_utc()) for m in plan['models']), 'Batch authorization expired'
           assert len(plan['problems']) == 2, 'This workflow reserves scoring time for two problems'
-          assert len(plan['problems']) * plan.get('request_wall_timeout_s', plan['request_timeout_s']) <= 3900, 'Request deadlines leave no artifact-upload margin'
+          assert len(plan['problems']) * plan.get('request_wall_timeout_s', plan['request_timeout_s']) <= 7500, 'Request deadlines leave no artifact-upload margin'
           print('Requested output limits:', plan['max_output_tokens'])
           PY
       - uses: docker/setup-buildx-action@v3
@@ -233,12 +234,12 @@ jobs:
     name: "Generate ${{ matrix.model }} · two single-shot submissions"
     needs: prepare
     runs-on: ubuntu-latest
-    timeout-minutes: 75 # Two 30-minute requests plus setup and upload margin.
+    timeout-minutes: 135 # Two 60-minute requests plus setup and upload margin.
     permissions:
       contents: write # Only the claim step receives a repository write token.
     strategy:
       fail-fast: false
-      max-parallel: 2
+      max-parallel: 6
       matrix:
         model: [mimo-v2.5, deepseek-v4.1-flash, qwen3.8-flash, glm-5.3-flash, kimi-k2.6, minimax-m2.7]
     env:

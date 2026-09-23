@@ -20,7 +20,17 @@ authorization, not deletion of an existing claim.
 
 ## Provider-maximum output configuration
 
-The workflow now selects `go-core-provider-max-20260922.json`. The old 8,192-token
+The workflow now selects the user-authorized `go-core-provider-max-20260923.json`:
+six models, dot product and GEMV, generation enabled until September 24 at 18:00
+UTC. It uses fresh claim tags and is registered for automatic results-PR
+publication. Limits were rechecked against Models.dev on September 23 and are
+unchanged below. All six generation jobs may run concurrently. Each streamed
+request has a 60-minute wall deadline; generation jobs allow 135 minutes for two
+requests and evidence uploads. These are stuck-job limits, not economic budgets.
+There is no extra harness output-token cap below the advertised provider limits.
+Subscription quotas and provider limits still apply; no Zen fallback is enabled.
+
+`go-core-provider-max-20260922.json` remains a disabled historical plan. The old 8,192-token
 plan and published results above remain unchanged. The runner no longer imposes
 a separate 8,192-token ceiling: fixed plans may request larger integer limits,
 and `output_budget: "provider_max"` requires a reviewed limit for every model.
@@ -40,7 +50,7 @@ The exact integers are sent using each API's required token-limit field; omittin
 the field could select a smaller provider default, and Messages requires a limit.
 The values are pinned for reproducibility, not silently refreshed during a run.
 
-The new plan has **`generation_enabled: false`**. Configuring a larger output
+The September 22 template retains **`generation_enabled: false`**. Configuring a larger output
 budget does not launch another batch. Before a separately requested run, review
 the metadata, enable the plan and set a current two-day-or-shorter authorization
 window. A subsequent distinct batch also needs a fresh name/file and publication
@@ -50,7 +60,7 @@ With two problems per model, the configured worst-case output allowance is
 **1,941,504 tokens**, plus input tokens. Usage may be much lower, but subscription
 quota can be exhausted faster. Keep Go **Use balance off**. Subscription-only
 endpoints, the twelve-request limit and no retries/fallback remain unchanged.
-The new streaming plan uses a **120-second idle timeout and 30-minute total
+That historical streaming template uses a **120-second idle timeout and 30-minute total
 request deadline**, with a 75-minute generation job budget. The scoring job has
 its own 60-minute budget. Provider rejection, quota exhaustion and incorrect RTL
 can still occur; a larger budget cannot guarantee a successful submission.

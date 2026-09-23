@@ -23,7 +23,8 @@ test("compatibility panel shows frozen diagnostic evidence without changing benc
   assert.equal(receipt.source_conclusion, "success");
   assert.match(panel, /Not benchmark scores/);
   assert.match(panel, /Historical benchmark outcomes are unchanged/);
-  assert.match(panel, /batch remains disabled as of this update/);
+  assert.match(panel, /batch is authorized with provider-maximum output limits/);
+  assert.equal(readJSON("../pilot/go-core-provider-max-20260923.json").generation_enabled, true);
   assert.equal(readJSON("../pilot/go-core-provider-max-20260922.json").generation_enabled, false);
   const rows = [...panel.matchAll(/<li data-compatibility-model="([a-z0-9.-]+)">([\s\S]*?)<\/li>/g)];
   assert.deepEqual(rows.map(r => r[1]), receipt.models.map(m => m.model));

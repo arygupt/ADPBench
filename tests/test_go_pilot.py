@@ -195,6 +195,30 @@ class CoreModelsTest(unittest.TestCase):
 
 
 class ProviderMaximumTest(unittest.TestCase):
+    def test_new_authorized_batch_has_fresh_identity_full_limits_and_publication(self):
+        root = Path(__file__).resolve().parent.parent
+        path = "pilot/go-core-provider-max-20260923.json"
+        plan = read_plan(root / path)
+        previous = read_plan(root / "pilot/go-core-provider-max-20260922.json")
+        self.assertNotEqual(plan["name"],previous["name"])
+        self.assertFalse(previous["generation_enabled"])
+        self.assertTrue(plan["generation_enabled"])
+        self.assertEqual(plan["max_output_tokens"],previous["max_output_tokens"])
+        self.assertEqual(plan["request_wall_timeout_s"],3600)
+        self.assertEqual(len(plan["models"])*len(plan["problems"]),12)
+        policy = json.loads((root / "pilot/publication-policy.json").read_text())
+        self.assertIn(path,policy["workflows"][".github/workflows/go-core.yml"]["plans"])
+        workflow = (root / ".github/workflows/go-core.yml").read_text()
+        self.assertIn(f"  PLAN: {path}",workflow)
+        self.assertIn("timeout-minutes: 135",workflow)
+        for model in plan["models"]:
+            self.assertTrue(due(plan,model,datetime.fromisoformat("2026-09-23T19:00:00+00:00")))
+            self.assertFalse(due(plan,model,datetime.fromisoformat("2026-09-25T00:00:00+00:00")))
+            body = request_body(model,"task",plan)
+            self.assertEqual(body[model.get("token_limit_key","max_tokens")],plan["max_output_tokens"][model["id"]])
+            if model["id"] == "glm-5.3-flash":
+                self.assertNotIn("thinking",body)
+
     def setUp(self):
         self.plan = read_plan(Path(__file__).resolve().parent.parent / "pilot/go-core-provider-max-20260922.json")
         self.now = datetime.fromisoformat("2026-09-22T01:00:00+00:00")
