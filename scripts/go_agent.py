@@ -24,7 +24,7 @@ from scripts.go_pilot import (SETTING_KEYS, call_model, due, now_utc, output_lim
                               parse_response, provider_error_evidence, read_plan, select_model, valid_usage)
 from scripts.go_score import docker
 from scripts.go_stream import StreamFailure
-from scripts.go_tools import parse_turn, request_body, tool_results
+from scripts.go_tools import parse_turn, reasoning_counts, request_body, tool_results
 
 PROTOCOL = "agent-assisted-v1"
 MAX_FILE_BYTES = 512 * 1024
@@ -205,6 +205,8 @@ def generate(plan: dict, model: dict, problem_id: str, out: Path, image: str) ->
               "max_turns": plan["max_turns"], "max_checks": plan["max_checks"],
               "max_output_tokens": output_limit(plan, model), "usage": {}, "incomplete_usage": False,
               "generation_settings": {k: model[k] for k in SETTING_KEYS if k in model},
+              "reasoning_measured": {"turns": 0, "turns_with_reasoning": 0, "reasoning_chars": 0,
+                                     "answer_chars": 0, "reasoning_tokens": None},
               "github": {k: os.environ.get(k, "") for k in ("GITHUB_REPOSITORY", "GITHUB_RUN_ID", "GITHUB_RUN_ATTEMPT", "GITHUB_SHA")}}
     atomic_json(dest / "generation.json", record)
     key = os.environ.get("OPENCODE_GO_API_KEY", "")
@@ -242,6 +244,13 @@ def generate(plan: dict, model: dict, problem_id: str, out: Path, image: str) ->
             # Sanitize the complete response before persisting it.
             data = json.loads(json.dumps(data).replace(key, "[REDACTED]"))
             atomic_json(turn_dir / "response.json", data)
+            measured, counts = record["reasoning_measured"], reasoning_counts(data, model["api"])
+            measured["turns"] += 1
+            measured["turns_with_reasoning"] += counts["reasoning_chars"] > 0
+            measured["reasoning_chars"] += counts["reasoning_chars"]
+            measured["answer_chars"] += counts["answer_chars"]
+            if counts["reasoning_tokens"] is not None:
+                measured["reasoning_tokens"] = (measured["reasoning_tokens"] or 0) + counts["reasoning_tokens"]
             _, finish, usage = parse_response(data, model["api"])
             if not valid_usage(usage, model["api"], output_limit(plan, model)):
                 record.update(outcome="provider_error", error="invalid provider token accounting")

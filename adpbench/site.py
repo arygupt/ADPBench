@@ -85,7 +85,7 @@ def _run_entry(record: dict) -> dict:
                      execution_health=record.get("execution_health", "failed"))
         entry["correct"] = (bool(result.get("correct")) if entry["outcome"] in {"correct", "incorrect"} else None)
         entry["generation"].update({k:generation.get(k) for k in
-            ("protocol", "outcome", "turns", "max_turns", "incomplete_usage")})
+            ("protocol", "outcome", "turns", "max_turns", "incomplete_usage", "reasoning_measured")})
         entry["generation"]["dev_checks"] = generation.get("checks", generation.get("dev_checks"))
     return entry
 

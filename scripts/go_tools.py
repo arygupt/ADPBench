@@ -156,6 +156,40 @@ def parse_turn(data: dict, api: str) -> tuple[dict, list[dict], str, str, dict]:
     return assistant, calls, text, finish, usage
 
 
+def reasoning_counts(data: dict, api: str) -> dict:
+    """Character counts of one response's reasoning and answer, never the text itself.
+
+    Answer characters include tool-call arguments, since that is where agent
+    turns put their RTL. ``reasoning_tokens`` is only what the provider reports.
+    """
+    _api(api)
+    reasoning = answer = 0
+    tokens = None
+    if api == "messages":
+        for block in data.get("content") or []:
+            if not isinstance(block, dict):
+                continue
+            if block.get("type") == "thinking":
+                reasoning += len(block.get("thinking") or "")
+            elif block.get("type") == "text":
+                answer += len(block.get("text") or "")
+            elif block.get("type") == "tool_use":
+                answer += len(json.dumps(block.get("input")))
+    else:
+        choices = data.get("choices") or [{}]
+        message = (choices[0].get("message") or {}) if isinstance(choices[0], dict) else {}
+        reasoning = max(len(v) if isinstance(v, str) else 0
+                        for v in (message.get("reasoning_content"), message.get("reasoning")))
+        answer = len(message.get("content") or "") if isinstance(message.get("content"), str) else 0
+        for call in message.get("tool_calls") or []:
+            arguments = (call.get("function") or {}).get("arguments") if isinstance(call, dict) else None
+            answer += len(arguments) if isinstance(arguments, str) else 0
+        details = (data.get("usage") or {}).get("completion_tokens_details") or {}
+        if type(details.get("reasoning_tokens")) is int and details["reasoning_tokens"] >= 0:
+            tokens = details["reasoning_tokens"]
+    return {"reasoning_chars": reasoning, "answer_chars": answer, "reasoning_tokens": tokens}
+
+
 def tool_results(api: str, results: list[dict]) -> list[dict]:
     """Encode results, preserving every call ID (including rejected actions)."""
     _api(api)

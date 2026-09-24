@@ -111,6 +111,9 @@ class AgentTests(unittest.TestCase):
             self.assertEqual(call.call_count, 4)
             self.assertNotIn("test-only-not-a-real-key", json.dumps(record))
             self.assertEqual(record["usage"].get("output_tokens", record["usage"].get("completion_tokens")), 200)
+            measured = record["reasoning_measured"]
+            self.assertEqual((measured["turns"], measured["turns_with_reasoning"], measured["reasoning_chars"]), (4, 0, 0))
+            self.assertGreater(measured["answer_chars"], len(source))
             with self.assertRaises(FileExistsError):
                 agent.generate(self.plan, model, PROBLEM, out, "unused")
 

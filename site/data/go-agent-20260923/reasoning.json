@@ -1,0 +1,92 @@
+{
+  "schema_version": 1,
+  "dataset": "go-agent-20260923",
+  "source_run_id": 35906631979,
+  "method": "character counts of reasoning vs answer and tool-call arguments in saved responses",
+  "runs": {
+    "mimo-v2.5/001_dot_product": {
+      "turns": 11,
+      "turns_with_reasoning": 0,
+      "reasoning_chars": 0,
+      "answer_chars": 19552,
+      "reasoning_tokens": 0
+    },
+    "mimo-v2.5/002_gemv": {
+      "turns": 11,
+      "turns_with_reasoning": 0,
+      "reasoning_chars": 0,
+      "answer_chars": 35081,
+      "reasoning_tokens": 0
+    },
+    "deepseek-v4.1-flash/001_dot_product": {
+      "turns": 9,
+      "turns_with_reasoning": 7,
+      "reasoning_chars": 155805,
+      "answer_chars": 15019,
+      "reasoning_tokens": 45104
+    },
+    "deepseek-v4.1-flash/002_gemv": {
+      "turns": 8,
+      "turns_with_reasoning": 5,
+      "reasoning_chars": 235964,
+      "answer_chars": 23422,
+      "reasoning_tokens": 70498
+    },
+    "qwen3.8-flash/001_dot_product": {
+      "turns": 12,
+      "turns_with_reasoning": 0,
+      "reasoning_chars": 0,
+      "answer_chars": 38282,
+      "reasoning_tokens": null
+    },
+    "qwen3.8-flash/002_gemv": {
+      "turns": 12,
+      "turns_with_reasoning": 0,
+      "reasoning_chars": 0,
+      "answer_chars": 50174,
+      "reasoning_tokens": null
+    },
+    "glm-5.3-flash/001_dot_product": {
+      "turns": 5,
+      "turns_with_reasoning": 2,
+      "reasoning_chars": 133566,
+      "answer_chars": 12062,
+      "reasoning_tokens": null
+    },
+    "glm-5.3-flash/002_gemv": {
+      "turns": 7,
+      "turns_with_reasoning": 4,
+      "reasoning_chars": 13826,
+      "answer_chars": 13213,
+      "reasoning_tokens": 4301
+    },
+    "kimi-k2.6/001_dot_product": {
+      "turns": 11,
+      "turns_with_reasoning": 0,
+      "reasoning_chars": 0,
+      "answer_chars": 26932,
+      "reasoning_tokens": 11
+    },
+    "kimi-k2.6/002_gemv": {
+      "turns": 5,
+      "turns_with_reasoning": 0,
+      "reasoning_chars": 0,
+      "answer_chars": 129236,
+      "reasoning_tokens": 5
+    },
+    "minimax-m2.7/001_dot_product": {
+      "turns": 10,
+      "turns_with_reasoning": 10,
+      "reasoning_chars": 69248,
+      "answer_chars": 28561,
+      "reasoning_tokens": null
+    },
+    "minimax-m2.7/002_gemv": {
+      "turns": 11,
+      "turns_with_reasoning": 11,
+      "reasoning_chars": 73817,
+      "answer_chars": 31586,
+      "reasoning_tokens": null
+    }
+  }
+}
