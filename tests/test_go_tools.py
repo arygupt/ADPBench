@@ -2,10 +2,24 @@
 from copy import deepcopy
 import unittest
 
-from scripts.go_tools import request_body, parse_turn, tool_results
+from scripts.go_tools import reasoning_counts, request_body, parse_turn, tool_results
 
 
 class GoToolsTest(unittest.TestCase):
+    def test_reasoning_counts_are_sizes_only_for_both_apis(self):
+        chat = {"choices": [{"message": {"content": "ok", "reasoning_content": "secret plan",
+                                         "tool_calls": [{"function": {"arguments": '{"path":"dut.v"}'}}]}}],
+                "usage": {"completion_tokens_details": {"reasoning_tokens": 7}}}
+        self.assertEqual(reasoning_counts(chat, "chat/completions"),
+                         {"reasoning_chars": 11, "answer_chars": 2 + len('{"path":"dut.v"}'), "reasoning_tokens": 7})
+        messages = {"content": [{"type": "thinking", "thinking": "secret"}, {"type": "text", "text": "hi"},
+                                {"type": "tool_use", "input": {}}]}
+        self.assertEqual(reasoning_counts(messages, "messages"),
+                         {"reasoning_chars": 6, "answer_chars": 4, "reasoning_tokens": None})
+        for malformed in ({}, {"choices": []}, {"choices": [None]}, {"choices": [{"message": {"content": 3}}]}):
+            self.assertEqual(reasoning_counts(malformed, "chat/completions")["reasoning_chars"], 0)
+        self.assertNotIn("secret", str(reasoning_counts(chat, "chat/completions")))
+
     def model(self, api):
         return {"id": "fixture", "api": api, "reasoning_effort": "low"}
 

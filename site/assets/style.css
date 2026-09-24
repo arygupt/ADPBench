@@ -1004,6 +1004,9 @@ dialog::backdrop {
 .ranking-table .score-col { width: 120px; }
 .ranking-table .stat-col { width: 85px; }
 .ranking-table .attempt-col { width: 75px; }
+.ranking-table .reasoning-col { width: 150px; }
+.reasoning-stat strong { display: block; color: var(--text); font-weight: var(--weight-normal); }
+.reasoning-stat span { display: block; margin-top: 2px; font-size: 10px; color: var(--faint); white-space: nowrap; }
 .ranking-table thead th { text-transform: uppercase; font-size: 10px; letter-spacing: .6px; color: var(--muted); font-weight: var(--weight-strong); text-align: right; padding: 17px 8px; border-bottom: 1px solid var(--border-strong); }
 .ranking-table thead th:first-child, .ranking-table thead .chart-heading { text-align: left; }
 .ranking-table .chart-heading span { text-transform: none; letter-spacing: 0; color: var(--faint); font-size: 9px; }

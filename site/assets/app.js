@@ -117,6 +117,27 @@ import { agentState } from "./outcomes.mjs";
       ? `<img src="assets/logos/${logo}.svg" alt="" width="15" height="15">`
       : esc(displayName(model).slice(0, 1));
   }
+  function requestedReasoning(settings) {
+    const thinking = settings.thinking || {}, parts = [];
+    if (thinking.type === "disabled" || settings.reasoning?.enabled === false) parts.push("off");
+    else if (thinking.type === "enabled" || settings.reasoning?.enabled === true)
+      parts.push(thinking.budget_tokens ? `on, ${int(thinking.budget_tokens)}-token budget` : "on");
+    if (settings.reasoning_effort) parts.push(`effort ${settings.reasoning_effort}`);
+    return parts.join(" + ") || "provider default";
+  }
+  function reasoningSummary(model) {
+    const settings = model.runs.find((r) => r.generation?.generation_settings)?.generation.generation_settings;
+    const measured = model.runs.map((r) => r.reasoning).filter(Boolean);
+    const sum = (key) => measured.reduce((n, r) => n + (Number(r[key]) || 0), 0);
+    const total = sum("reasoning_chars") + sum("answer_chars");
+    const share = measured.length && total ? sum("reasoning_chars") / total : null;
+    const asked = settings ? requestedReasoning(settings) : "";
+    const text = share === null ? "—" : share > 0 ? pct(share) : "None";
+    const detail = share === null
+      ? "Reasoning was not measured for this model."
+      : `${pct(share)} of generated characters were reasoning, on ${int(sum("turns_with_reasoning"))} of ${int(sum("turns"))} turns.`;
+    return { text, asked, detail: asked ? `${detail} Requested: ${asked}.` : detail };
+  }
   function modelButton(model) {
     return `<button class="model-button" data-model="${esc(model.label)}" title="${esc(model.label)}" aria-label="Inspect ${esc(displayName(model))} runs"><span class="model-icon" aria-hidden="true">${modelIcon(model)}</span><span class="model-label">${esc(displayName(model))}</span></button>`;
   }
@@ -152,7 +173,7 @@ import { agentState } from "./outcomes.mjs";
     $("#leaderboard-rows").innerHTML =
       models
         .map((m) => {
-          const value = m[scoreMetric];
+          const value = m[scoreMetric], reasoning = reasoningSummary(m);
           const text = isRate ? pct(value) : ratio(value);
           const width = isRate
             ? value * 100
@@ -162,7 +183,7 @@ import { agentState } from "./outcomes.mjs";
           const tooltip = isRate
             ? `${label}: ${text}. ${m.correct}/${m.attempts} confirmed correct slots.${m.unscored ? ` ${m.unscored} unscored; inspect typed outcomes.` : ""}`
             : `${text} geometric mean across ${m.correct} correct attempts; ${m.attempts} total attempts.`;
-          return `<tr><th scope="row">${modelButton(m)}</th><td><button class="comparison-bar ${value === best && value > 0 ? "best" : ""}" data-model="${esc(m.label)}" title="${esc(tooltip)}" aria-label="${esc(displayName(m))}: ${esc(tooltip)}"><span class="comparison-track" aria-hidden="true"><span class="comparison-fill" style="width:${width}%"></span></span></button></td><td class="primary-stat"><strong>${text}</strong></td><td class="numeric-stat">${m.correct}/${m.attempts}</td><td class="numeric-stat">${ratio(m.geomean)}</td><td class="numeric-stat">${m.attempts}</td></tr>`;
+          return `<tr><th scope="row">${modelButton(m)}</th><td><button class="comparison-bar ${value === best && value > 0 ? "best" : ""}" data-model="${esc(m.label)}" title="${esc(tooltip)}" aria-label="${esc(displayName(m))}: ${esc(tooltip)}"><span class="comparison-track" aria-hidden="true"><span class="comparison-fill" style="width:${width}%"></span></span></button></td><td class="primary-stat"><strong>${text}</strong></td><td class="numeric-stat">${m.correct}/${m.attempts}</td><td class="numeric-stat">${ratio(m.geomean)}</td><td class="numeric-stat reasoning-stat" title="${esc(reasoning.detail)}"><strong>${reasoning.text}</strong>${reasoning.asked ? `<span>asked: ${esc(reasoning.asked)}</span>` : ""}</td><td class="numeric-stat">${m.attempts}</td></tr>`;
         })
         .join("") ||
       '<tr><td colspan="6" class="empty-state">No matching models. Try another name.</td></tr>';
@@ -287,7 +308,7 @@ import { agentState } from "./outcomes.mjs";
       )}</div><p class="pilot-note">Ratios are area–delay improvements, not clock-speed measurements. <a href="${datasets[datasetKey]}">Read the source records ↗</a></p></div>`;
     $(".dialog-summary", dialog).insertAdjacentHTML(
       "afterend",
-      `<p class="rc-meta">${esc(model.label)}</p>`,
+      `<p class="rc-meta">${esc(model.label)}<br>Reasoning: ${esc(reasoningSummary(model).detail)}</p>`,
     );
     if (model.outcomes)
       $(".dialog-summary", dialog).insertAdjacentHTML("afterend", `<p class="rc-meta">${int(model.scored)} scored · ${int(model.unscored)} unscored. ${Object.entries(model.outcomes).map(([kind, count]) => `${esc(kind.replaceAll("_", " "))}: ${int(count)}`).join(" · ")}</p>`);
@@ -437,10 +458,12 @@ import { agentState } from "./outcomes.mjs";
       const catalog = parseCatalog(await getJSON("data/evaluations.json"));
       datasets = catalog.paths;
       datasetKey = (catalog.entries.find((e) => e.protocol === "agent-assisted-v1") || {}).id || catalog.defaultId;
-      const [leaderboard, problems, publishedEvidence] = await Promise.all([
+      const [leaderboard, problems, publishedEvidence, reasoningFile] = await Promise.all([
         getJSON(datasets[datasetKey]),
         getJSON("data/problems.json").catch(() => null),
         getJSON("data/evidence.json").catch(() => null),
+        // Backfilled counts for batches published before receipts recorded them.
+        getJSON(datasets[datasetKey].replace(/leaderboard\.json$/, "reasoning.json")).catch(() => null),
       ]);
       if (
         !Array.isArray(leaderboard.models) ||
@@ -454,6 +477,10 @@ import { agentState } from "./outcomes.mjs";
       };
       evidence = publishedEvidence?.schema_version === 1 && Array.isArray(publishedEvidence.runs)
         ? publishedEvidence : null;
+      const backfill = reasoningFile?.schema_version === 1 ? reasoningFile.runs || {} : {};
+      for (const model of data.models)
+        for (const run of model.runs)
+          run.reasoning = run.generation?.reasoning_measured || backfill[`${short(model.label)}/${run.problem}`] || null;
       renderResults();
       renderProblems();
       renderMeta();
