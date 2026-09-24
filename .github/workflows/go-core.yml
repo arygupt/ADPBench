@@ -164,7 +164,7 @@ jobs:
           retention-days: 90
 
   canary:
-    name: Go compatibility diagnostic (two requests maximum, completed answers required)
+    name: Go compatibility diagnostic (one small request per configured model, never scored)
     needs: checks
     if: >-
       github.event_name == 'workflow_dispatch' && inputs.run_canary && !inputs.run_models && inputs.subscription_only &&
@@ -208,7 +208,7 @@ jobs:
           fi
           gh api --method POST "repos/$GITHUB_REPOSITORY/git/refs" -f ref="refs/$ref" -f sha="$GITHUB_SHA" >/dev/null
           echo 'claimed=true' >> "$GITHUB_OUTPUT"
-      - name: One tiny streamed coding request per model, starting with GLM
+      - name: One small streamed coding request per configured model
         if: steps.claim.outputs.claimed == 'true'
         env:
           OPENCODE_GO_API_KEY: ${{ secrets.OPENCODE_GO_API_KEY }}
