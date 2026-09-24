@@ -19,8 +19,11 @@ from scripts.go_pilot import (call_model, extract_rtl, now_utc, parse_response, 
                              read_plan, request_body, response_diagnostics, valid_usage, write_json)
 from scripts.go_stream import StreamFailure
 
-CONFIG = repo_root() / "pilot/go-canary-glm-minimax-20260923-01.json"
-SOURCE_PLAN = "pilot/go-core-provider-max-20260922.json"
+CONFIG = repo_root() / "pilot/go-canary-high-reasoning-20260924.json"
+SOURCE_PLANS = ("pilot/go-core-provider-max-20260922.json", "pilot/go-agent-high-20260924.json")
+# Anthropic-style APIs reject a thinking budget at or above max_tokens, so a
+# reasoning-settings check needs a cap above the plan's 16,000-token budget.
+REASONING_CHECK_CAP = 20000
 PROMPT = ("Return only complete synthesizable SystemVerilog for a combinational XOR: "
           "module dut(input wire a, input wire b, output wire y). Assign y = a ^ b. "
           "No explanation, testbench, tools, or additional modules.")
@@ -29,10 +32,11 @@ COMPATIBLE = {"completed", "accepted_output_cap"}
 
 def validate(config: dict) -> dict:
     if (config.get("schema_version") != 1 or config.get("kind") != "provider-compatibility-diagnostic"
-            or config.get("source_plan") != SOURCE_PLAN
+            or config.get("source_plan") not in SOURCE_PLANS
+            or config.get("check", "compatibility") not in {"compatibility", "reasoning_settings"}
             or not re.fullmatch(r"go-compatibility-[a-z0-9-]+", config.get("name", ""))):
         raise ValueError("invalid canary identity")
-    source = read_plan(repo_root() / SOURCE_PLAN)
+    source = read_plan(repo_root() / config["source_plan"])
     ids = config["models"]
     if (not isinstance(ids, list) or not 1 <= len(ids) <= 6 or len(set(ids)) != len(ids)
             or not set(ids) <= {m["id"] for m in source["models"]}):
@@ -42,7 +46,11 @@ def validate(config: dict) -> dict:
         raise ValueError("invalid completion requirement")
     if complete and not set(ids) <= {"glm-5.3-flash", "minimax-m2.7"}:
         raise ValueError("larger diagnostic budgets are scoped to GLM and MiniMax")
-    for field, limit in [("max_output_tokens",4096 if complete else 128), ("max_prompt_bytes",2048),
+    reasoning_check = config.get("check") == "reasoning_settings"
+    if reasoning_check and complete:
+        raise ValueError("reasoning-settings checks only verify that requests are accepted")
+    cap = REASONING_CHECK_CAP if reasoning_check else 4096 if complete else 128
+    for field, limit in [("max_output_tokens",cap), ("max_prompt_bytes",2048),
                          ("idle_timeout_s",30), ("wall_timeout_s",90)]:
         if type(config.get(field)) is not int or not 0 < config[field] <= limit:
             raise ValueError(f"invalid {field}")

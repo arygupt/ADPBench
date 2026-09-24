@@ -20,7 +20,7 @@ permissions:
   contents: read
 
 env:
-  PLAN: pilot/go-agent-20260923.json
+  PLAN: pilot/go-agent-high-20260924.json
   MODEL: ${{ inputs.model }}
   PROBLEM: ${{ inputs.problem }}
 

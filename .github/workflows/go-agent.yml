@@ -38,7 +38,7 @@ concurrency:
   cancel-in-progress: false
 
 env:
-  PLAN: pilot/go-agent-20260923.json
+  PLAN: pilot/go-agent-high-20260924.json
 
 jobs:
   checks:

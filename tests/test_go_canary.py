@@ -11,6 +11,8 @@ from unittest.mock import patch
 
 from scripts.go_canary import CONFIG, run, validate
 
+FOLLOWUP = CONFIG.parent / "go-canary-glm-minimax-20260923-01.json"
+
 
 class CanaryTest(unittest.TestCase):
     def setUp(self):
@@ -119,7 +121,7 @@ class CanaryTest(unittest.TestCase):
             self.assertTrue(result["incomplete_usage"])
 
     def test_followup_is_two_bounded_requests_with_corrected_glm_payload(self):
-        config = json.loads(CONFIG.read_text())
+        config = json.loads(FOLLOWUP.read_text())
         with patch("scripts.go_canary.call_model",side_effect=self.response) as call:
             result = run(config,self.out,subscription_only=True)
             self.assertEqual(call.call_count,2)
@@ -137,7 +139,7 @@ class CanaryTest(unittest.TestCase):
                     self.assertEqual(model["api"],"messages")
 
     def test_followup_never_accepts_cap_as_completed_answer(self):
-        config = {**json.loads(CONFIG.read_text()),"models":["minimax-m2.7"]}
+        config = {**json.loads(FOLLOWUP.read_text()),"models":["minimax-m2.7"]}
         data = {"content":[{"type":"text","text":"module dut("}],"stop_reason":"max_tokens",
                 "usage":{"input_tokens":50,"output_tokens":1024}}
         with patch("scripts.go_canary.call_model",return_value=data) as call:
@@ -146,14 +148,14 @@ class CanaryTest(unittest.TestCase):
             self.assertEqual(result["models"][0]["status"],"output_cap_incomplete")
 
     def test_followup_budget_and_model_scope_are_bounded(self):
-        config = json.loads(CONFIG.read_text())
+        config = json.loads(FOLLOWUP.read_text())
         for change in [{"max_output_tokens":4097},{"models":["kimi-k2.6"]},
                        {"require_complete_answer":"true"},{"require_complete_answer":False}]:
             with self.subTest(change=change), self.assertRaises(ValueError):
                 validate({**config,**change})
 
     def test_followup_rejects_terminal_answer_without_complete_dut(self):
-        config = {**json.loads(CONFIG.read_text()),"models":["minimax-m2.7"]}
+        config = {**json.loads(FOLLOWUP.read_text()),"models":["minimax-m2.7"]}
         for answer in ("", "module dut(", "I cannot answer this task."):
             with self.subTest(answer=answer), tempfile.TemporaryDirectory() as tmp:
                 data = {"content":[{"type":"text","text":answer}],"stop_reason":"end_turn",
@@ -162,6 +164,31 @@ class CanaryTest(unittest.TestCase):
                     result = run(config,Path(tmp),subscription_only=True)
                     self.assertNotEqual(result["models"][0]["status"],"completed")
                     self.assertFalse(list(Path(tmp).glob("**/dut.v")))
+
+    def test_high_reasoning_check_sends_each_plan_setting_once(self):
+        config = json.loads(CONFIG.read_text())
+        with patch("scripts.go_canary.now_utc",return_value=datetime.fromisoformat("2026-09-24T20:00:00+00:00")), \
+             patch("scripts.go_canary.call_model",side_effect=self.response) as call:
+            result = run(config,self.out,subscription_only=True)
+        self.assertEqual(call.call_count,6)
+        self.assertEqual(result["maximum_output_tokens"],120000)
+        self.assertTrue(all(r["status"] == "completed" for r in result["models"]))
+        bodies = {entry.args[0]["id"]:entry.args[1] for entry in call.call_args_list}
+        self.assertEqual(bodies["deepseek-v4.1-flash"]["reasoning_effort"],"high")
+        self.assertEqual(bodies["deepseek-v4.1-flash"]["thinking"],{"type":"enabled"})
+        self.assertEqual(bodies["glm-5.3-flash"]["reasoning_effort"],"high")
+        self.assertNotIn("thinking",bodies["glm-5.3-flash"])
+        self.assertEqual(bodies["mimo-v2.5"]["reasoning"],{"enabled":True})
+        self.assertEqual(bodies["kimi-k2.6"]["thinking"],{"type":"enabled"})
+        qwen = bodies["qwen3.8-flash"]
+        self.assertGreater(qwen["max_tokens"],qwen["thinking"]["budget_tokens"])
+
+    def test_high_reasoning_check_is_bounded_and_never_requires_answers(self):
+        config = json.loads(CONFIG.read_text())
+        for change in [{"max_output_tokens":20001},{"require_complete_answer":True},
+                       {"check":"benchmark"},{"source_plan":"pilot/go-agent-20260923.json"}]:
+            with self.subTest(change=change), self.assertRaises(ValueError):
+                validate({**config,**change})
 
     def test_followup_receipt_matches_frozen_rtl_and_preserves_original_failure(self):
         root = CONFIG.parent.parent

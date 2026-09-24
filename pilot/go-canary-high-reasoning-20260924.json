@@ -1,0 +1,15 @@
+{
+  "schema_version": 1,
+  "kind": "provider-compatibility-diagnostic",
+  "name": "go-compatibility-high-reasoning-20260924",
+  "check": "reasoning_settings",
+  "not_before": "2026-09-24T19:00:00+00:00",
+  "expires_at": "2026-09-25T19:00:00+00:00",
+  "source_plan": "pilot/go-agent-high-20260924.json",
+  "models": ["mimo-v2.5", "deepseek-v4.1-flash", "qwen3.8-flash", "glm-5.3-flash", "kimi-k2.6", "minimax-m2.7"],
+  "require_complete_answer": false,
+  "max_output_tokens": 20000,
+  "max_prompt_bytes": 2048,
+  "idle_timeout_s": 30,
+  "wall_timeout_s": 90
+}

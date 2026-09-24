@@ -33,7 +33,28 @@ limits still apply; conversation bodies are additionally bounded to 1.5 MB.
 
 These are fixed protocol limits, not a promise of literally unlimited API
 output. The exact six model configurations and authorization window are in
-[`go-agent-20260923.json`](go-agent-20260923.json).
+[`go-agent-high-20260924.json`](go-agent-high-20260924.json); the first batch
+used [`go-agent-20260923.json`](go-agent-20260923.json).
+
+## Reasoning
+
+Every model requests its highest-equivalent reasoning setting. Controls differ
+by provider ([Models.dev](https://models.dev/api.json), checked 2026-09-24):
+
+| Model | Request | Why |
+|---|---|---|
+| DeepSeek V4.1 Flash | thinking on, effort `high` | effort offers low / high / max |
+| GLM-5.3-Flash | effort `high` | effort offers low / high / max; a `thinking` field is rejected |
+| Qwen3.8 Flash | thinking on, 16,000-token budget | OpenCode's `high` mapping for Anthropic-style APIs |
+| Kimi K2.6, MiMo V2.5 | thinking on | on/off only |
+| MiniMax M2.7 | provider default | always reasons; no control |
+
+Providers do not always honor requests: in `go-agent-20260923`, DeepSeek was
+asked for thinking off but 91% of its output was reasoning. Receipts therefore
+record measured reasoning per slot, and the site shows both.
+[`go-canary-high-reasoning-20260924.json`](go-canary-high-reasoning-20260924.json)
+checks that every provider accepts these settings, with one request per model,
+before the batch spends any slots.
 
 At least one development check must be attempted before submission; it need
 not pass. A model may revise after its last check and submit an unchecked
