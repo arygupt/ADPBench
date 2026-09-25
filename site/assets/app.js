@@ -1,5 +1,5 @@
 /* Published records are the source of truth. No framework or build step. */
-import { findReplay, findExecution } from "./evidence.mjs";
+import { findExecution } from "./evidence.mjs";
 import { parseCatalog } from "./catalog.mjs";
 import { budgetSummary, outputLimit } from "./budget.mjs";
 import { agentState } from "./outcomes.mjs";
@@ -26,7 +26,7 @@ import { agentState } from "./outcomes.mjs";
   const ratio = (n) => (n > 0 ? `${n.toFixed(2)}×` : "—");
   const short = (label) =>
     label.split("/").pop().replace(/\s*\[.*\]$/, "").replace(/-free$/, "");
-  let data, dialog, returnFocus, evidence;
+  let data, dialog, returnFocus;
   let datasets = {};
   let datasetKey = "";
   const title = (name) =>
@@ -39,31 +39,12 @@ import { agentState } from "./outcomes.mjs";
         b.geomean - a.geomean ||
         a.label.localeCompare(b.label),
     );
-  // Match report.RunSummary.kind, including a timeout with a scored wrong design.
   function state(run) {
-    if (run.record_origin === "github-job-status-only")
-      return { cls: "infra", label: "Job failed · score unavailable", value: "unknown" };
-    if (run.record_origin === "github-generation-only")
-      return { cls: "infra", label: "Scoring interrupted · score unknown", value: "unknown" };
     if (run.correct)
       return run.ratio > 1
         ? { cls: "beat", label: "Beat baseline", value: ratio(run.ratio) }
         : { cls: "correct", label: "Correct, ≤ 1×", value: ratio(run.ratio) };
-    const typed = agentState(run);
-    if (typed) return typed;
-    if (run.generation?.error?.startsWith("not requested"))
-      return { cls: "infra", label: "Not requested (safety stop)", value: "skipped" };
-    if (["length", "max_tokens"].includes(run.generation?.finish_reason))
-      return { cls: "infra", label: "Generation reached output cap", value: "cap" };
-    if (run.generation?.error || run.generation?.invalid_rtl)
-      return { cls: "infra", label: "Generation failed", value: "no RTL" };
-    if (
-      run.error ||
-      ["no result", "no_result"].includes(run.stage) ||
-      (run.timed_out && !run.stage)
-    )
-      return { cls: "infra", label: "Infrastructure", value: "infra" };
-    return { cls: "fail", label: "Incorrect RTL", value: "wrong" };
+    return agentState(run) || { cls: "fail", label: "Incorrect RTL", value: "wrong" };
   }
   function fill(selector, text) {
     $$(selector).forEach((el) => (el.textContent = text));
@@ -72,19 +53,14 @@ import { agentState } from "./outcomes.mjs";
   let scoreMetric = "beat_rate",
     operatorMetric = "ratio";
   const names = {
-    "opencode/mimo-v2.5-free": "MiMo v2.5",
-    "opencode/muse-spark-1.3-contributor-free": "Muse Spark 1.3",
-    "opencode/nemotron-3-ultra-free": "Nemotron 3 Ultra",
-    "opencode/nemotron-3.5-lightning-free": "Nemotron 3.5 Lightning",
-    "opencode/ling-3.0-flash-fin-free": "Ling 3.0 Flash Fin",
-    "opencode-go/mimo-v2.5 [single-shot]": "MiMo V2.5",
-    "opencode-go/deepseek-v4.1-flash [single-shot]": "DeepSeek V4.1 Flash",
-    "opencode-go/qwen3.8-flash [single-shot]": "Qwen3.8 Flash",
-    "opencode-go/glm-5.3-flash [single-shot]": "GLM-5.3-Flash",
-    "opencode-go/kimi-k2.6 [single-shot]": "Kimi K2.6",
-    "opencode-go/minimax-m2.7 [single-shot]": "MiniMax M2.7",
+    "mimo-v2.5": "MiMo V2.5",
+    "deepseek-v4.1-flash": "DeepSeek V4.1 Flash",
+    "qwen3.8-flash": "Qwen3.8 Flash",
+    "glm-5.3-flash": "GLM-5.3-Flash",
+    "kimi-k2.6": "Kimi K2.6",
+    "minimax-m2.7": "MiniMax M2.7",
   };
-  const displayName = (model) => names[model.label.replace("[agent-assisted-v1]", "[single-shot]")] || short(model.label);
+  const displayName = (model) => names[short(model.label)] || short(model.label);
   // Matched against the model id after the provider prefix, in order.
   const logos = [
     [/deepseek/i, "deepseek"],
@@ -143,14 +119,10 @@ import { agentState } from "./outcomes.mjs";
   }
   function renderResults() {
     if (!$("#leaderboard-rows") || !data) return;
-    const query = $("#model-search").value.trim().toLowerCase();
-    const all = ranked(data.models).sort(
+    const models = ranked(data.models).sort(
       (a, b) => b[scoreMetric] - a[scoreMetric],
     );
-    const models = all.filter((m) =>
-      `${m.label} ${displayName(m)}`.toLowerCase().includes(query),
-    );
-    const best = Math.max(0, ...all.map((m) => m[scoreMetric]));
+    const best = Math.max(0, ...models.map((m) => m[scoreMetric]));
     const isRate = scoreMetric !== "geomean";
     const label = {
       beat_rate: "Correct & better than baseline",
@@ -163,12 +135,8 @@ import { agentState } from "./outcomes.mjs";
     fill(
       "#score-note",
       isRate
-        ? (data.meta.protocol === "agent-assisted-v1" ? "Rates use all scheduled slots. Unscored outcomes are not incorrect RTL; inspect each model." : "Rates use all recorded attempts.")
+        ? "Rates use all scheduled slots. Unscored outcomes are not incorrect RTL; inspect each model."
         : "Geometric mean · correct runs only · higher is better.",
-    );
-    fill(
-      "#leaderboard-count",
-      `${models.length} / ${data.models.length} models`,
     );
     $("#leaderboard-rows").innerHTML =
       models
@@ -185,8 +153,7 @@ import { agentState } from "./outcomes.mjs";
             : `${text} geometric mean across ${m.correct} correct attempts; ${m.attempts} total attempts.`;
           return `<tr><th scope="row">${modelButton(m)}</th><td><button class="comparison-bar ${value === best && value > 0 ? "best" : ""}" data-model="${esc(m.label)}" title="${esc(tooltip)}" aria-label="${esc(displayName(m))}: ${esc(tooltip)}"><span class="comparison-track" aria-hidden="true"><span class="comparison-fill" style="width:${width}%"></span></span></button></td><td class="primary-stat"><strong>${text}</strong></td><td class="numeric-stat">${m.correct}/${m.attempts}</td><td class="numeric-stat">${ratio(m.geomean)}</td><td class="numeric-stat reasoning-stat" title="${esc(reasoning.detail)}"><strong>${reasoning.text}</strong>${reasoning.asked ? `<span>asked: ${esc(reasoning.asked)}</span>` : ""}</td><td class="numeric-stat">${m.attempts}</td></tr>`;
         })
-        .join("") ||
-      '<tr><td colspan="6" class="empty-state">No matching models. Try another name.</td></tr>';
+        .join("");
     const bestByProblem = new Map(
       data.problems.map((p) => {
         const values = data.models
@@ -247,8 +214,7 @@ import { agentState } from "./outcomes.mjs";
                   "",
                 )}<td><span class="correct-count" title="${m.correct}/${m.attempts} correct"><span>${m.correct}/${m.attempts}</span></span></td></tr>`,
           )
-          .join("") ||
-        `<tr><td colspan="${data.problems.length + 2}" class="empty-state">No matching models.</td></tr>`
+          .join("")
       }</tbody></table>`;
     fill(
       "#matrix-note",
@@ -257,26 +223,12 @@ import { agentState } from "./outcomes.mjs";
         : `${operatorMetric === "cells" ? "Cell count" : "Cycle count"} · lower is better.`,
     );
   }
-  function replayEvidence(run) {
+  function runEvidence(run) {
     const execution = findExecution(run);
-    if (execution) {
-      const g = run.generation || {}, usage = g.usage || {};
-      if (g.evidence_unavailable)
-        return `<section class="run-evidence" aria-label="GitHub job status only"><p class="evidence-title">Job ${esc(execution.conclusion)} · final artifacts unavailable</p><p class="rc-meta">This entry records the observed Actions job status only. Per-problem generation, scores, RTL and token usage are unknown; no score or replay verification is claimed.</p><div class="evidence-links"><a href="${esc(execution.job)}" target="_blank" rel="noopener">Failed job &amp; logs ↗</a><a href="${esc(execution.workflow)}" target="_blank" rel="noopener">Workflow ↗</a></div></section>`;
-      const interrupted = run.record_origin === "github-generation-only";
-      const cap = outputLimit(data.meta, g.model);
-      if (g.protocol === "agent-assisted-v1")
-        return `<section class="run-evidence" aria-label="Original GitHub agent run"><p class="evidence-title">Agent-assisted v1 · ${esc(run.outcome)}</p><p class="rc-meta">${int(g.turns)} / ${int(g.max_turns)} model turns · ${int(g.dev_checks)} development checks. ${g.outcome === "submitted" ? "The explicit final submission was frozen for held-out scoring; inspect the outcome above to see whether scoring completed." : "No finalized submission was received; no held-out correctness score is claimed."} Development feedback is not a benchmark pass.</p><div class="evidence-links"><a href="${esc(execution.job)}" target="_blank" rel="noopener">Scoring job &amp; logs ↗</a><a href="${esc(execution.workflow)}" target="_blank" rel="noopener">Generation jobs &amp; artifacts ↗</a><a href="${esc(execution.code)}" target="_blank" rel="noopener">Evaluated code ↗</a></div><p class="rc-meta">${g.incomplete_usage ? "At least " : ""}${int(usage.output_tokens ?? usage.completion_tokens)} reported output tokens across turns. Requested limit: ${cap ? int(cap) : "unavailable"} tokens per response. Execution health: ${esc(run.execution_health)}.</p><details><summary>Generation settings</summary><p class="hash-value">${esc(JSON.stringify(g.generation_settings || {}))}</p></details><p class="evidence-retention">Transcripts remain private Actions artifacts. This track is not directly comparable with single-shot results.</p></section>`;
-      return `<section class="run-evidence" aria-label="Original GitHub model run"><p class="evidence-title">${interrupted ? "Generated in GitHub Actions · scoring interrupted" : "Original GitHub Actions model attempt"}</p><p class="rc-meta">New single-shot attempt, not a replay. Job: ${esc(execution.conclusion)}. ${interrupted ? "Generation and saved RTL are available; no completed score is claimed." : "Correctness is the measured outcome above, when scoring completed."}</p><div class="evidence-links"><a href="${esc(execution.job)}" target="_blank" rel="noopener">Model job &amp; logs ↗</a><a href="${esc(execution.workflow)}" target="_blank" rel="noopener">Workflow &amp; artifacts ↗</a><a href="${esc(execution.code)}" target="_blank" rel="noopener">Evaluated code ↗</a></div><p class="rc-meta">Output: ${int(usage.completion_tokens ?? usage.output_tokens)} tokens · finish: ${esc(g.finish_reason || "no completion")}<br>Requested output limit: ${cap ? int(cap) + " tokens" : "unavailable"}<br>Reasoning response: ${int(g.response_diagnostics?.reasoning_chars)} characters</p><details><summary>Generation settings</summary><p class="hash-value">${esc(JSON.stringify(g.generation_settings || {}))}</p></details><p class="evidence-retention">Logs and raw response artifacts are retained for 90 days. Frozen records remain in the repository.</p></section>`;
-    }
-    if (run.generation)
-      return '<p class="rc-meta">Original Actions evidence unavailable. This is not verified replay evidence.</p>';
-    if (!evidence)
-      return '<p class="rc-meta">Replay evidence unavailable. Scores are unaffected.</p>';
-    const replay = findReplay(evidence, data.meta.pilot, run);
-    if (!replay)
-      return '<p class="rc-meta">No verified GitHub replay linked to this submission.</p>';
-    return `<section class="run-evidence" aria-label="GitHub replay evidence"><p class="evidence-title">Replay verified <span>· ${esc(replay.date)}</span></p><p class="rc-meta">The frozen submission reproduced its correctness, cells, cycles and ratio. This is not a new model attempt.</p><div class="evidence-links"><a href="${esc(replay.job)}" target="_blank" rel="noopener">Replay job ↗</a><a href="${esc(replay.source)}" target="_blank" rel="noopener">Frozen Verilog ↗</a><a href="${esc(replay.workflow)}" target="_blank" rel="noopener">Workflow &amp; artifacts ↗</a></div><p class="evidence-retention">GitHub logs and artifacts may expire; the source is commit-pinned.</p></section>`;
+    if (!execution) return '<p class="rc-meta">Original Actions evidence unavailable.</p>';
+    const g = run.generation || {}, usage = g.usage || {};
+    const cap = outputLimit(data.meta, g.model);
+    return `<section class="run-evidence" aria-label="Original GitHub agent run"><p class="evidence-title">Agent-assisted v1 · ${esc(run.outcome)}</p><p class="rc-meta">${int(g.turns)} / ${int(g.max_turns)} model turns · ${int(g.dev_checks)} development checks. ${g.outcome === "submitted" ? "The explicit final submission was frozen for held-out scoring; inspect the outcome above to see whether scoring completed." : "No finalized submission was received; no held-out correctness score is claimed."} Development feedback is not a benchmark pass.</p><div class="evidence-links"><a href="${esc(execution.job)}" target="_blank" rel="noopener">Scoring job &amp; logs ↗</a><a href="${esc(execution.workflow)}" target="_blank" rel="noopener">Generation jobs &amp; artifacts ↗</a><a href="${esc(execution.code)}" target="_blank" rel="noopener">Evaluated code ↗</a></div><p class="rc-meta">${g.incomplete_usage ? "At least " : ""}${int(usage.output_tokens ?? usage.completion_tokens)} reported output tokens across turns. Requested limit: ${cap ? int(cap) : "unavailable"} tokens per response. Execution health: ${esc(run.execution_health)}.</p><details><summary>Generation settings</summary><p class="hash-value">${esc(JSON.stringify(g.generation_settings || {}))}</p></details><p class="evidence-retention">Transcripts remain private Actions artifacts.</p></section>`;
   }
   function openRuns(label, problem, attempt) {
     const model = data.models.find((m) => m.label === label);
@@ -290,8 +242,8 @@ import { agentState } from "./outcomes.mjs";
     dialog.innerHTML = `<div class="dialog-head"><div><p class="eyebrow">FROZEN RUN RECORDS · ${esc(data.meta.pilot)}</p><h2 id="dialog-title">${esc(displayName(model))}</h2></div><button class="dialog-close" aria-label="Close run details" autofocus>×</button></div><div class="dialog-body"><div class="dialog-summary"><span class="badge">${model.beating}/${model.attempts} beat baseline</span><span class="badge">${model.correct}/${model.attempts} correct</span><span class="badge">${model.wrong_rtl} wrong RTL</span><span class="badge">${model.infra} infrastructure</span></div><div class="run-grid">${runs
       .map((r) => {
         const s = state(r);
-        const unknownScore = r.correct === null || ["github-job-status-only", "github-generation-only"].includes(r.record_origin);
-        const checkCount = r.generation?.protocol === "agent-assisted-v1" ? r.generation.dev_checks : r.history;
+        const unknownScore = r.correct === null;
+        const checkCount = r.generation?.dev_checks;
         const timing = unknownScore ? "scoring details unavailable" : `${int(Math.round(r.duration_s))}s · ${int(checkCount)} agent check${checkCount === 1 ? "" : "s"}${r.timed_out ? " · agent timed out" : ""}`;
         return `<article class="run-card"><div class="rc-head"><strong>${esc(title(r.problem))}</strong><span class="rc-status ${s.cls}">${s.label}</span></div><p class="rc-meta">Attempt ${r.attempt} · ${timing}</p><div class="rc-ratio">${r.correct ? ratio(r.ratio) : "—"}</div><p class="metric-caption">${r.correct ? "baseline ADP / design ADP" : "No valid ADP score"}</p><p class="rc-meta">${int(r.cells)} cells × ${int(r.cycles)} cycles<br>ADP ${int(r.adp)}<br>Stage: ${esc(r.stage || "not reported")} · audit ${unknownScore ? "unknown" : r.audit_ok ? "passed" : "not passed"}</p>${[
           r.correctness,
@@ -301,7 +253,7 @@ import { agentState } from "./outcomes.mjs";
           .map((text) => `<p class="rc-detail">${esc(text)}</p>`)
           .join(
             "",
-          )}${replayEvidence(r)}<details><summary>Inspect artifact hashes</summary><p>Submission SHA-256</p><p class="hash-value">${esc(r.submission_sha256 || "Not recorded")}</p><p>Netlist SHA-256</p><p class="hash-value">${esc(r.netlist_sha256 || "Not recorded")}</p></details></article>`;
+          )}${runEvidence(r)}<details><summary>Inspect artifact hashes</summary><p>Submission SHA-256</p><p class="hash-value">${esc(r.submission_sha256 || "Not recorded")}</p><p>Netlist SHA-256</p><p class="hash-value">${esc(r.netlist_sha256 || "Not recorded")}</p></details></article>`;
       })
       .join(
         "",
@@ -324,7 +276,7 @@ import { agentState } from "./outcomes.mjs";
           s = p.sanity || {},
           max = Math.max(b.adp || 0, s.adp || 0),
           src = `https://github.com/arygupt/ADPBench/blob/main/problems/level${p.level}/${encodeURIComponent(p.name)}`;
-        return `<details class="problem-card problem-accordion" name="problems" id="${esc(p.name)}"><summary class="problem-toggle"><span class="problem-number">${String(i + 1).padStart(2, "0")}</span><span class="problem-title">${esc(p.title)}</span><span class="badge">LEVEL ${p.level}</span><span class="problem-chevron" aria-hidden="true">+</span></summary><div class="problem-content"><p class="pc-desc">${p.transactions} back-to-back transactions · ${p.out_len} output word${p.out_len === 1 ? "" : "s"} per transaction. Exact integer arithmetic, with no reset between transactions.</p><div class="chip-row">${Object.entries(
+        return `<details class="problem-card problem-accordion" name="problems" id="${esc(p.name)}"><summary class="problem-toggle"><span class="problem-number">${String(i + 1).padStart(2, "0")}</span><span class="problem-title">${esc(p.title)}</span><span class="problem-chevron" aria-hidden="true">+</span></summary><div class="problem-content"><p class="pc-desc">${p.transactions} back-to-back transactions · ${p.out_len} output word${p.out_len === 1 ? "" : "s"} per transaction. Exact integer arithmetic, with no reset between transactions.</p><div class="chip-row">${Object.entries(
           p.params || {},
         )
           .map(([k, v]) => `<span class="chip">${esc(k)} ${esc(v)}</span>`)
@@ -372,41 +324,12 @@ import { agentState } from "./outcomes.mjs";
   }
 
   function renderMeta() {
-    const m = data.meta,
-      runs = data.models.flatMap((m) => m.runs);
+    const m = data.meta;
     fill("#meta-generated", m.generated?.slice(0, 10) || "—");
     fill("#meta-commit", m.git_commit?.slice(0, 10) || "—");
-    fill(
-      "#dataset-summary",
-      `${m.pilot || "published pilot"} · ${data.models.length} models · ${data.problems.length} operators · ${runs.length} attempts`,
-    );
-    fill(
-      "#replay-summary",
-      evidence
-        ? `${runs.filter((r) => findReplay(evidence, m.pilot, r)).length} submissions have verified GitHub replays. Select a model or result to inspect the evidence. Replays do not add attempts.`
-        : "Replay evidence unavailable. Select a model or result to inspect its recorded score.",
-    );
-    fill(
-      "#pilot-note",
-      `${m.repetitions || 1} attempt(s) per model–problem pair · ${m.budget_s ? m.budget_s / 60 + " min budget" : "budget unreported"} · ${m.sandbox?.mode || "sandbox unreported"}. Cells × cycles is an area–delay proxy, not a power or physical-timing measurement. Small pilot; model variance is not yet established.`,
-    );
-    $$('a[data-results-download]').forEach((a) => a.href = datasets[datasetKey]);
-    $$('a[data-report-link]').forEach((a) => a.href = datasets[datasetKey].replace('leaderboard.json', 'report.json'));
-    if (m.protocol === "single-shot") {
-      const execution = runs.map(findExecution).find(Boolean);
-      fill("#dataset-summary", `${m.pilot} · ${data.models.length} models · ${data.problems.length} operators · ${runs.length} scheduled result slots`);
-      fill("#attempt-heading", "Slots");
-      if ($("#replay-summary")) $("#replay-summary").innerHTML = `${int(m.generation_requests)} saved model responses · ${m.incomplete_usage ? "at least " : ""}${int(m.output_tokens)} reported output tokens · ${runs.filter(r => r.correct).length}/${runs.length} confirmed correct. ${m.incomplete_evidence ? "Some scoring evidence is unavailable; unknown scores are not passes. " : ""}${execution ? `<a href="${execution.workflow}" target="_blank" rel="noopener">Open all ${data.models.length} GitHub model jobs ↗</a>` : "Actions evidence unavailable."}`;
-      fill("#pilot-note", `Single-shot Go screen · at most one request per model–problem pair · ${budgetSummary(m)} · no repairs or retries · offline Docker scoring. Rates use all scheduled slots, including rejected requests and safety-stop skips; inspect each result for its status. Reasoning settings and output budgets differ across experiments and are shown with each result. This dataset is separate from iterative pilot-001; their rankings are not directly comparable. A completed workflow is not a correctness or replay claim.`);
-    }
-    if (m.protocol === "agent-assisted-v1") {
-      const execution = runs.map(findExecution).find(Boolean);
-      const scored = runs.filter(r => typeof r.correct === "boolean").length;
-      fill("#dataset-summary", `${m.pilot} · Agent-assisted v1 · ${data.models.length} models · ${runs.length} scheduled result slots`);
-      fill("#attempt-heading", "Slots");
-      if ($("#replay-summary")) $("#replay-summary").innerHTML = `${int(m.generation_requests)} model turns · ${m.incomplete_usage ? "at least " : ""}${int(m.output_tokens)} reported output tokens · ${runs.filter(r => r.correct).length} confirmed correct · ${scored} scored · ${runs.length - scored} unscored. ${execution ? `<a href="${execution.workflow}" target="_blank" rel="noopener">Open agent workflow &amp; all slot jobs ↗</a>` : "Actions evidence unavailable."}`;
-      fill("#pilot-note", `Agent-assisted v1 · shared read/write/check/submit operations · up to ${m.max_turns} model turns per slot · ${budgetSummary(m)} · development checks only during generation, then frozen held-out scoring. Incorrect RTL remains a failed measurement; provider, submission and interrupted outcomes are shown separately. Rates use all scheduled slots, not only completed scores. This is a separate experiment, not a replacement for historical single-shot results. GitHub job success means evidence was recorded, not that the model passed.`);
-    }
+    fill("#attempt-heading", "Slots");
+    $$("a[data-results-download]").forEach((a) => (a.href = datasets[datasetKey]));
+    fill("#pilot-note", `Agent-assisted v1 · shared read/write/check/submit operations · up to ${m.max_turns} model turns per slot · ${budgetSummary(m)} · development checks only during generation, then frozen held-out scoring. Incorrect RTL remains a failed measurement; provider, submission and interrupted outcomes are shown separately. Rates use all scheduled slots, not only completed scores. GitHub job success means evidence was recorded, not that the model passed.`);
   }
   function setupShell() {
     dialog = document.createElement("dialog");
@@ -443,7 +366,6 @@ import { agentState } from "./outcomes.mjs";
         renderResults();
       }),
     );
-    $("#model-search")?.addEventListener("input", renderResults);
   }
   async function getJSON(path) {
     const response = await fetch(path);
@@ -458,10 +380,9 @@ import { agentState } from "./outcomes.mjs";
       const catalog = parseCatalog(await getJSON("data/evaluations.json"));
       datasets = catalog.paths;
       datasetKey = (catalog.entries.find((e) => e.protocol === "agent-assisted-v1") || {}).id || catalog.defaultId;
-      const [leaderboard, problems, publishedEvidence, reasoningFile] = await Promise.all([
+      const [leaderboard, problems, reasoningFile] = await Promise.all([
         getJSON(datasets[datasetKey]),
         getJSON("data/problems.json").catch(() => null),
-        getJSON("data/evidence.json").catch(() => null),
         // Backfilled counts for batches published before receipts recorded them.
         getJSON(datasets[datasetKey].replace(/leaderboard\.json$/, "reasoning.json")).catch(() => null),
       ]);
@@ -475,8 +396,6 @@ import { agentState } from "./outcomes.mjs";
         meta: leaderboard.meta || {},
         problems: $("#problem-grid") ? (problems?.problems || leaderboard.problems) : leaderboard.problems,
       };
-      evidence = publishedEvidence?.schema_version === 1 && Array.isArray(publishedEvidence.runs)
-        ? publishedEvidence : null;
       const backfill = reasoningFile?.schema_version === 1 ? reasoningFile.runs || {} : {};
       for (const model of data.models)
         for (const run of model.runs)
@@ -487,10 +406,9 @@ import { agentState } from "./outcomes.mjs";
     } catch (error) {
       $("#main").insertAdjacentHTML(
         "afterbegin",
-        '<div class="error-state" role="alert"><strong>Published results could not load.</strong><p>Refresh to retry or <a href="data/report.json">open the report</a>.</p></div>',
+        '<div class="error-state" role="alert"><strong>Published results could not load.</strong><p>Refresh to retry.</p></div>',
       );
       $$(".loading").forEach((el) => el.remove());
-      fill("#dataset-summary", "Results unavailable");
       console.error(error);
     }
   });
