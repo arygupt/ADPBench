@@ -9,7 +9,7 @@ hardware that is both correct and cheap? ADPBench measures this with an
 area–delay proxy. It does not claim physical area, timing closure, or power
 signoff.
 
-Live results: [`site/`](site/) · preview with `python3 -m http.server 8000 --directory site`
+Live results: [adpbench.vercel.app](https://adpbench.vercel.app) · source in [`site/`](site/) · preview with `python3 -m http.server 8000 --directory site`
 
 ## Benchmarks
 
