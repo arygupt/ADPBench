@@ -10,8 +10,8 @@ adpbench site export --pilot runs/<pilot> --out site/data --sanity pilot/sanity.
 
 The results page shows one leaderboard: the newest **agent-assisted-v1** batch in
 `site/data/evaluations.json`, ranked by beat-baseline rate. Earlier single-shot
-and pilot-001 snapshots stay under `site/data/` as frozen records but are not
-shown. Every result links to its original generation/scoring Actions job, full
+and pilot-001 results are not on the site; their frozen records stay under
+`pilot/results/`. Every result links to its original generation/scoring Actions job, full
 workflow and evaluated code revision. Output-cap, generation, incorrect-RTL and
 successful outcomes remain distinguishable.
 
@@ -62,8 +62,7 @@ permissions stay read-only; only the publisher job has contents/PR write access.
 It **never approves or merges PRs**. GitHub may require a maintainer to approve
 CI execution on bot-created PRs; review the data diff first. A human merge
 triggers Site validation and builds the updated downloadable site bundle.
-Public hosting remains separately gated by `ENABLE_PAGES`; publication does
-not enable Pages or change repository visibility.
+Publication does not deploy the site or change repository visibility.
 
 Backfill an already-completed run without any model calls:
 
@@ -93,7 +92,7 @@ and overwrites. If an interrupted job saved generation but no final scoring
 record, it preserves that generation and frozen RTL as `github-generation-only`:
 score unknown, never a claimed completed evaluation.
 For the current reviewed plan it emits all 12 outcomes, not only successful submissions, under
-`pilot/results/go-core-20260922` and `site/data/go-core-20260922`. Commit these
+`pilot/results/<batch>` and `site/data/<batch>`. Commit these
 reviewed records and the generated site data to publish a new frozen snapshot.
 Provider raw responses stay in the private Actions artifacts, not the website.
 If a job fails or times out before uploading its artifact, its two scheduled slots are
@@ -107,70 +106,45 @@ Preview locally:
 python3 -m http.server 8000 --directory site
 ```
 
-Deployment: `.github/workflows/deploy-site.yml` validates site changes on pull
-requests and pushes to `main`. After validation, it uploads the site as a
-downloadable workflow artifact. On `main` it configures and deploys to
-GitHub Pages when Pages is enabled and the `ENABLE_PAGES=true` repository
-variable is set. GitHub Pages is free for public repositories; a private
-repository needs a paid plan, in which case deploy the artifact to any static
-host instead.
+Deployment: the site is a static Vercel project (`adpbench`) served at
+[adpbench.vercel.app](https://adpbench.vercel.app); deploy with
+`vercel deploy --prod` from `site/`. `.vercelignore` keeps this README out of
+the deployment. `.github/workflows/deploy-site.yml` validates site changes on
+pull requests and pushes to `main` and uploads the site as a workflow artifact.
 
 The interface uses compact leaderboard rows with horizontal performance bars,
-aligned metric columns, and a shared percentage axis. A slim top navigation and
-experiment summary lead into the rankings, with the operator matrix directly
+aligned metric columns, and a shared percentage axis. A slim top navigation leads into the rankings, with the operator matrix directly
 below. The problem library lists numbered, collapsed disclosure rows in a
 single column, with a download-specs button above. Clicking or using the
 keyboard expands one problem at a time; direct problem links open that row.
 Typography uses Inter; the palette retains `#1a1a1a` charcoal, `#e7e5e4`
 off-white, `#a8a29e` stone gray, and `#f97316` orange.
 Model rows rank by beat-baseline rate, correctness, or correct-run geometric
-mean. The operator matrix switches between ADP ratio, cells, and cycles. Search
-filters both tables. On phones, tables scroll independently and model names
+mean. The operator matrix switches between ADP ratio, cells, and cycles. On phones, tables scroll independently and model names
 stay pinned while inspecting later columns.
 
-Rate indicators use the full 0–100% scale; 95% Wilson confidence bounds appear
-as whiskers and numeric ranges, with details in the hover text. Geomean and
+Rate indicators use the full 0–100% scale, with details in the hover text. Geomean and
 operator ratio bars show each result as a share of
 the best correct result. Cells/cycles bars use best/value (lower is better).
-Stars identify ties for the best value, computed across the full dataset so
-filtering never changes the reference. Failed runs are labeled, never plotted
+Stars identify ties for the best value. Failed runs are labeled, never plotted
 as valid measurements. Every repetition is independently inspectable.
 
 A native modal displays run metrics, outcomes, complete artifact hashes, and
-links to verified GitHub replay jobs, workflow artifacts, and commit-pinned RTL.
+links to the original Actions jobs, workflow artifacts, and commit-pinned RTL.
 The problem catalog exposes interfaces, arithmetic, edge cases, and reference
 source links. No build step or runtime dependencies. Published scores and
 scoring code are unchanged.
 
 ## Replay evidence
 
-`site/data/evidence.json` is a separately reviewed provenance index, not a
-leaderboard input. The score exporter does not overwrite it. Its version-1
-schema identifies the pilot, then each run by model label, problem, attempt,
-and submission SHA-256. The `recorded` fields bind the evidence to the exact
-correctness, cells, cycles, and ratio shown on the leaderboard. Each `replay`
-stores the repository, workflow run ID, run attempt, job ID, evaluated commit,
-frozen submission path, completion time, and comparison outcome (`match`).
-
-The browser only displays verification when all identities and metrics match,
-the comparison succeeded, and link metadata is valid. Evidence for another
-pilot, different RTL, or different metrics cannot verify a result. Missing or
-unavailable evidence does not affect scores. A replay never adds a model attempt.
-The six pilot-001 entries reference successful score comparisons in Actions run
-35528582943; they are re-evaluations, not original model-generation jobs. A green
-preparation-only workflow is not replay or model-run evidence.
-
-The automatic publisher uses IDs from actual model jobs and publishes their
-provenance alongside the frozen records. It does not claim to replay scores;
-verified replay evidence still requires an actual score comparison and review.
-Do not infer correctness from a workflow's green badge alone. No GitHub token
-or live API polling is needed by the website. GitHub logs/artifacts have limited
-retention, so source links are pinned to the evaluated commit. The replay index
-survives score re-exports; a new pilot needs its own matching evidence index.
+Pilot-001's six successful submissions were re-scored in Actions run
+35528582943 and reproduced exactly; see
+[`pilot/results/pilot-001/REPLAY.md`](../pilot/results/pilot-001/REPLAY.md).
+That batch is no longer shown on the site.
 
 Validate with the site/report unit tests, JavaScript syntax checks, and desktop
-and phone browser checks for search, metric switches, matrix cells, and dialog
-keyboard behavior.
+and phone browser checks for metric switches, matrix cells, and dialog keyboard
+behavior.
 
 ```bash
 node --test tests/test_site_evidence.mjs

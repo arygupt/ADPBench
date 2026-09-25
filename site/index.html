@@ -15,7 +15,7 @@
       href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
       rel="stylesheet"
     />
-    <link rel="stylesheet" href="assets/style.css?v=reasoning" />
+    <link rel="stylesheet" href="assets/style.css?v=trimmed" />
   </head>
   <body class="workspace">
     <a class="skip-link" href="#main">Skip to results</a>
@@ -32,13 +32,8 @@
     <main id="main" class="wrap">
       <div class="page-intro">
         <h1>Results</h1>
-        <a class="download-link" data-results-download href="data/leaderboard.json" download>Download results <span aria-hidden="true">↓</span></a>
+        <a class="download-link" data-results-download href="data/evaluations.json" download>Download results <span aria-hidden="true">↓</span></a>
       </div>
-      <div class="workspace-toolbar">
-        <p class="dataset-summary" id="dataset-summary">Loading results…</p>
-        <input type="search" id="model-search" aria-label="Find a model" placeholder="Find a model…" />
-      </div>
-      <p class="replay-summary" id="replay-summary" role="status"></p>
       <section class="benchmark-section" id="models" aria-labelledby="model-view-title">
         <div class="section-heading">
           <h2 id="model-view-title">Models</h2>
@@ -57,7 +52,7 @@
           </table>
         </div>
         <p class="scroll-hint">Scroll for all metrics →</p>
-        <div class="board-caption"><span id="score-note">Beat-baseline rate across all recorded attempts.</span><span id="leaderboard-count" role="status" aria-live="polite"></span></div>
+        <div class="board-caption"><span id="score-note">Beat-baseline rate across all recorded attempts.</span></div>
       </section>
       <section class="benchmark-section" id="operators" aria-labelledby="operator-view-title">
         <div class="section-heading">
@@ -79,24 +74,14 @@
         <p>Reasoning: the share of a model's generated characters that were reasoning rather than answer text or tool-call arguments, measured from its saved responses. "Asked" is the reasoning setting the harness requested; providers do not always honor it.</p>
         <p id="pilot-note"></p>
       </details>
-      <noscript
-        ><p>
-          Enable JavaScript to explore the results, or
-          <a data-report-link href="data/report.json">read the report</a>.
-        </p></noscript
-      >
+      <noscript><p>Enable JavaScript to view the results.</p></noscript>
     </main>
     <footer class="site-footer">
-      <div>
-        <a href="https://github.com/arygupt/ADPBench">source</a><span>·</span
-        ><a data-results-download href="data/leaderboard.json" download>results.json</a><span>·</span
-        ><a data-report-link href="data/report.json">report</a><span>·</span
-        ><a href="data/problems.json">problems.json</a>      </div>
       <p>
         snapshot <span id="meta-generated">—</span> ·
         <code id="meta-commit">—</code>
       </p>
     </footer>
-    <script type="module" src="assets/app.js?v=reasoning"></script>
+    <script type="module" src="assets/app.js?v=trimmed"></script>
   </body>
 </html>
