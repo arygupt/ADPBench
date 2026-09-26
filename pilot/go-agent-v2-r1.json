@@ -3,8 +3,8 @@
   "protocol": "agent-assisted-v2",
   "attempt": 1,
   "try": 1,
-  "generation_enabled": false,
-  "expires_at": "2026-09-29T00:00:00+00:00",
+  "generation_enabled": true,
+  "expires_at": "2026-09-28T19:15:00+00:00",
   "output_budget": "provider_max",
   "output_limit_source": "https://models.dev/api.json#opencode-go",
   "output_limits_checked_at": "2026-09-26",
@@ -48,7 +48,7 @@
       "reasoning": {
         "effort": "high"
       },
-      "not_before": "2026-09-27T00:00:00+00:00"
+      "not_before": "2026-09-26T19:15:00+00:00"
     },
     {
       "id": "grok-4.7",
@@ -57,7 +57,7 @@
       "reasoning": {
         "effort": "high"
       },
-      "not_before": "2026-09-27T00:00:00+00:00"
+      "not_before": "2026-09-26T19:15:00+00:00"
     },
     {
       "id": "kimi-k3",
@@ -65,7 +65,7 @@
       "thinking": {
         "type": "enabled"
       },
-      "not_before": "2026-09-27T00:00:00+00:00"
+      "not_before": "2026-09-26T19:15:00+00:00"
     },
     {
       "id": "deepseek-v4-pro",
@@ -74,13 +74,13 @@
         "type": "enabled"
       },
       "reasoning_effort": "high",
-      "not_before": "2026-09-27T00:00:00+00:00"
+      "not_before": "2026-09-26T19:15:00+00:00"
     },
     {
       "id": "glm-5.3",
       "api": "chat/completions",
       "reasoning_effort": "high",
-      "not_before": "2026-09-27T00:00:00+00:00"
+      "not_before": "2026-09-26T19:15:00+00:00"
     },
     {
       "id": "qwen3.8-max",
@@ -89,7 +89,7 @@
         "type": "enabled",
         "budget_tokens": 16000
       },
-      "not_before": "2026-09-27T00:00:00+00:00"
+      "not_before": "2026-09-26T19:15:00+00:00"
     },
     {
       "id": "minimax-m3",
@@ -98,7 +98,7 @@
         "type": "enabled",
         "budget_tokens": 16000
       },
-      "not_before": "2026-09-27T00:00:00+00:00"
+      "not_before": "2026-09-26T19:15:00+00:00"
     },
     {
       "id": "mimo-v2.6-pro",
@@ -107,7 +107,7 @@
       "reasoning": {
         "enabled": true
       },
-      "not_before": "2026-09-27T00:00:00+00:00"
+      "not_before": "2026-09-26T19:15:00+00:00"
     },
     {
       "id": "mimo-v2.5",
@@ -116,7 +116,7 @@
       "reasoning": {
         "enabled": true
       },
-      "not_before": "2026-09-27T00:00:00+00:00"
+      "not_before": "2026-09-26T19:15:00+00:00"
     },
     {
       "id": "deepseek-v4.1-flash",
@@ -125,7 +125,7 @@
         "type": "enabled"
       },
       "reasoning_effort": "high",
-      "not_before": "2026-09-27T00:00:00+00:00"
+      "not_before": "2026-09-26T19:15:00+00:00"
     },
     {
       "id": "qwen3.8-flash",
@@ -134,13 +134,13 @@
         "type": "enabled",
         "budget_tokens": 16000
       },
-      "not_before": "2026-09-27T00:00:00+00:00"
+      "not_before": "2026-09-26T19:15:00+00:00"
     },
     {
       "id": "glm-5.3-flash",
       "api": "chat/completions",
       "reasoning_effort": "high",
-      "not_before": "2026-09-27T00:00:00+00:00"
+      "not_before": "2026-09-26T19:15:00+00:00"
     },
     {
       "id": "kimi-k2.6",
@@ -148,12 +148,12 @@
       "thinking": {
         "type": "enabled"
       },
-      "not_before": "2026-09-27T00:00:00+00:00"
+      "not_before": "2026-09-26T19:15:00+00:00"
     },
     {
       "id": "minimax-m2.7",
       "api": "messages",
-      "not_before": "2026-09-27T00:00:00+00:00"
+      "not_before": "2026-09-26T19:15:00+00:00"
     }
   ],
   "reasoning_policy": "high-or-nearest",
