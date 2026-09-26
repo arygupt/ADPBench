@@ -12,14 +12,15 @@ only in the generation step's environment; requests are never retried.
 This module also holds the plan handling and small helpers that the other Go
 scripts (agent track, canary, publication) share.
 
-Output layout, per model and problem ("slot"):
+Output layout, per model and problem ("slot"); N is the plan's attempt (1 for
+single-shot):
 
-    <out>/opencode-go-<model>/<problem>/rep1/
+    <out>/opencode-go-<model>/<problem>/repN/
         generation.json   what was requested and what came back (no model text)
         prompt.txt, request.json, response.json, response.txt
         dut.v             the extracted RTL, if any
         record.json, manifest.json, scoring-state.json   written by `score`
-    <out>/opencode-go-<model>/<problem>/rep1_frozen/dut.v   the scored copy
+    <out>/opencode-go-<model>/<problem>/repN_frozen/dut.v   the scored copy
 """
 
 from __future__ import annotations
@@ -50,7 +51,7 @@ PLAN = repo_root() / "pilot/go-20260921.json"
 BASE_URL = "https://opencode.ai/zen/go/v1/"
 USER_AGENT = "adpbench-coding-agent/0.0.1"
 SCORING_IMAGE = "adpbench-go:ci"
-AGENT_PROTOCOL = "agent-assisted-v1"
+AGENT_PROTOCOLS = ("agent-assisted-v1", "agent-assisted-v2")
 
 SYSTEM = (
     "You are an RTL coding agent. Implement the supplied coding task in one "
@@ -67,12 +68,14 @@ REQUEST_SETTING_KEYS = ("thinking", "reasoning_effort", "reasoning")
 GITHUB_KEYS = ("GITHUB_REPOSITORY", "GITHUB_RUN_ID", "GITHUB_RUN_ATTEMPT", "GITHUB_SHA")
 
 ERROR_BODY_LIMIT = 16384
+RESPONSES_EFFORTS = {"none", "low", "medium", "high", "xhigh", "max"}
 CAP_FINISHES = {"length", "max_tokens"}
 COMPLETE_FINISHES = {"stop", "end_turn", "stop_sequence"}
 
 # Outcomes where the provider or harness failed, rather than the model.
 INFRASTRUCTURE_OUTCOMES = {
     "provider_error",
+    "quota_exhausted",
     "transport_interrupted",
     "harness_error",
     "scoring_interrupted",
@@ -84,6 +87,11 @@ INFRASTRUCTURE_OUTCOMES = {
 ALLOWED_PROBLEMS = {"001_dot_product", "002_gemv", "003_matmul", "004_conv1d"}
 MAX_MODELS = 6
 MAX_REQUESTS = 12
+# agent-assisted-v2 dispatches one round (attempt) of every model on every problem.
+MAX_ROUND_MODELS = 16
+MAX_ROUND_SLOTS = 64
+MAX_ATTEMPTS = 3
+MAX_TRIES = 2
 MAX_PROMPT_BYTES = 24000
 MAX_REQUEST_TIMEOUT_S = 600
 MAX_REQUEST_WALL_TIMEOUT_S = 3600
@@ -101,9 +109,37 @@ def now_utc() -> datetime:
     return datetime.now(timezone.utc)
 
 
-def slot_dir(out: Path, model_id: str, problem_id: str) -> Path:
+def slot_dir(out: Path, model_id: str, problem_id: str, attempt: int = 1) -> Path:
     """Where one model's attempt at one problem is recorded."""
-    return out / f"opencode-go-{model_id}" / problem_id / "rep1"
+    return out / f"opencode-go-{model_id}" / problem_id / f"rep{attempt}"
+
+
+def frozen_path(dest: Path) -> Path:
+    """The scored copy of a slot's submission, next to the slot directory."""
+    return dest.parent / f"{dest.name}_frozen" / "dut.v"
+
+
+def is_agent_plan(plan: dict) -> bool:
+    return plan.get("protocol") in AGENT_PROTOCOLS
+
+
+def plan_attempt(plan: dict) -> int:
+    """Which repetition this dispatch records (1 unless the plan is a later round)."""
+    return plan.get("attempt", 1)
+
+
+def plan_slots(plan: dict) -> list[tuple[str, str]]:
+    """(model, problem) pairs the plan may run, problem by problem.
+
+    Problem-major order spreads each model's slots out in time, so a
+    per-model provider quota is not spent all at once. A rerun plan lists
+    its `slots` explicitly.
+    """
+    matrix = [(model["id"], problem) for problem in plan["problems"] for model in plan["models"]]
+    if "slots" not in plan:
+        return matrix
+    chosen = {(slot["model"], slot["problem"]) for slot in plan["slots"]}
+    return [slot for slot in matrix if slot in chosen]
 
 
 def problem_dir(problem_id: str) -> Path:
@@ -198,7 +234,9 @@ def validate_plan(plan: dict) -> None:
     models = plan["models"]
     if not problems or len(set(problems)) != len(problems) or not set(problems) <= ALLOWED_PROBLEMS:
         raise ValueError("invalid or duplicate problems")
-    if not 1 <= len(models) <= MAX_MODELS or len(models) * len(problems) > MAX_REQUESTS:
+    if plan.get("protocol") == "agent-assisted-v2":
+        _validate_round(plan)
+    elif not 1 <= len(models) <= MAX_MODELS or len(models) * len(problems) > MAX_REQUESTS:
         raise ValueError("a batch may contain at most twelve requests across six models")
     if not _is_positive_int(plan["max_prompt_bytes"], MAX_PROMPT_BYTES):
         raise ValueError("invalid max_prompt_bytes")
@@ -224,6 +262,40 @@ def validate_plan(plan: dict) -> None:
         raise ValueError("expiry must include a timezone")
     for model in models:
         _validate_model(model, expires)
+        if model["api"] == "responses" and plan.get("protocol") != "agent-assisted-v2":
+            raise ValueError("the responses API is only supported by agent-assisted-v2")
+
+
+def _validate_round(plan: dict) -> None:
+    """One v2 dispatch: a single attempt number, and optionally an explicit rerun list."""
+    models = plan["models"]
+    if not 1 <= len(models) <= MAX_ROUND_MODELS:
+        raise ValueError("a round may contain at most sixteen models")
+    attempt = plan.get("attempt")
+    tries = plan.get("try")
+    if not _is_positive_int(attempt, MAX_ATTEMPTS) or not _is_positive_int(tries, MAX_TRIES):
+        raise ValueError("a round needs an attempt of 1-3 and a try of 1-2")
+
+    if "slots" in plan:
+        slots = plan["slots"]
+        model_ids = {model["id"] for model in models}
+        if not isinstance(slots, list) or not slots:
+            raise ValueError("slots must be a nonempty list")
+        pairs = []
+        for slot in slots:
+            if not isinstance(slot, dict) or set(slot) != {"model", "problem"}:
+                raise ValueError("each slot names exactly a model and a problem")
+            if slot["model"] not in model_ids or slot["problem"] not in plan["problems"]:
+                raise ValueError("slot is outside the reviewed model/problem matrix")
+            pairs.append((slot["model"], slot["problem"]))
+        if len(set(pairs)) != len(pairs):
+            raise ValueError("duplicate slot")
+    # A second try only reruns listed slots whose first try failed for
+    # infrastructure reasons; it is never a whole-matrix rerun.
+    if tries > 1 and "slots" not in plan:
+        raise ValueError("a rerun must list its slots")
+    if len(plan_slots(plan)) > MAX_ROUND_SLOTS:
+        raise ValueError("a round may contain at most sixty-four slots")
 
 
 def _validate_output_limits(plan: dict, model_ids: list[str]) -> None:
@@ -245,12 +317,21 @@ def _validate_output_limits(plan: dict, model_ids: list[str]) -> None:
 def _validate_model(model: dict, expires: datetime) -> None:
     if not MODEL_ID.fullmatch(model["id"]):
         raise ValueError("invalid model ID")
-    if model["api"] not in {"chat/completions", "messages"}:
+    if model["api"] not in {"chat/completions", "messages", "responses"}:
         raise ValueError("unsupported Go endpoint")
-    if model.get("token_limit_key", "max_tokens") not in {"max_tokens", "max_completion_tokens"}:
-        raise ValueError("invalid output limit field")
-    if "reasoning" in model and model["reasoning"] not in ({"enabled": False}, {"enabled": True}):
-        raise ValueError("unsupported normalized reasoning control")
+    if model["api"] == "responses":
+        if model.get("token_limit_key") != "max_output_tokens":
+            raise ValueError("responses models must set max_output_tokens")
+        reasoning = model.get("reasoning")
+        if not isinstance(reasoning, dict) or set(reasoning) != {"effort"} or reasoning["effort"] not in RESPONSES_EFFORTS:
+            raise ValueError("responses models need an explicit reasoning effort")
+        if {"thinking", "reasoning_effort"} & set(model):
+            raise ValueError("responses models only use reasoning.effort")
+    else:
+        if model.get("token_limit_key", "max_tokens") not in {"max_tokens", "max_completion_tokens"}:
+            raise ValueError("invalid output limit field")
+        if "reasoning" in model and model["reasoning"] not in ({"enabled": False}, {"enabled": True}):
+            raise ValueError("unsupported normalized reasoning control")
     starts = datetime.fromisoformat(model["not_before"])
     window = (expires - starts).total_seconds()
     if starts.tzinfo is None or not 0 < window <= MAX_AUTHORIZATION_WINDOW_S:
@@ -315,6 +396,15 @@ def parse_response(data: dict, api: str) -> tuple[str, str, dict]:
         blocks = data.get("content", [])
         text = "\n".join(block["text"] for block in blocks if block.get("type") == "text")
         finish = data.get("stop_reason", "")
+    elif api == "responses":
+        text = "\n".join(
+            part.get("text", "")
+            for item in data.get("output", [])
+            if item.get("type") == "message"
+            for part in item.get("content") or []
+            if part.get("type") == "output_text"
+        )
+        finish = data.get("stop_reason", "")
     else:
         choice = data["choices"][0]
         text = choice["message"].get("content") or ""
@@ -347,7 +437,7 @@ def valid_usage(usage: dict, api: str, cap: int) -> bool:
     """Whether provider token accounting is present, sane, and within `cap` output tokens."""
     if not isinstance(usage, dict):
         return False
-    if api == "messages":
+    if api in ("messages", "responses"):
         inputs, outputs = usage.get("input_tokens"), usage.get("output_tokens")
     else:
         inputs, outputs = usage.get("prompt_tokens"), usage.get("completion_tokens")
@@ -636,25 +726,26 @@ def _score_slot(
     resume: bool,
     deadline_s: float | None,
 ) -> None:
-    dest = slot_dir(out, model["id"], problem_id)
+    dest = slot_dir(out, model["id"], problem_id, plan_attempt(plan))
     generation_path = dest / "generation.json"
     if not generation_path.exists():
         return
     generation = json.loads(generation_path.read_text())
-    agent_track = generation.get("protocol") == AGENT_PROTOCOL
+    agent_track = generation.get("protocol") in AGENT_PROTOCOLS
     record_path = dest / "record.json"
     if record_path.exists() and not resume:
         raise FileExistsError("scoring record exists; use --resume or a fresh output directory")
 
     problem = load_problem(problem_dir(problem_id))
     if agent_track:
-        agent_cmd = "adpbench Go agent-assisted-v1 (read/write/check/submit)"
+        agent_cmd = f"adpbench Go {generation['protocol']} (read/write/check/submit)"
     else:
         agent_cmd = "adpbench Go API single-shot (one request, no repair)"
     record = RunRecord(
         problem=problem_id,
         agent_cmd=agent_cmd,
         label=_run_label(model["id"], generation),
+        attempt=plan_attempt(plan),
         group=plan["name"],
         started=generation["started"],
         duration_s=generation.get("duration_s", 0),
@@ -678,7 +769,7 @@ def _score_slot(
             if not (submitted and receipt_matches):
                 raise ValueError("agent submission lacks a matching explicit submit receipt")
 
-        frozen = _freeze(source, dest.parent / "rep1_frozen" / "dut.v")
+        frozen = _freeze(source, frozen_path(dest))
         record.frozen = str(frozen)
         record.audit = audit_submission(frozen.read_text())
 
@@ -693,7 +784,7 @@ def _score_slot(
         if record.audit["ok"] and not record.error:
             _write_interrupted_record(plan, problem, record, frozen, generation, dest, agent_track)
             checkpoint = checkpoint_root / model["id"] / problem_id if checkpoint_root else None
-            source_label = "go-agent-assisted-v1" if agent_track else "go-single-shot"
+            source_label = f"go-{generation['protocol']}" if agent_track else "go-single-shot"
             try:
                 print(f"{problem_id}: scoring frozen RTL on held-out cases", flush=True)
                 result = evaluate_multi(
@@ -734,7 +825,7 @@ def _run_label(model_id: str, generation: dict) -> str:
     protocol = generation.get("protocol")
     if protocol == "fixture":
         return "scripted/baseline-fixture"
-    track = AGENT_PROTOCOL if protocol == AGENT_PROTOCOL else "single-shot"
+    track = protocol if protocol in AGENT_PROTOCOLS else "single-shot"
     return f"opencode-go/{model_id} [{track}]"
 
 
@@ -811,7 +902,7 @@ def agent_outcome(record: dict, generation: dict) -> dict:
 
 def save_scoring_failure(plan: dict, model: dict, out: Path, problem_id: str, reason: str) -> None:
     """Record that scoring crashed. The score is unknown: never claim a pass or a DUT failure."""
-    dest = slot_dir(out, model["id"], problem_id)
+    dest = slot_dir(out, model["id"], problem_id, plan_attempt(plan))
     record_path = dest / "record.json"
     if record_path.exists():
         record = json.loads(record_path.read_text())
@@ -821,7 +912,7 @@ def save_scoring_failure(plan: dict, model: dict, out: Path, problem_id: str, re
         record = _unscored_record(plan, model, problem_id, dest)
 
     record["error"] = f"scoring infrastructure: {reason}; score unknown; frozen generation preserved"
-    if plan.get("protocol") == AGENT_PROTOCOL:
+    if is_agent_plan(plan):
         record["outcome"] = "scoring_interrupted"
         record["execution_health"] = "failed"
     record["manifest"]["error"] = record["error"]
@@ -834,16 +925,17 @@ def _unscored_record(plan: dict, model: dict, problem_id: str, dest: Path) -> di
     """A record (with manifest) for a slot whose scorer never wrote one."""
     generation = json.loads((dest / "generation.json").read_text())
     problem = load_problem(problem_dir(problem_id))
-    track = AGENT_PROTOCOL if generation.get("protocol") == AGENT_PROTOCOL else "single-shot"
+    track = generation["protocol"] if generation.get("protocol") in AGENT_PROTOCOLS else "single-shot"
     record = RunRecord(
         problem=problem_id,
         agent_cmd=f"adpbench Go API {track}",
         label=f"opencode-go/{model['id']} [{track}]",
+        attempt=plan_attempt(plan),
         group=plan["name"],
         started=generation["started"],
         sandbox="docker",
     )
-    frozen = dest.parent / "rep1_frozen" / "dut.v"
+    frozen = frozen_path(dest)
     if not frozen.exists() and (dest / "dut.v").exists():
         frozen.parent.mkdir(exist_ok=True)
         frozen.write_bytes((dest / "dut.v").read_bytes())
@@ -861,7 +953,7 @@ def _unscored_record(plan: dict, model: dict, problem_id: str, dest: Path) -> di
 
 def summarize(plan: dict, model: dict, out: Path) -> None:
     """Write report.json and REPORT.md for `out`, plus usage.json with token totals."""
-    agent_track = plan.get("protocol") == AGENT_PROTOCOL
+    agent_track = is_agent_plan(plan)
     turns = plan.get("max_turns", 1) if agent_track else 1
     usage_cap = output_limit(plan, model) * turns
 
@@ -869,7 +961,7 @@ def summarize(plan: dict, model: dict, out: Path) -> None:
     total_output = 0
     incomplete_usage = False
     for problem_id in plan["problems"]:
-        path = slot_dir(out, model["id"], problem_id) / "generation.json"
+        path = slot_dir(out, model["id"], problem_id, plan_attempt(plan)) / "generation.json"
         if not path.exists():
             # Each agent-track job scores one problem, so a sibling slot that
             # belongs to another job is not missing usage.
@@ -907,7 +999,7 @@ def summarize(plan: dict, model: dict, out: Path) -> None:
     with (out / "REPORT.md").open("a") as report:
         if agent_track:
             report.write(
-                f"\nProtocol: agent-assisted-v1; at most {plan['max_turns']} turns and "
+                f"\nProtocol: {plan['protocol']}; at most {plan['max_turns']} turns and "
                 f"{plan['max_checks']} development checks per slot. Explicit file submission, "
                 "one held-out evaluation.\n"
             )
@@ -947,7 +1039,7 @@ def summarize(plan: dict, model: dict, out: Path) -> None:
 def run_fixture(plan: dict, model: dict, out: Path) -> None:
     """Exercise the full scoring path with each problem's known-good baseline. No HTTP calls."""
     for problem_id in plan["problems"]:
-        dest = slot_dir(out, model["id"], problem_id)
+        dest = slot_dir(out, model["id"], problem_id, plan_attempt(plan))
         generation = {"started": now_utc().isoformat(), "protocol": "fixture", "error": ""}
         atomic_json(dest / "generation.json", generation)
         (dest / "dut.v").write_bytes((problem_dir(problem_id) / "baseline.v").read_bytes())

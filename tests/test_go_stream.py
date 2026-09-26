@@ -31,7 +31,7 @@ class Chunks:
         return chunk
 
 
-class StreamTest(unittest.TestCase):
+class StreamCase(unittest.TestCase):
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory()
         self.addCleanup(self.temp.cleanup)
@@ -39,6 +39,9 @@ class StreamTest(unittest.TestCase):
 
     def read(self, chunks, api="chat/completions", key="fixture-secret", *, allow_tools=False):
         return read_stream(Chunks(chunks), api, self.root, key, time.monotonic()+5, allow_tools=allow_tools)
+
+
+class StreamTest(StreamCase):
 
     def test_chat_arbitrary_byte_boundaries_and_late_usage(self):
         payload = sse(chat("module "), chat("dut; endmodule", "stop"),
@@ -147,7 +150,7 @@ class StreamTest(unittest.TestCase):
                 {"index": 0, "function": {"arguments": '"dut.py"}'}}]}, "finish_reason": "tool_calls"}]},
             {"choices": [], "usage": {"prompt_tokens": 10, "completion_tokens": 12}}, "[DONE]")
         data = self.read([payload[i:i+9] for i in range(0, len(payload), 9)], allow_tools=True)
-        message, calls, _, finish, _ = parse_turn(data, "chat/completions")
+        [message], calls, _, finish, _ = parse_turn(data, "chat/completions")
         self.assertEqual(message["reasoning_content"], "plan complete")
         self.assertNotIn("reasoning", message)
         self.assertEqual([c["id"] for c in calls], ["call_a", "call_b"])
@@ -175,7 +178,7 @@ class StreamTest(unittest.TestCase):
             {"type": "message_delta", "delta": {"stop_reason": "tool_use"}, "usage": {"output_tokens": 25}},
             {"type": "message_stop"})
         data = self.read([sse(*events)], "messages", allow_tools=True)
-        message, calls, _, finish, usage = parse_turn(data, "messages")
+        [message], calls, _, finish, usage = parse_turn(data, "messages")
         self.assertEqual(message["content"][0], {"type": "thinking", "thinking": "plan", "signature": "opaque"})
         self.assertEqual(message["content"][1], {"type": "redacted_thinking", "data": "opaque2"})
         self.assertEqual(calls, [{"id": "call1", "name": "read_file", "arguments": {"path": "dut.v"}},
@@ -258,6 +261,123 @@ class StreamTest(unittest.TestCase):
         with patch("scripts.go_stream.http.client.HTTPSConnection", return_value=conn):
             result = call_streaming("chat/completions", {"stream": True, "tools": [{"type": "function"}]}, {}, self.root, "", 120, 1800)
         self.assertEqual(result["choices"][0]["message"]["tool_calls"][0]["function"]["name"], "submit")
+
+
+def created():
+    return {"type": "response.created", "response": {"id": "resp_1", "model": "fixture", "output": [], "usage": None}}
+
+
+def completed(output, usage=None, kind="response.completed", **extra):
+    return {"type": kind, "response": {"id": "resp_1", "model": "fixture", "output": output,
+                                       "usage": usage or {"input_tokens": 9, "output_tokens": 7}, **extra}}
+
+
+class ResponsesStreamTest(StreamCase):
+    reasoning = {"type": "reasoning", "id": "rs_1", "summary": [], "encrypted_content": "opaque"}
+    call = {"type": "function_call", "id": "fc_1", "call_id": "call_a", "name": "write_file", "arguments": ""}
+
+    def tool_events(self, terminal_output=None):
+        done_call = {**self.call, "arguments": '{"path":"dut.v","content":"module dut; endmodule"}', "status": "completed"}
+        events = [
+            created(),
+            {"type": "response.output_item.added", "output_index": 0, "item": {**self.reasoning, "encrypted_content": None}},
+            {"type": "response.reasoning_summary_text.delta", "output_index": 0, "delta": "plan"},
+            {"type": "response.output_item.done", "output_index": 0, "item": self.reasoning},
+            {"type": "response.output_item.added", "output_index": 1, "item": self.call},
+            {"type": "response.function_call_arguments.delta", "output_index": 1, "delta": '{"path":"dut.v",'},
+            {"type": "response.function_call_arguments.delta", "output_index": 1, "delta": '"content":"module dut; endmodule"}'},
+            {"type": "response.function_call_arguments.done", "output_index": 1, "arguments": done_call["arguments"]},
+            {"type": "response.output_item.done", "output_index": 1, "item": done_call},
+        ]
+        output = [self.reasoning, done_call] if terminal_output is None else terminal_output
+        usage = {"input_tokens": 9, "output_tokens": 7, "output_tokens_details": {"reasoning_tokens": 4}}
+        return events + [completed(output, usage)], done_call
+
+    def test_responses_tool_turn_keeps_encrypted_reasoning_for_the_next_turn(self):
+        from scripts.go_tools import parse_turn
+        events, done_call = self.tool_events()
+        payload = sse(*events)
+        data = self.read([payload[i:i+11] for i in range(0, len(payload), 11)], "responses", allow_tools=True)
+        self.assertEqual(data["stop_reason"], "tool_calls")
+        self.assertEqual(data["usage"]["output_tokens_details"], {"reasoning_tokens": 4})
+        history, calls, _, finish, _ = parse_turn(data, "responses")
+        self.assertEqual(history, [self.reasoning, done_call])
+        self.assertEqual(calls, [{"id": "call_a", "name": "write_file",
+                                  "arguments": {"path": "dut.v", "content": "module dut; endmodule"}}])
+        self.assertEqual(finish, "tool_calls")
+
+    def test_responses_empty_terminal_output_falls_back_to_done_items(self):
+        events, done_call = self.tool_events(terminal_output=[])
+        data = self.read([sse(*events)], "responses", allow_tools=True)
+        self.assertEqual(data["output"], [self.reasoning, done_call])
+
+    def test_responses_text_answer_is_a_stop(self):
+        message = {"type": "message", "id": "msg_1", "role": "assistant", "content": []}
+        final = {**message, "content": [{"type": "output_text", "text": "module dut; endmodule"}]}
+        data = self.read([sse(created(),
+                              {"type": "response.output_item.added", "output_index": 0, "item": message},
+                              {"type": "response.output_text.delta", "output_index": 0, "delta": "module dut; endmodule"},
+                              {"type": "response.output_item.done", "output_index": 0, "item": final},
+                              completed([final]))], "responses")
+        self.assertEqual(data["stop_reason"], "stop")
+        from scripts.go_pilot import parse_response
+        self.assertEqual(parse_response(data, "responses")[0], "module dut; endmodule")
+
+    def test_responses_output_cap_is_complete_but_not_executable(self):
+        from scripts.go_tools import parse_turn
+        events = [created(),
+                  {"type": "response.output_item.added", "output_index": 0, "item": self.call},
+                  {"type": "response.function_call_arguments.delta", "output_index": 0, "delta": '{"path":'},
+                  completed([], kind="response.incomplete", incomplete_details={"reason": "max_output_tokens"})]
+        data = self.read([sse(*events)], "responses", allow_tools=True)
+        self.assertEqual(data["stop_reason"], "length")
+        self.assertEqual(data["output"][0]["arguments"], '{"path":')
+        self.assertEqual(json.loads((self.root / "stream-status.json").read_text())["state"], "completed")
+        with self.assertRaises(ValueError):
+            parse_turn(data, "responses")
+
+    def test_responses_failure_disconnect_and_protocol_errors_fail_closed(self):
+        with self.assertRaisesRegex(StreamFailure, "provider_stream_error"):
+            self.read([sse(created(), {"type": "response.failed", "response": {"error": {"message": "overloaded; fixture-secret"}}})],
+                      "responses", allow_tools=True)
+        self.assertNotIn("fixture-secret", (self.root / "provider_error.json").read_text())
+        events, _ = self.tool_events()
+        with self.assertRaisesRegex(StreamFailure, "disconnected"):
+            self.read([sse(*events[:6])], "responses", allow_tools=True)
+        partial = json.loads((self.root / "response.partial.json").read_text())
+        self.assertEqual(partial["output"][1]["arguments"], '{"path":"dut.v",')
+        with self.assertRaisesRegex(StreamFailure, "missing_response_start"):
+            self.read([sse(events[1])], "responses", allow_tools=True)
+        with self.assertRaisesRegex(StreamFailure, "unexpected_tool_call"):
+            self.read([sse(*events)], "responses")
+        with self.assertRaisesRegex(StreamFailure, "invalid_content_delta"):
+            self.read([sse(created(), {"type": "response.output_item.added", "output_index": 0, "item": self.reasoning},
+                           {"type": "response.function_call_arguments.delta", "output_index": 0, "delta": "{}"})],
+                      "responses", allow_tools=True)
+        with self.assertRaisesRegex(StreamFailure, "unexpected_content_block"):
+            self.read([sse(created(), {"type": "response.output_item.added", "output_index": 0,
+                                       "item": {"type": "web_search_call"}})], "responses", allow_tools=True)
+
+    def test_responses_tool_limits_are_bounded(self):
+        with patch("scripts.go_stream.MAX_TOOL_ARGUMENT_BYTES", 4), self.assertRaisesRegex(StreamFailure, "tool_argument_byte_limit"):
+            self.read([sse(created(), {"type": "response.output_item.added", "output_index": 0, "item": self.call},
+                           {"type": "response.function_call_arguments.delta", "output_index": 0, "delta": '{"path":'})],
+                      "responses", allow_tools=True)
+        duplicate = {**self.call, "arguments": "{}"}
+        with self.assertRaisesRegex(StreamFailure, "duplicate_tool_call_id"):
+            self.read([sse(created(), completed([duplicate, {**duplicate, "id": "fc_2"}]))], "responses", allow_tools=True)
+
+    def test_responses_transport_posts_to_the_responses_endpoint(self):
+        conn = MagicMock()
+        response = conn.getresponse.return_value
+        response.status = 200
+        response.getheader.return_value = "text/event-stream"
+        events, _ = self.tool_events()
+        response.read1.side_effect = [sse(*events)]
+        with patch("scripts.go_stream.http.client.HTTPSConnection", return_value=conn):
+            result = call_streaming("responses", {"stream": True, "tools": [{"type": "function"}]}, {}, self.root, "", 120, 1800)
+        self.assertEqual(conn.request.call_args.args[1], "/zen/go/v1/responses")
+        self.assertEqual(result["stop_reason"], "tool_calls")
 
 
 if __name__ == "__main__":

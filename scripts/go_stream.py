@@ -1,13 +1,16 @@
 """Single-request OpenCode Go streaming (SSE) transport. Never reconnects.
 
-OpenCode Go speaks two wire formats:
+OpenCode Go speaks three wire formats:
 
   chat/completions   OpenAI-style: `data: {"choices": [{"delta": ...}]}` events,
                      ended by `data: [DONE]`
   messages           Anthropic-style: typed events (message_start,
                      content_block_start/delta/stop, message_delta, message_stop)
+  responses          OpenAI Responses: typed events (response.created,
+                     response.output_item.added/done, *.delta), ended by
+                     response.completed or response.incomplete
 
-`ResponseStream` assembles either format into the same shape a non-streaming
+`ResponseStream` assembles each format into the same shape a non-streaming
 response would have. A response only counts as complete after an explicit,
 well-formed end-of-stream; anything else raises StreamFailure. Partial output
 is saved to disk every couple of seconds (and on failure) as evidence.
@@ -27,7 +30,7 @@ from adpbench.durable import atomic_json
 
 GO_HOST = "opencode.ai"
 GO_PATH = "/zen/go/v1/"
-APIS = {"messages", "chat/completions"}
+APIS = {"messages", "chat/completions", "responses"}
 
 MAX_STREAM_BYTES = 256 * 1024 * 1024  # includes repeated SSE/JSON framing, not just tokens
 MAX_EVENT_BYTES = 2 * 1024 * 1024
@@ -42,6 +45,10 @@ SAVE_INTERVAL_S = 2
 
 CAP_FINISHES = {"length", "max_tokens"}
 PRIVATE_BLOCK_KEYS = {"pieces", "argument_pieces", "argument_bytes", "argument_error"}
+
+# Responses output items, and the finish reason each completed response maps to.
+RESPONSE_ITEM_TYPES = {"message", "reasoning", "function_call"}
+RESPONSE_CAP_REASONS = {"max_output_tokens"}
 
 
 class StreamFailure(RuntimeError):
@@ -78,6 +85,10 @@ class ResponseStream:
         self.blocks: dict[int, dict] = {}  # content block index -> block being assembled
         self.closed_blocks: set[int] = set()
 
+        # responses state
+        self.items: dict[int, dict] = {}  # output index -> {"item", "pieces", "done"}
+        self.output: list[dict] | None = None  # the final output from the terminal event
+
     # -- entry point --------------------------------------------------------
 
     def feed(self, payload: str) -> None:
@@ -104,8 +115,10 @@ class ResponseStream:
 
         if self.api == "chat/completions":
             self._feed_chat_event(event)
-        else:
+        elif self.api == "messages":
             self._feed_messages_event(event)
+        else:
+            self._feed_responses_event(event)
 
     def _add_content(self, value: str) -> None:
         """Count assembled output toward the content limit."""
@@ -321,6 +334,128 @@ class ResponseStream:
                     block["argument_error"] = "invalid_tool_input"
         self.closed_blocks.add(index)
 
+    # -- responses ----------------------------------------------------------
+
+    def _feed_responses_event(self, event: dict) -> None:
+        kind = event.get("type")
+        if not isinstance(kind, str):
+            raise StreamFailure("invalid_stream_event")
+        if kind == "response.created":
+            if self.started:
+                raise StreamFailure("duplicate_response_start")
+            self.started = True
+            self._set_response_metadata(event.get("response"))
+            return
+        if not self.started and kind.startswith("response."):
+            raise StreamFailure("missing_response_start")
+
+        if kind == "response.output_item.added":
+            self._on_item_added(event)
+        elif kind in ("response.output_text.delta", "response.function_call_arguments.delta"):
+            self._on_item_delta(event, "arguments" if "function_call" in kind else "text")
+        elif kind in ("response.reasoning_summary_text.delta", "response.reasoning_text.delta"):
+            self._on_item_delta(event, "reasoning")
+        elif kind == "response.output_item.done":
+            self._on_item_done(event)
+        elif kind in ("response.completed", "response.incomplete"):
+            self._on_response_end(event)
+        elif kind == "response.failed":
+            self.provider_error = event
+            raise StreamFailure("provider_stream_error")
+        # Other events (in_progress, *.done text parts, ...) repeat assembled data.
+
+    def _set_response_metadata(self, response) -> None:
+        if not isinstance(response, dict):
+            raise StreamFailure("invalid_stream_metadata")
+        for key in ("id", "model"):
+            value = response.get(key)
+            if value:
+                if not isinstance(value, str) or len(value) > MAX_METADATA_BYTES:
+                    raise StreamFailure("invalid_stream_metadata")
+                self.data[key] = value
+
+    def _response_index(self, event: dict) -> int:
+        index = event.get("output_index")
+        if type(index) is not int or not 0 <= index < MAX_CONTENT_BLOCKS:
+            raise StreamFailure("invalid_content_index")
+        return index
+
+    def _check_response_item(self, item) -> None:
+        if not isinstance(item, dict) or item.get("type") not in RESPONSE_ITEM_TYPES:
+            raise StreamFailure("unexpected_content_block")
+        if item["type"] == "function_call" and not self.allow_tools:
+            raise StreamFailure("unexpected_tool_call")
+
+    def _on_item_added(self, event: dict) -> None:
+        index = self._response_index(event)
+        if index in self.items:
+            raise StreamFailure("invalid_content_index")
+        item = event.get("item")
+        self._check_response_item(item)
+        self._add_content(json.dumps(item))
+        self.items[index] = {"item": item, "pieces": [], "bytes": 0, "done": False}
+        tool_items = [entry for entry in self.items.values() if entry["item"]["type"] == "function_call"]
+        if len(tool_items) > MAX_TOOL_CALLS:
+            raise StreamFailure("too_many_tool_calls")
+
+    def _on_item_delta(self, event: dict, kind: str) -> None:
+        index = self._response_index(event)
+        entry = self.items.get(index)
+        if entry is None or entry["done"]:
+            raise StreamFailure("invalid_content_index")
+        expected = {"text": "message", "arguments": "function_call", "reasoning": "reasoning"}[kind]
+        if entry["item"]["type"] != expected:
+            raise StreamFailure("invalid_content_delta")
+        value = event.get("delta")
+        self._add_content(value)
+        entry["pieces"].append(value)
+        entry["bytes"] += len(value.encode())
+        if kind == "arguments" and entry["bytes"] > MAX_TOOL_ARGUMENT_BYTES:
+            raise StreamFailure("tool_argument_byte_limit")
+
+    def _on_item_done(self, event: dict) -> None:
+        index = self._response_index(event)
+        entry = self.items.get(index)
+        if entry is None or entry["done"]:
+            raise StreamFailure("invalid_content_index")
+        item = event.get("item")
+        self._check_response_item(item)
+        if item["type"] != entry["item"]["type"]:
+            raise StreamFailure("invalid_content_delta")
+        entry.update(item=item, done=True)
+
+    def _on_response_end(self, event: dict) -> None:
+        response = event.get("response")
+        self._set_response_metadata(response)
+        usage = response.get("usage")
+        if isinstance(usage, dict):
+            self.data["usage"] = dict(usage)
+            self._check_usage_size()
+
+        incomplete = event["type"] == "response.incomplete"
+        output = response.get("output")
+        if isinstance(output, list) and output:
+            for item in output:
+                self._check_response_item(item)
+            self.output = output
+        elif incomplete:
+            self.output = self._partial_output()
+        else:
+            # Some gateways leave the terminal output empty; the done items are the output.
+            if any(not entry["done"] for entry in self.items.values()):
+                raise StreamFailure("unclosed_content_blocks")
+            self.output = [entry["item"] for _, entry in sorted(self.items.items())]
+
+        if incomplete:
+            reason = (response.get("incomplete_details") or {}).get("reason")
+            # A capped response is a complete transport, but not a usable turn.
+            self.finish = "length" if reason in RESPONSE_CAP_REASONS else f"incomplete:{reason}"
+        else:
+            calls = [item for item in self.output if item["type"] == "function_call"]
+            self.finish = "tool_calls" if calls else "stop"
+            self._check_tool_calls()
+        self.done = True
+
     # -- completion ---------------------------------------------------------
 
     def _check_tool_calls(self) -> None:
@@ -343,6 +478,17 @@ class ResponseStream:
                 _check_identifier(call["id"])
                 _check_identifier(call["function"]["name"])
             ids = [call["id"] for call in calls]
+        elif self.api == "responses":
+            calls = [item for item in self.output or [] if item["type"] == "function_call"]
+            if len(calls) > MAX_TOOL_CALLS:
+                raise StreamFailure("too_many_tool_calls")
+            for call in calls:
+                _check_identifier(call.get("call_id"))
+                _check_identifier(call.get("name"))
+                arguments = call.get("arguments")
+                if not isinstance(arguments, str) or len(arguments.encode()) > MAX_TOOL_ARGUMENT_BYTES:
+                    raise StreamFailure("tool_argument_byte_limit")
+            ids = [call["call_id"] for call in calls]
         else:
             calls = [block for block in self.blocks.values() if block["type"] == "tool_use"]
             for block in calls:
@@ -377,6 +523,10 @@ class ResponseStream:
                 message["reasoning"] = "".join(self.reasoning)
             data["choices"] = [{"index": 0, "message": message, "finish_reason": self.finish}]
             return data
+        if self.api == "responses":
+            data["output"] = self.output if self.output is not None else self._partial_output()
+            data["stop_reason"] = self.finish
+            return data
 
         data["content"] = []
         for index, block in sorted(self.blocks.items()):
@@ -389,6 +539,23 @@ class ResponseStream:
             data["content"].append(value)
         data["stop_reason"] = self.finish
         return data
+
+
+    def _partial_output(self) -> list[dict]:
+        """Responses output items assembled so far, for evidence of an unfinished stream."""
+        output = []
+        for _, entry in sorted(self.items.items()):
+            item = dict(entry["item"])
+            if not entry["done"]:
+                text = "".join(entry["pieces"])
+                if item["type"] == "message":
+                    item["content"] = [{"type": "output_text", "text": text}]
+                elif item["type"] == "function_call":
+                    item["arguments"] = text
+                else:
+                    item["summary"] = [{"type": "summary_text", "text": text}]
+            output.append(item)
+        return output
 
 
 def _check_identifier(value) -> None:
