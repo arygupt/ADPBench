@@ -1,7 +1,7 @@
 // Parse data/evaluations.json, the list of published datasets.
 // Only reviewed local dataset paths may become fetch targets.
 
-const PROTOCOLS = ["single-shot", "iterative", "agent-assisted-v1"];
+const PROTOCOLS = ["single-shot", "iterative", "agent-assisted-v1", "agent-assisted-v2"];
 const DATASET_ID = /^[a-z0-9][a-z0-9-]{0,79}$/;
 
 function isValidEntry(item, seenPaths) {

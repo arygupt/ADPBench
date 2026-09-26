@@ -21,7 +21,7 @@ from .problem import Problem, discover_problems, load_problem
 from .report import load_runs, summarize
 from .seeds import DEV_SEEDS, EVAL_SEEDS
 
-AGENT_PROTOCOL = "agent-assisted-v1"
+AGENT_PROTOCOLS = ("agent-assisted-v1", "agent-assisted-v2")
 
 PROBLEM_TITLES = {
     "001_dot_product": "Dot product",
@@ -48,6 +48,8 @@ AGENT_GENERATION_FIELDS = (
     "max_turns",
     "incomplete_usage",
     "reasoning_measured",
+    "try",
+    "transport_retries",
 )
 
 
@@ -79,7 +81,7 @@ def export_site(
     runs = [_run_entry(record) for record in records]
 
     report = summarize(load_runs(pilot_dir))
-    agent_track = plan.get("protocol") == AGENT_PROTOCOL
+    agent_track = plan.get("protocol") in AGENT_PROTOCOLS
     models = [
         _model_entry(label, label_runs, report["labels"].get(label, {}), agent_track)
         for label, label_runs in _group_by_label(runs).items()
@@ -174,7 +176,7 @@ def _run_entry(record: dict) -> dict:
     if generation:
         entry["generation"] = {name: generation.get(name) for name in GENERATION_FIELDS}
 
-    if generation.get("protocol") == AGENT_PROTOCOL:
+    if generation.get("protocol") in AGENT_PROTOCOLS:
         entry["outcome"] = record.get("outcome", "scoring_interrupted")
         entry["execution_health"] = record.get("execution_health", "failed")
         # Only a completed held-out score says correct or not; anything else is unknown.

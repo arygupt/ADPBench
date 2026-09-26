@@ -20,16 +20,16 @@ permissions:
   contents: read
 
 env:
-  PLAN: pilot/go-agent-high-20260924.json
+  PLAN: pilot/go-agent-v2-r1.json
   MODEL: ${{ inputs.model }}
   PROBLEM: ${{ inputs.problem }}
 
 jobs:
   generate:
-    name: "Generate ${{ inputs.model }} · ${{ inputs.problem }} · agent-assisted-v1"
+    name: "Generate ${{ inputs.model }} · ${{ inputs.problem }} · agent-assisted-v2"
     if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main' && inputs.subscription_only
     runs-on: ubuntu-latest
-    timeout-minutes: 135 # A <=120-minute agent session plus setup and evidence upload.
+    timeout-minutes: 135 # A <=120-minute agent session, including transport retries, plus setup and upload.
     permissions:
       contents: write # Only the durable-claim step receives a repository write token.
     outputs:
@@ -49,9 +49,10 @@ jobs:
           import os
           from pathlib import Path
           from scripts.go_pilot import read_plan, select_model, due, now_utc
+          from scripts.go_pilot import plan_slots
           plan = read_plan(Path(os.environ['PLAN']))
           model = select_model(plan, os.environ['MODEL'])
-          assert os.environ['PROBLEM'] in plan['problems'], 'Unreviewed problem'
+          assert (model['id'], os.environ['PROBLEM']) in plan_slots(plan), 'Unreviewed slot'
           assert plan['generation_enabled'] and due(plan, model, now_utc()), 'Slot is outside its authorization window'
           PY
       - uses: docker/setup-buildx-action@v3
@@ -69,8 +70,9 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          batch=$(python -c 'import os; from pathlib import Path; from scripts.go_pilot import read_plan; print(read_plan(Path(os.environ["PLAN"]))["name"])')
-          ref="tags/$batch-$MODEL-$PROBLEM"
+          # The plan name carries the round; a rerun (try 2) claims its own tag.
+          claim=$(python -c 'import os; from pathlib import Path; from scripts.go_pilot import read_plan; p = read_plan(Path(os.environ["PLAN"])); print(p["name"] + "-" + os.environ["MODEL"] + "-" + os.environ["PROBLEM"] + ("-t%d" % p["try"] if p.get("try", 1) > 1 else ""))')
+          ref="tags/$claim"
           if gh api "repos/$GITHUB_REPOSITORY/git/ref/$ref" >/dev/null 2>&1; then
             echo 'This slot was already claimed. No regeneration or additional spending.' >> "$GITHUB_STEP_SUMMARY"
             echo 'claimed=false' >> "$GITHUB_OUTPUT"
@@ -95,10 +97,10 @@ jobs:
             runs/model/plan.json
             runs/model/REPORT.md
             runs/model/usage.json
-            runs/model/opencode-go-${{ inputs.model }}/${{ inputs.problem }}/rep1/generation.json
-            runs/model/opencode-go-${{ inputs.model }}/${{ inputs.problem }}/rep1/dut.v
-            runs/model/opencode-go-${{ inputs.model }}/${{ inputs.problem }}/rep1/manifest.json
-            runs/model/opencode-go-${{ inputs.model }}/${{ inputs.problem }}/rep1/record.json
+            runs/model/opencode-go-${{ inputs.model }}/${{ inputs.problem }}/rep*/generation.json
+            runs/model/opencode-go-${{ inputs.model }}/${{ inputs.problem }}/rep*/dut.v
+            runs/model/opencode-go-${{ inputs.model }}/${{ inputs.problem }}/rep*/manifest.json
+            runs/model/opencode-go-${{ inputs.model }}/${{ inputs.problem }}/rep*/record.json
           if-no-files-found: error
           retention-days: 90
       - name: Preserve private transcript, development workspace, and transport evidence
@@ -116,19 +118,19 @@ jobs:
         if: always()
         run: |
           {
-            echo "## $MODEL · $PROBLEM · agent-assisted-v1"
-            echo 'Shared read/write/check/submit tools; at most 12 model turns and 3 development checks. No hidden-test feedback, balance fallback, or generation retries.'
+            echo "## $MODEL · $PROBLEM · agent-assisted-v2"
+            echo 'Shared read/write/check/submit tools; at most 20 model turns and 3 development checks. No hidden-test feedback or balance fallback. A request the provider drops is resent unchanged at most twice.'
             echo 'Green execution means the attempt was recorded, not that its RTL is correct. Incorrect, missing, and invalid submissions remain failed benchmark outcomes. Provider/transport/harness faults fail execution.'
           } >> "$GITHUB_STEP_SUMMARY"
           python - <<'PY'
           import json, os
           from pathlib import Path
-          receipt = Path('runs/model') / ('opencode-go-' + os.environ['MODEL']) / os.environ['PROBLEM'] / 'rep1/generation.json'
+          receipts = list((Path('runs/model') / ('opencode-go-' + os.environ['MODEL']) / os.environ['PROBLEM']).glob('rep*/generation.json'))
           with open(os.environ['GITHUB_STEP_SUMMARY'], 'a') as summary:
-              if receipt.is_file():
-                  data = json.loads(receipt.read_text())
+              if len(receipts) == 1:
+                  data = json.loads(receipts[0].read_text())
                   summary.write(f"\nGeneration outcome: `{data.get('outcome', 'unknown')}`; execution health: `{data.get('execution_health', 'unknown')}`.\n")
-                  summary.write(f"\nModel turns: {data.get('turns', 0)}; development checks: {data.get('checks', 0)}.\n")
+                  summary.write(f"\nModel turns: {data.get('turns', 0)}; development checks: {data.get('checks', 0)}; resent requests: {len(data.get('transport_retries', []))}.\n")
               else:
                   summary.write('\nNo generation receipt was created. See the claim and generation steps; no correctness claim is made.\n')
           PY
@@ -137,7 +139,7 @@ jobs:
           fi
 
   evaluate:
-    name: "Evaluate ${{ inputs.model }} · ${{ inputs.problem }} · agent-assisted-v1"
+    name: "Evaluate ${{ inputs.model }} · ${{ inputs.problem }} · agent-assisted-v2"
     needs: generate
     # An expected or unexpected generation failure still deserves a truthful
     # record. Each slot scores immediately; no other model can block it.
@@ -181,12 +183,12 @@ jobs:
             runs/model/plan.json
             runs/model/REPORT.md
             runs/model/usage.json
-            runs/model/opencode-go-${{ inputs.model }}/${{ inputs.problem }}/rep1/generation.json
-            runs/model/opencode-go-${{ inputs.model }}/${{ inputs.problem }}/rep1/dut.v
-            runs/model/opencode-go-${{ inputs.model }}/${{ inputs.problem }}/rep1/manifest.json
-            runs/model/opencode-go-${{ inputs.model }}/${{ inputs.problem }}/rep1/record.json
-            runs/model/opencode-go-${{ inputs.model }}/${{ inputs.problem }}/rep1/scoring-state.json
-            runs/model/opencode-go-${{ inputs.model }}/${{ inputs.problem }}/rep1_frozen/dut.v
+            runs/model/opencode-go-${{ inputs.model }}/${{ inputs.problem }}/rep*/generation.json
+            runs/model/opencode-go-${{ inputs.model }}/${{ inputs.problem }}/rep*/dut.v
+            runs/model/opencode-go-${{ inputs.model }}/${{ inputs.problem }}/rep*/manifest.json
+            runs/model/opencode-go-${{ inputs.model }}/${{ inputs.problem }}/rep*/record.json
+            runs/model/opencode-go-${{ inputs.model }}/${{ inputs.problem }}/rep*/scoring-state.json
+            runs/model/opencode-go-${{ inputs.model }}/${{ inputs.problem }}/rep*_frozen/dut.v
           if-no-files-found: error
           retention-days: 90
       - name: Preserve private scoring logs and recovery checkpoints

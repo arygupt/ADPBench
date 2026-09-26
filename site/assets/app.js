@@ -600,8 +600,8 @@ async function getJSON(path) {
 async function loadData() {
   const catalog = parseCatalog(await getJSON("data/evaluations.json"));
   datasets = catalog.paths;
-  // Show the newest agent-assisted-v1 batch; the publisher prepends new batches.
-  const agentDataset = catalog.entries.find((entry) => entry.protocol === "agent-assisted-v1");
+  // Show the newest agent-assisted batch; the publisher prepends new batches.
+  const agentDataset = catalog.entries.find((entry) => entry.protocol.startsWith("agent-assisted-"));
   datasetKey = agentDataset?.id || catalog.defaultId;
 
   const leaderboardPath = datasets[datasetKey];

@@ -29,10 +29,16 @@ test("agent outcomes distinguish wrong RTL from unscored execution and submissio
   assert.equal(agentState({generation, outcome:"provider_error"}).cls, "infra");
   assert.equal(agentState({generation, outcome:"turn_limit"}).cls, "fail");
   assert.equal(agentState({generation, outcome:"<script>"}).value, "unknown");
+  assert.equal(agentState({generation, outcome:"quota_exhausted"}).cls, "infra");
+  assert.equal(agentState({generation:{protocol:"agent-assisted-v2"}, outcome:"quota_exhausted"}).value, "quota");
   assert.equal(agentState({generation:{protocol:"single-shot"}}), null);
-  const catalog = {schema_version:1, default:"agent-test", evaluations:[{
-    id:"agent-test", label:"Agent-assisted v1", path:"data/agent-test/leaderboard.json", protocol:"agent-assisted-v1"}]};
-  assert.equal(parseCatalog(catalog).defaultId, "agent-test");
+  for (const protocol of ["agent-assisted-v1", "agent-assisted-v2"]) {
+    const catalog = {schema_version:1, default:"agent-test", evaluations:[{
+      id:"agent-test", label:"Agent-assisted", path:"data/agent-test/leaderboard.json", protocol}]};
+    assert.equal(parseCatalog(catalog).defaultId, "agent-test");
+  }
+  assert.throws(() => parseCatalog({schema_version:1, default:"agent-test", evaluations:[{
+    id:"agent-test", label:"Agent-assisted", path:"data/agent-test/leaderboard.json", protocol:"agent-assisted-v9"}]}));
 });
 
 test("old fixed and new model-maximum budgets are displayed without claiming unlimited output", () => {

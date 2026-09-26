@@ -1,11 +1,15 @@
 name: OpenCode Go agent runs
-run-name: "OpenCode Go · agent-assisted-v1 · ${{ inputs.run_models && 'twelve-slot evaluation' || 'offline checks' }}"
+run-name: "OpenCode Go · agent-assisted-v2 · ${{ inputs.run_canary && 'compatibility canary' || (inputs.run_models && 'round evaluation' || 'offline checks') }}"
 
 on:
   workflow_dispatch:
     inputs:
       run_models:
-        description: "Run the reviewed twelve-slot agent-assisted batch (requires an enabled, current plan)"
+        description: "Run the reviewed agent-assisted round (requires an enabled, current plan)"
+        type: boolean
+        default: false
+      run_canary:
+        description: "Run the compatibility canary: one tiny tool round trip per model, never scored"
         type: boolean
         default: false
       subscription_only:
@@ -21,6 +25,7 @@ on:
       - "scripts/go_pilot.py"
       - "scripts/go_score.py"
       - "pilot/go-agent*.json"
+      - "pilot/go-canary-v2.json"
       - "adpbench/**"
       - "sandbox/Dockerfile"
       - "tests/test_go_agent*.py"
@@ -34,17 +39,20 @@ permissions:
   contents: read
 
 concurrency:
-  group: go-agent-${{ inputs.run_models && 'live-generation' || format('offline-{0}', github.ref) }}
+  group: go-agent-${{ (inputs.run_models || inputs.run_canary) && 'live-generation' || format('offline-{0}', github.ref) }}
   cancel-in-progress: false
 
 env:
-  PLAN: pilot/go-agent-high-20260924.json
+  PLAN: pilot/go-agent-v2-r1.json
+  CANARY: pilot/go-canary-v2.json
 
 jobs:
   checks:
     name: Offline agent protocol, provider adapters, and evidence checks
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    outputs:
+      canary_models: ${{ steps.canary.outputs.models }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -53,20 +61,32 @@ jobs:
         with:
           python-version: "3.12"
       - run: python -m pip install 'numpy>=1.24,<3'
-      - name: Reject unauthorized live dispatches
-        if: inputs.run_models
+      - name: Reject unauthorized or conflicting live dispatches
+        if: inputs.run_models || inputs.run_canary
         env:
           SUBSCRIPTION_ONLY: ${{ inputs.subscription_only }}
+          BOTH: ${{ inputs.run_models && inputs.run_canary }}
         run: |
           test "$GITHUB_EVENT_NAME" = workflow_dispatch
           test "$GITHUB_REF" = refs/heads/main
           test "$SUBSCRIPTION_ONLY" = true
+          test "$BOTH" = false
       - run: python -m scripts.go_agent validate --plan "$PLAN"
+      - name: List the canary's models
+        id: canary
+        run: |
+          python - <<'PY' >> "$GITHUB_OUTPUT"
+          import json, os
+          from pathlib import Path
+          from scripts.go_agent import validate_canary
+          plan = validate_canary(json.loads(Path(os.environ['CANARY']).read_text()))
+          print('models=' + json.dumps([model['id'] for model in plan['models']]))
+          PY
       - run: python -m unittest tests.test_go_agent tests.test_go_tools tests.test_go_stream tests.test_go_pilot tests.test_reliability -v
 
   integration:
     name: Pinned agent sandbox and held-out scorer checks (no model calls)
-    if: github.event_name == 'pull_request' || !inputs.run_models
+    if: github.event_name == 'pull_request' || (!inputs.run_models && !inputs.run_canary)
     runs-on: ubuntu-latest
     timeout-minutes: 35
     steps:
@@ -99,11 +119,13 @@ jobs:
             python -m unittest tests.test_evaluate -v
 
   prepare:
-    name: Prepare pinned toolchain and validate both baselines (no model calls)
+    name: Prepare pinned toolchain and validate the baselines (no model calls)
     needs: checks
-    if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main' && inputs.run_models && inputs.subscription_only
+    if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main' && inputs.run_models && !inputs.run_canary && inputs.subscription_only
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    outputs:
+      matrix: ${{ steps.round.outputs.matrix }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -112,22 +134,23 @@ jobs:
         with:
           python-version: "3.12"
       - run: python -m pip install 'numpy>=1.24,<3'
-      - name: Verify authorization and the complete twelve-slot matrix
+      - name: Verify authorization and list the round's slots
+        id: round
         run: |
           python -m scripts.go_agent validate --plan "$PLAN"
           python - <<'PY'
-          import os
+          import json, os
           from pathlib import Path
-          from scripts.go_pilot import read_plan, due, now_utc
+          from scripts.go_pilot import read_plan, due, now_utc, plan_slots
           plan = read_plan(Path(os.environ['PLAN']))
+          assert plan['protocol'] == 'agent-assisted-v2', 'This workflow runs agent-assisted-v2 rounds'
           assert plan['generation_enabled'], 'Generation is disabled'
-          assert all(due(plan, model, now_utc()) for model in plan['models']), 'Batch authorization expired or not yet due'
-          assert {model['id'] for model in plan['models']} == {
-              'mimo-v2.5', 'deepseek-v4.1-flash', 'qwen3.8-flash',
-              'glm-5.3-flash', 'kimi-k2.6', 'minimax-m2.7'}, 'Model matrix differs from reviewed plan'
-          assert set(plan['problems']) == {'001_dot_product', '002_gemv'}, 'Problem matrix differs from reviewed plan'
+          assert all(due(plan, model, now_utc()) for model in plan['models']), 'Round authorization expired or not yet due'
           assert plan['slot_timeout_s'] <= 7200, 'Slot deadline must leave artifact-upload time'
-          print('Protocol: agent-assisted-v1; twelve independent model/problem slots; no fallback or generation retries.')
+          slots = [{'model': model, 'problem': problem} for model, problem in plan_slots(plan)]
+          with open(os.environ['GITHUB_OUTPUT'], 'a') as out:
+              out.write('matrix=' + json.dumps({'include': slots}) + '\n')
+          print(f"Round {plan['attempt']} try {plan['try']}: {len(slots)} independent slots; no fallback.")
           PY
       - uses: docker/setup-buildx-action@v3
       - uses: docker/build-push-action@v6
@@ -138,15 +161,16 @@ jobs:
           tags: adpbench-go:ci
           cache-from: type=gha,scope=adpbench-replay-toolchain
           cache-to: type=gha,mode=max,scope=adpbench-replay-toolchain
-      - name: Validate both baselines once before model calls
+      - name: Validate every planned baseline once before model calls
         run: |
           mkdir -p runs/fixtures
+          model=$(python -c 'import os; from pathlib import Path; from scripts.go_pilot import read_plan; print(read_plan(Path(os.environ["PLAN"]))["models"][0]["id"])')
           docker run --rm --network none --memory 5g --cpus 2 --pids-limit 256 \
             --user "$(id -u):$(id -g)" --cap-drop ALL --security-opt no-new-privileges \
             -e PYTHONPATH=/repo -e ADPBENCH_WORKDIR=/tmp/adpbench \
             -v "$GITHUB_WORKSPACE:/repo:ro" -v "$GITHUB_WORKSPACE/runs/fixtures:/output" \
             -w /repo adpbench-go:ci \
-            python -m scripts.go_pilot fixture --plan "$PLAN" --model mimo-v2.5 --out /output
+            python -m scripts.go_pilot fixture --plan "$PLAN" --model "$model" --out /output
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -161,10 +185,10 @@ jobs:
       contents: write # Delegated only for the reusable generation job's durable claim.
     strategy:
       fail-fast: false
-      max-parallel: 6
-      matrix:
-        problem: [001_dot_product, 002_gemv]
-        model: [mimo-v2.5, deepseek-v4.1-flash, qwen3.8-flash, glm-5.3-flash, kimi-k2.6, minimax-m2.7]
+      # Slots are listed problem by problem, so about one slot per model is in
+      # flight at a time; Go quotas are per model.
+      max-parallel: 14
+      matrix: ${{ fromJSON(needs.prepare.outputs.matrix) }}
     uses: ./.github/workflows/go-agent-slot.yml
     with:
       model: ${{ matrix.model }}
@@ -172,3 +196,88 @@ jobs:
       subscription_only: ${{ inputs.subscription_only }}
     secrets:
       OPENCODE_GO_API_KEY: ${{ secrets.OPENCODE_GO_API_KEY }}
+
+  canary:
+    name: "Canary ${{ matrix.model }} · one tool round trip, never scored"
+    needs: checks
+    if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main' && inputs.run_canary && !inputs.run_models && inputs.subscription_only
+    runs-on: ubuntu-latest
+    timeout-minutes: 50 # At most four 10-minute requests plus setup and upload.
+    permissions:
+      contents: write # Only the claim step receives a repository write token.
+    strategy:
+      fail-fast: false
+      max-parallel: 14
+      matrix:
+        model: ${{ fromJSON(needs.checks.outputs.canary_models) }}
+    env:
+      MODEL: ${{ matrix.model }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: python -m pip install 'numpy>=1.24,<3'
+      - name: Check the canary is enabled and inside its window
+        run: |
+          python - <<'PY'
+          import json, os
+          from datetime import datetime
+          from pathlib import Path
+          from scripts.go_agent import validate_canary
+          from scripts.go_pilot import now_utc
+          config = json.loads(Path(os.environ['CANARY']).read_text())
+          validate_canary(config)
+          assert config['generation_enabled'], 'Canary is disabled'
+          now = now_utc()
+          assert datetime.fromisoformat(config['not_before']) <= now < datetime.fromisoformat(config['expires_at']), 'Canary is outside its window'
+          PY
+      - name: Claim this model's canary once, including interrupted attempts
+        id: claim
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          name=$(python -c 'import json, os; print(json.load(open(os.environ["CANARY"]))["name"])')
+          ref="tags/$name-$MODEL"
+          if gh api "repos/$GITHUB_REPOSITORY/git/ref/$ref" >/dev/null 2>&1; then
+            echo 'This canary was already claimed. No additional requests.' >> "$GITHUB_STEP_SUMMARY"
+            echo 'claimed=false' >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          gh api --method POST "repos/$GITHUB_REPOSITORY/git/refs" -f ref="refs/$ref" -f sha="$GITHUB_SHA" >/dev/null
+          echo 'claimed=true' >> "$GITHUB_OUTPUT"
+      - name: One tiny write, check and submit round trip
+        if: steps.claim.outputs.claimed == 'true'
+        env:
+          OPENCODE_GO_API_KEY: ${{ secrets.OPENCODE_GO_API_KEY }}
+        run: python -m scripts.go_agent canary --config "$CANARY" --model "$MODEL" --out runs/canary --subscription-only
+      - name: Preserve canary evidence (never published as scores)
+        if: always() && steps.claim.outputs.claimed == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: go-agent-canary-${{ matrix.model }}-${{ github.run_id }}
+          path: |
+            runs/canary
+            runs/canary-private
+          if-no-files-found: error
+          retention-days: 90
+      - name: Summarize compatibility, not correctness
+        if: always() && steps.claim.outputs.claimed == 'true'
+        run: |
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          path = Path('runs/canary') / os.environ['MODEL'] / 'canary.json'
+          with open(os.environ['GITHUB_STEP_SUMMARY'], 'a') as summary:
+              if not path.is_file():
+                  summary.write('Canary interrupted before its record was written.\n')
+              else:
+                  r = json.loads(path.read_text())
+                  summary.write(f"## {r['model']} · {r['api']} · canary `{r['status']}`\n\n")
+                  summary.write(f"Settings: `{json.dumps(r['generation_settings'])}`. Turns: {r['turns']}; tool calls: {', '.join(r['tool_calls']) or 'none'}.\n\n")
+                  summary.write(f"Tool results accepted on a later turn: {r['tool_results_accepted']}. Finish reasons: {r['finish_reasons']}. Usage: `{json.dumps(r['usage'])}`.\n\n")
+                  summary.write(f"Reasoning measured: `{json.dumps(r['reasoning_measured'])}`. {r['error']}\n")
+          PY

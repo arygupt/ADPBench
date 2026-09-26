@@ -155,6 +155,19 @@ class ArchiveTest(unittest.TestCase):
                 z.writestr(name, content)
         return out.getvalue()
 
+    def test_large_runs_are_listed_page_by_page_and_must_be_complete(self):
+        from scripts.publish_results import api_list
+        jobs = [{"id": index} for index in range(230)]
+        pages = [{"total_count": 230, "jobs": jobs[start:start + 100]} for start in (0, 100, 200)]
+        with patch("scripts.publish_results.api", side_effect=pages) as call:
+            self.assertEqual(api_list("actions/runs/1/jobs", "jobs"), jobs)
+        self.assertEqual(call.call_args_list[2].args[0], "actions/runs/1/jobs?per_page=100&page=3")
+        short = [{"total_count": 230, "jobs": jobs[:100]}, {"total_count": 230, "jobs": []}]
+        with patch("scripts.publish_results.api", side_effect=short), self.assertRaisesRegex(ValueError, "incomplete"):
+            api_list("actions/runs/1/jobs", "jobs")
+        with patch("scripts.publish_results.api", return_value={"total_count": 5000, "jobs": []}), self.assertRaises(ValueError):
+            api_list("actions/runs/1/jobs", "jobs")
+
     def test_safe_archive_extracts(self):
         with tempfile.TemporaryDirectory() as tmp:
             target = Path(tmp) / "artifact"
