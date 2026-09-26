@@ -852,6 +852,9 @@ dialog::backdrop {
   .site-header nav {
     gap: 14px;
   }
+  .workspace .site-header nav a:last-child {
+    display: none;
+  }
   .results-table th:first-child {
     width: 145px;
   }
@@ -867,6 +870,7 @@ dialog::backdrop {
 
 /* Compact research leaderboard. The chart and operator matrix share one page. */
 .scroll-hint { display: none; color: var(--muted); font-size: 10px; margin-top: 10px; }
+.scroll-hint.fits { display: none !important; }
 .workspace .wrap, .workspace .header-inner, .workspace .site-footer {
   width: min(1440px, 100%);
   margin-inline: auto;
@@ -944,8 +948,8 @@ dialog::backdrop {
   .workspace .site-header { height: 58px; }
   .workspace .brand { font-size: 16px; gap: 7px; }
   .workspace .brand svg { width: 22px; height: 22px; }
-  .workspace .site-header nav { gap: 15px; font-size: 10px; }
-  .workspace .site-header nav a:last-child { display: none; }
+  .workspace .site-header nav { gap: 16px; font-size: 12px; }
+  .workspace .site-header nav a { padding-block: 12px; }
   .page-intro { flex-direction: column; align-items: flex-start; gap: 15px; padding: 26px 0 20px; }
   .page-intro h1 { font-size: 26px; letter-spacing: -.7px; }
   .page-intro .eyebrow { font-size: 8px; }
@@ -953,16 +957,36 @@ dialog::backdrop {
   .workspace .section-heading { gap: 13px; align-items: flex-start; }
   .workspace .segmented { width: 100%; }
   .workspace .segmented button { flex: 1; padding: 9px 8px; }
-  .ranking-scroll { padding-inline: 10px; }
-  .ranking-table { min-width: 760px; }
-  .ranking-table .model-col { width: 175px; }
-  .ranking-table .model-button { font-size: 11px; }
-  .ranking-table .model-icon { width: 18px; height: 18px; }
-  .ranking-table thead th:first-child, .ranking-table tbody th { position: sticky; left: 0; z-index: 2; background: var(--bg); box-shadow: 8px 0 10px -10px #000; }
-  .ranking-table thead th { font-size: 9px; }
-  .ranking-table .chart-heading span { display: block; font-size: 8px; margin-top: 3px; }
-  .workspace .matrix-table th:first-child { width: 175px; }
+  .download-link { min-height: 40px; }
+  .scroll-hint, .workspace .board-caption { font-size: 11px; }
   .workspace .board-caption { flex-direction: column; gap: 6px; }
+  /* Each model row becomes a card: name and score, the bar, then labeled stats. */
+  .ranking-scroll { padding-inline: 14px; }
+  .ranking-table, .ranking-table tbody, .ranking-table tr, .ranking-table tbody th, .ranking-table tbody td { display: block; }
+  .ranking-table { min-width: 0; }
+  .ranking-table colgroup, .ranking-table thead, .ranking-table tfoot, .ranking-table tbody td:nth-child(7) { display: none; }
+  .ranking-table tbody tr { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); grid-template-areas: "model model score" "bar bar bar" "correct gain reasoning"; column-gap: 12px; padding: 14px 0; border-bottom: 1px solid var(--border); }
+  .ranking-table tbody tr:last-child { border-bottom: 0; }
+  .ranking-table tbody th, .ranking-table tbody td { height: auto; padding: 0; border: 0; }
+  .ranking-table tbody th { grid-area: model; }
+  .ranking-table tbody td:nth-child(2) { grid-area: bar; }
+  .ranking-table tbody td:nth-child(3) { grid-area: score; align-self: center; }
+  .ranking-table tbody td:nth-child(4) { grid-area: correct; }
+  .ranking-table tbody td:nth-child(5) { grid-area: gain; }
+  .ranking-table tbody td:nth-child(6) { grid-area: reasoning; }
+  .ranking-table tbody td:nth-child(n+4) { text-align: left; font-size: 13px; color: var(--text); }
+  .ranking-table tbody td:nth-child(n+4)::before { display: block; margin-bottom: 2px; font-size: 10px; letter-spacing: .6px; text-transform: uppercase; color: var(--faint); }
+  .ranking-table tbody td:nth-child(4)::before { content: "Correct"; }
+  .ranking-table tbody td:nth-child(5)::before { content: "ADP gain"; }
+  .ranking-table tbody td:nth-child(6)::before { content: "Reasoning"; }
+  .ranking-table .reasoning-stat span { white-space: normal; }
+  .ranking-table .comparison-bar { padding: 8px 0 12px; min-height: 0; }
+  .ranking-table .model-button { font-size: 14px; }
+  /* Operators fit the screen when there are few; more columns scroll with the model pinned. */
+  .workspace .matrix-table { min-width: calc(var(--problems, 4) * 84px + 150px); }
+  .workspace .matrix-table th:first-child { width: 120px; }
+  .workspace .matrix-table th.correct-heading { width: 56px; }
+  .matrix-table .model-label { white-space: normal; }
 }
 @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } * { transition: none !important; } }
 
