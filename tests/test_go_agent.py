@@ -317,14 +317,15 @@ class AgentV2Tests(unittest.TestCase):
         validate_records(artifacts, plan, {"id": 123})
 
     def test_canary_round_trip_and_disabled_window(self):
-        config = json.loads(CANARY.read_text())
+        config = {**json.loads(CANARY.read_text()), "generation_enabled": False}
         model = self.model("responses")
         with patch.object(agent, "call_model") as call:
             record = agent.canary(config, model["id"], self.root / "off")
         self.assertEqual(record["status"], "not_requested")
         call.assert_not_called()
 
-        config["generation_enabled"] = True
+        config.update(generation_enabled=True, not_before="2026-09-27T00:00:00+00:00",
+                      expires_at="2026-09-28T00:00:00+00:00")
         replies = [native_call(model, "write_file", {"path": "dut.v", "content": agent.CANARY_RTL}, "call_1"),
                    native_call(model, "check", {}, "call_2"), native_call(model, "submit", {}, "call_3")]
         with patch.object(agent, "call_model", side_effect=replies) as call:
