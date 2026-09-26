@@ -191,6 +191,15 @@ function renderResults() {
   const models = rankModels(data.models).sort((a, b) => b[scoreMetric] - a[scoreMetric]);
   renderRanking(models);
   renderOperatorMatrix(models);
+  updateScrollHints();
+}
+
+/** Show a "scroll →" hint only under tables that are actually wider than the screen. */
+function updateScrollHints() {
+  for (const hint of $$(".scroll-hint")) {
+    const table = hint.previousElementSibling;
+    hint.classList.toggle("fits", table.scrollWidth <= table.clientWidth);
+  }
 }
 
 function renderRanking(models) {
@@ -253,7 +262,7 @@ function renderOperatorMatrix(models) {
   const rows = models.map((model) => matrixRow(model, bestByProblem)).join("");
 
   $("#heatmap").innerHTML =
-    `<table class="results-table matrix-table">` +
+    `<table class="results-table matrix-table" style="--problems:${data.problems.length}">` +
     `<thead><tr><th scope="col">Model</th>${headings}<th scope="col" class="correct-heading">Correct</th></tr></thead>` +
     `<tbody>${rows}</tbody>` +
     `</table>`;
@@ -567,6 +576,7 @@ function setupShell() {
 
   bindSegmentedControl("score", (value) => (scoreMetric = value));
   bindSegmentedControl("metric", (value) => (operatorMetric = value));
+  window.addEventListener("resize", updateScrollHints);
 }
 
 /** Buttons with data-<name>="value": clicking one selects it and re-renders. */
