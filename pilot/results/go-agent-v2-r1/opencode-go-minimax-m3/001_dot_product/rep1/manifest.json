@@ -1,0 +1,124 @@
+{
+  "adpbench_version": "unknown",
+  "git_commit": "",
+  "problem": "001_dot_product",
+  "problem_sha256": {
+    "dut.py": "91fd0433d225e3f9dd67022edc55b1809f6f642019e415e6b921d67086530a45",
+    "baseline.v": "44111a2a04a8b1ef5517f87f9076861c696422ecb301c1e9e551d828a321d3e7",
+    "baseline.json": "06f89f858ee67fdd51e191965e7f3370ea08827ebf2a1bed935a1c74cf09e63e"
+  },
+  "cases": {
+    "seeds": [
+      1000,
+      1001,
+      1002
+    ],
+    "directed": [
+      "zeros",
+      "min_values",
+      "extreme_signs"
+    ],
+    "transactions": 2,
+    "input_lens": {
+      "in_a_flat": 256,
+      "in_b_flat": 256
+    }
+  },
+  "tools": {
+    "yosys": "Yosys 0.69+ (git sha1 143eb14f9, Release, GNU /usr/bin/c++ 12.2.0)",
+    "iverilog": "Icarus Verilog version 13.0 (stable) (v13_0)"
+  },
+  "submission_sha256": "b8778dcc445b608821fc3f05db9dc823c7c91bac41fc21f210b5ce9191365f04",
+  "netlist_sha256": "8ed4783c7112e2a1b0618d26e03245d66d797d05898d8bdcffc0479d57253230",
+  "agent_cmd": "adpbench Go agent-assisted-v2 (read/write/check/submit)",
+  "budget_s": 7200,
+  "sandbox": {
+    "mode": "docker",
+    "image": "adpbench-go:ci",
+    "network": "none"
+  },
+  "result": {
+    "correct": true,
+    "ratio": 2.27509736255442,
+    "cells": 6269,
+    "cycles": 82,
+    "stage": "ok"
+  },
+  "error": "",
+  "timed_out": false,
+  "duration_s": 546.49,
+  "generation": {
+    "model": "minimax-m3",
+    "problem": "001_dot_product",
+    "protocol": "agent-assisted-v2",
+    "started": "2026-09-26T19:21:54.483370+00:00",
+    "generation_state": "completed",
+    "outcome": "submitted",
+    "error": "",
+    "turns": 11,
+    "checks": 3,
+    "max_turns": 20,
+    "max_checks": 3,
+    "max_output_tokens": 131072,
+    "usage": {
+      "input_tokens": 90831,
+      "output_tokens": 88080,
+      "cache_read_input_tokens": 590432
+    },
+    "incomplete_usage": false,
+    "generation_settings": {
+      "thinking": {
+        "type": "enabled",
+        "budget_tokens": 16000
+      }
+    },
+    "reasoning_measured": {
+      "turns": 11,
+      "turns_with_reasoning": 8,
+      "reasoning_chars": 277718,
+      "answer_chars": 27727,
+      "reasoning_tokens": null
+    },
+    "github": {
+      "GITHUB_REPOSITORY": "arygupt/ADPBench",
+      "GITHUB_RUN_ID": "36265411322",
+      "GITHUB_RUN_ATTEMPT": "1",
+      "GITHUB_SHA": "a218a152859ade906e34f719960a2f36b198e183"
+    },
+    "attempt": 1,
+    "try": 1,
+    "transport_retries": [],
+    "finish_reason": "tool_use",
+    "writes": 4,
+    "development_checks": [
+      {
+        "index": 1,
+        "submission_sha256": "5f3fa202197d0743d1ea1491b81db834bf2eee1b310a409d436f10391d84adca",
+        "completed": true,
+        "correct": true,
+        "reason": "",
+        "audit_ok": true
+      },
+      {
+        "index": 2,
+        "submission_sha256": "e29b8f718443e9b95edba430a967fc87e83d2069286439c6f70872eb5314c07a",
+        "completed": true,
+        "correct": false,
+        "reason": "",
+        "audit_ok": true
+      },
+      {
+        "index": 3,
+        "submission_sha256": "cc45a3ead40ab43b0fb5b207ebb919520c608881d57d3cbb5091df3ff069f685",
+        "completed": true,
+        "correct": true,
+        "reason": "",
+        "audit_ok": true
+      }
+    ],
+    "submission_sha256": "b8778dcc445b608821fc3f05db9dc823c7c91bac41fc21f210b5ce9191365f04",
+    "final_revision_checked": false,
+    "duration_s": 546.49,
+    "execution_health": "completed"
+  }
+}
