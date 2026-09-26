@@ -20,7 +20,7 @@ permissions:
   contents: read
 
 env:
-  PLAN: pilot/go-agent-v2-r1.json
+  PLAN: pilot/go-agent-v2-r1-t2.json
   MODEL: ${{ inputs.model }}
   PROBLEM: ${{ inputs.problem }}
 
@@ -34,6 +34,7 @@ jobs:
       contents: write # Only the durable-claim step receives a repository write token.
     outputs:
       evidence: ${{ steps.evidence.outputs.artifact-id }}
+      released: ${{ steps.release.outputs.released }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -70,8 +71,12 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          # The plan name carries the round; a rerun (try 2) claims its own tag.
-          claim=$(python -c 'import os; from pathlib import Path; from scripts.go_pilot import read_plan; p = read_plan(Path(os.environ["PLAN"])); print(p["name"] + "-" + os.environ["MODEL"] + "-" + os.environ["PROBLEM"] + ("-t%d" % p["try"] if p.get("try", 1) > 1 else ""))')
+          read -r claim pause release <<< "$(python -m scripts.go_schedule names --model "$MODEL" --problem "$PROBLEM" --run-id "$GITHUB_RUN_ID")"
+          if [ "$release" = true ] && gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/$pause" >/dev/null 2>&1; then
+            echo 'The account usage limit was reached earlier in this run. This slot waits for a later wave.' >> "$GITHUB_STEP_SUMMARY"
+            echo 'claimed=false' >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
           ref="tags/$claim"
           if gh api "repos/$GITHUB_REPOSITORY/git/ref/$ref" >/dev/null 2>&1; then
             echo 'This slot was already claimed. No regeneration or additional spending.' >> "$GITHUB_STEP_SUMMARY"
@@ -114,6 +119,24 @@ jobs:
             runs/model-workspace
           if-no-files-found: error
           retention-days: 90
+      - name: Release a quota-cut slot for a later wave
+        id: release
+        if: always() && steps.claim.outputs.claimed == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          read -r claim pause release <<< "$(python -m scripts.go_schedule names --model "$MODEL" --problem "$PROBLEM" --run-id "$GITHUB_RUN_ID")"
+          outcome=$(python -c 'import json, os, pathlib; r = list(pathlib.Path("runs/model", "opencode-go-" + os.environ["MODEL"], os.environ["PROBLEM"]).glob("rep*/generation.json")); print(json.loads(r[0].read_text())["outcome"] if len(r) == 1 else "")')
+          if [ "$release" = true ] && [ "$outcome" = quota_exhausted ]; then
+            # Pause the rest of this run first, then free this slot for the next wave.
+            gh api --method POST "repos/$GITHUB_REPOSITORY/git/refs" -f ref="refs/tags/$pause" -f sha="$GITHUB_SHA" >/dev/null 2>&1 || true
+            gh api --method DELETE "repos/$GITHUB_REPOSITORY/git/refs/tags/$claim" >/dev/null
+            echo 'Account usage limit reached. This slot is released for a later wave, and the rest of this run pauses. Its evidence is kept in the artifacts above.' >> "$GITHUB_STEP_SUMMARY"
+            echo 'released=true' >> "$GITHUB_OUTPUT"
+          else
+            echo 'released=false' >> "$GITHUB_OUTPUT"
+          fi
       - name: Explain this slot's generation outcome
         if: always()
         run: |
@@ -143,7 +166,7 @@ jobs:
     needs: generate
     # An expected or unexpected generation failure still deserves a truthful
     # record. Each slot scores immediately; no other model can block it.
-    if: always() && !cancelled() && needs.generate.outputs.evidence != ''
+    if: always() && !cancelled() && needs.generate.outputs.evidence != '' && needs.generate.outputs.released != 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 35 # One <=21-minute scoring container plus setup/upload margin.
     permissions:

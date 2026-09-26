@@ -51,12 +51,10 @@ failure.
 
 ## Rounds and reruns
 
-OpenCode Go limits spending per model: the $15 tier gets $3 per 5 hours and
-$7.50 per week. So each round is its own dispatch and plan file
-(`go-agent-v2-r1.json`, `-r2`, `-r3`, with `attempt` 1–3). Each round runs
-every model on every problem once, problem by problem, so a model's slots are
-spread over time. Every model has a complete, comparable set after each
-round.
+Each round is its own dispatch and plan file (`go-agent-v2-r1.json`, `-r2`,
+`-r3`, with `attempt` 1–3). Each round runs every model on every problem
+once, problem by problem, so every model has a complete, comparable set after
+each round.
 
 A rerun plan has `try: 2` and lists its `slots` explicitly. Only slots whose
 first try ended with one of these outcomes are eligible:
@@ -68,6 +66,29 @@ first try ended with one of these outcomes are eligible:
 
 Wrong RTL, turn-limit, truncated and invalid submissions are model outcomes
 and are never rerun. The voided first try stays in the published records.
+
+### The shared usage limit
+
+OpenCode Go's 5-hour usage limit is shared by the whole account, not set per
+model. When it runs out, every model gets HTTP 429 `GoUsageLimitError`
+(`"limitName": "5 hour"`). Round 1 ran 14 slots at once and used the window
+in about 30 minutes: roughly $6 at list prices, across 13 finished slots and
+43 cut off. A finished slot cost about $0.27 on average and $1.11 at most
+(Kimi K3).
+
+So a plan paces itself with these fields:
+
+| Field | Effect |
+|---|---|
+| `max_parallel` | How many slots may spend at once (1–14). |
+| `release_on_quota` | A slot that ends `quota_exhausted` keeps its evidence in the Actions artifacts, then releases its claim tag, so a later wave runs it fresh. It also sets a pause tag, so the rest of that run skips instead of each sending rejected requests. |
+| `schedule: hourly` | [OpenCode Go agent schedule](../.github/workflows/go-agent-schedule.yml) checks every hour at :23. It dispatches the next wave only when the plan is enabled and inside its window, no agent run is active, and a slot is unclaimed. Committing the plan is the authorization, including the confirmation that Go "Use balance" is off. |
+
+[`go-agent-v2-r1-t2.json`](go-agent-v2-r1-t2.json) reruns round 1's 43
+`quota_exhausted` slots this way, 3 at a time, from 2026-09-27 00:20 UTC. At
+about $0.30 per slot that needs about three 5-hour windows, if Go's weekly
+limit allows. A weekly cutoff looks the same to the scheduler: slots release
+and wait. Only the plan's two-day window ends the schedule.
 
 ## Reasoning
 
