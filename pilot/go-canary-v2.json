@@ -1,0 +1,9 @@
+{
+  "name": "go-compatibility-v2-20260927",
+  "source_plan": "pilot/go-agent-v2-r1.json",
+  "generation_enabled": false,
+  "not_before": "2026-09-27T00:00:00+00:00",
+  "expires_at": "2026-09-28T00:00:00+00:00",
+  "max_output_tokens": 20000,
+  "max_turns": 4
+}

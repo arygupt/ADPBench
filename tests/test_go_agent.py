@@ -1,11 +1,13 @@
 """Offline controller/contract tests. Real dev/heldout fixture is Docker opt-in."""
 import copy
 import hashlib
+import io
 import json
 import os
 import tempfile
 import time
 import unittest
+import urllib.error
 import shutil
 from pathlib import Path
 from unittest.mock import patch
@@ -21,7 +23,12 @@ PROBLEM = "001_dot_product"
 
 
 def native_call(model, name, args, identifier="call_1"):
-    usage = {"input_tokens": 100, "output_tokens": 50} if model["api"] == "messages" else {"prompt_tokens": 100, "completion_tokens": 50}
+    usage = {"input_tokens": 100, "output_tokens": 50} if model["api"] != "chat/completions" else {"prompt_tokens": 100, "completion_tokens": 50}
+    if model["api"] == "responses":
+        return {"output": [{"type": "reasoning", "id": "rs_" + identifier, "summary": [], "encrypted_content": "opaque"},
+                           {"type": "function_call", "id": "fc_" + identifier, "call_id": identifier, "name": name,
+                            "arguments": json.dumps(args), "status": "completed"}],
+                "stop_reason": "tool_calls", "usage": usage}
     if model["api"] == "messages":
         return {"content": [{"type": "tool_use", "id": identifier, "name": name, "input": args}], "stop_reason": "tool_use", "usage": usage}
     return {"choices": [{"message": {"role": "assistant", "content": None, "tool_calls": [{"id": identifier, "type": "function", "function": {"name": name, "arguments": json.dumps(args)}}]}, "finish_reason": "tool_calls"}], "usage": usage}
@@ -164,6 +171,168 @@ class AgentTests(unittest.TestCase):
         artifacts = self.root / "artifacts"
         shutil.copytree(out, artifacts / f"go-agent-records-{model['id']}-{PROBLEM}-123")
         validate_records(artifacts, self.plan, {"id": 123})
+
+
+V2_PLAN = repo_root() / "pilot/go-agent-v2-r1.json"
+CANARY = repo_root() / "pilot/go-canary-v2.json"
+REAL_CHECK = agent.Controller.check  # AgentV2Tests mocks it; the Docker test needs the real one
+
+
+def http_error(code):
+    return urllib.error.HTTPError("https://opencode.ai/zen/go/v1/responses", code, "rejected", {}, io.BytesIO(b"{}"))
+
+
+class AgentV2Tests(unittest.TestCase):
+    def setUp(self):
+        self.plan = read_plan(V2_PLAN)
+        self.plan["generation_enabled"] = True
+        self.problem = load_problem(repo_root() / "problems/level1" / PROBLEM)
+        self.temp = tempfile.TemporaryDirectory(prefix="adpbench-agent-v2-test-")
+        self.root = Path(self.temp.name)
+        self.addCleanup(self.temp.cleanup)
+        for patcher in (patch.dict(os.environ, {"OPENCODE_GO_API_KEY": "test-only-not-a-real-key"}),
+                        patch.object(agent, "now_utc", return_value=datetime(2026, 9, 27, 12, tzinfo=timezone.utc)),
+                        patch.object(agent.time, "sleep"),
+                        patch.object(agent.Controller, "check", return_value={"correct": True})):
+            patcher.start()
+            self.addCleanup(patcher.stop)
+
+    def model(self, api):
+        return next(model for model in self.plan["models"] if model["api"] == api)
+
+    def replies(self, model):
+        source = self.problem.baseline_rtl.read_text()
+        return [native_call(model, "write_file", {"path": "dut.v", "content": source}, "call_1"),
+                native_call(model, "check", {}, "call_2"), native_call(model, "submit", {}, "call_3")]
+
+    def run_slot(self, model, replies, plan=None, name="run", image="unused"):
+        with patch.object(agent, "call_model", side_effect=replies) as call:
+            record = agent.generate(plan or self.plan, model, PROBLEM, self.root / name, image)
+        return record, call
+
+    def test_versioned_limits(self):
+        agent.validate(self.plan)
+        self.assertEqual((self.plan["max_turns"], self.plan["max_checks"], self.plan["transport_retries"]), (20, 3, 2))
+        for field, value in (("max_turns", 12), ("max_checks", 5), ("transport_retries", 0)):
+            changed = {**self.plan, field: value}
+            with self.subTest(field=field), self.assertRaises(ValueError):
+                agent.validate(changed)
+        without_retries = {key: value for key, value in self.plan.items() if key != "transport_retries"}
+        with self.assertRaises(ValueError):
+            agent.validate(without_retries)
+        v1 = read_plan(PLAN)
+        agent.validate(v1)
+        with self.assertRaises(ValueError):
+            agent.validate({**v1, "transport_retries": 2})
+        self.assertIn("agent-assisted-v2 track", agent.system_prompt(self.plan))
+
+    def test_responses_roundtrip_carries_reasoning_and_records_attempt(self):
+        model = self.model("responses")
+        record, call = self.run_slot(model, self.replies(model))
+        self.assertEqual(record["outcome"], "submitted", record)
+        self.assertEqual((record["protocol"], record["attempt"], record["try"]), ("agent-assisted-v2", 1, 1))
+        self.assertEqual((record["transport_retries"], record["incomplete_usage"]), ([], False))
+        self.assertEqual(record["usage"], {"input_tokens": 300, "output_tokens": 150})
+        second = call.call_args_list[1].args[1]
+        self.assertEqual(second["input"][1]["encrypted_content"], "opaque")
+        self.assertEqual(second["input"][2]["call_id"], "call_1")
+        self.assertEqual(second["input"][3]["type"], "function_call_output")
+        self.assertTrue((self.root / "run" / f"opencode-go-{model['id']}" / PROBLEM / "rep1/dut.v").is_file())
+
+    def test_later_round_writes_its_own_repetition(self):
+        model = self.model("chat/completions")
+        record, _ = self.run_slot(model, self.replies(model), {**self.plan, "attempt": 2})
+        self.assertEqual(record["attempt"], 2)
+        slot = self.root / "run" / f"opencode-go-{model['id']}" / PROBLEM
+        self.assertTrue((slot / "rep2/dut.v").is_file())
+        self.assertFalse((slot / "rep1").exists())
+
+    def test_dropped_stream_resends_the_identical_request(self):
+        model = self.model("messages")
+        replies = self.replies(model)
+        replies.insert(1, agent.StreamFailure("stream_disconnected_before_terminal_event"))
+        record, call = self.run_slot(model, replies)
+        self.assertEqual(record["outcome"], "submitted", record)
+        self.assertEqual(call.call_count, 4)
+        self.assertEqual(call.call_args_list[1].args[1], call.call_args_list[2].args[1])
+        self.assertEqual(call.call_args_list[2].kwargs["evidence"].name, "retry-1")
+        self.assertEqual(record["transport_retries"], [
+            {"turn": 2, "retry": 1, "reason": "stream_disconnected_before_terminal_event", "usage_known": False}])
+        self.assertTrue(record["incomplete_usage"])
+        self.assertEqual(record["turns"], 3)
+        agent.time.sleep.assert_called_once_with(30)
+
+    def test_rejected_requests_retry_only_transient_statuses(self):
+        model = self.model("chat/completions")
+        replies = self.replies(model)
+        replies.insert(0, http_error(503))
+        record, call = self.run_slot(model, replies, name="unavailable")
+        self.assertEqual(record["outcome"], "submitted", record)
+        self.assertEqual(record["transport_retries"][0]["usage_known"], True)
+        self.assertFalse(record["incomplete_usage"])
+
+        record, call = self.run_slot(model, [http_error(400)], name="bad-request")
+        self.assertEqual((record["outcome"], call.call_count), ("provider_error", 1))
+        record, call = self.run_slot(model, [agent.StreamFailure("stream_wall_timeout")], name="wall")
+        self.assertEqual((record["outcome"], call.call_count), ("transport_interrupted", 1))
+
+    def test_exhausted_quota_is_its_own_infrastructure_outcome(self):
+        model = self.model("chat/completions")
+        record, call = self.run_slot(model, [http_error(429)] * 3)
+        self.assertEqual(call.call_count, 3)
+        self.assertEqual(record["outcome"], "quota_exhausted")
+        self.assertEqual(record["execution_health"], "failed")
+        self.assertEqual([retry["reason"] for retry in record["transport_retries"]], ["http_429", "http_429"])
+
+    def test_v1_still_never_retries(self):
+        v1 = read_plan(PLAN)
+        with patch.object(agent, "now_utc", return_value=datetime(2026, 9, 23, 19, tzinfo=timezone.utc)):
+            record, call = self.run_slot(v1["models"][0], [http_error(429)], v1)
+        self.assertEqual((record["outcome"], call.call_count), ("provider_error", 1))
+        self.assertNotIn("transport_retries", record)
+
+    @unittest.skipUnless(os.environ.get("ADPBENCH_DOCKER_TEST_IMAGE"), "real pinned Docker toolchain opt-in")
+    def test_real_v2_dev_then_heldout_no_model_calls(self):
+        plan = read_plan(V2_PLAN)  # unmodified, so held-out scoring accepts the saved plan
+        model = next(model for model in plan["models"] if model["api"] == "responses")
+        image = os.environ["ADPBENCH_DOCKER_TEST_IMAGE"]
+        out = self.root / "integration"
+        with patch.object(agent, "due", return_value=True), patch.object(agent.Controller, "check", REAL_CHECK):
+            record, _ = self.run_slot(model, self.replies(model), plan, name="integration", image=image)
+        self.assertEqual(record["outcome"], "submitted", record)
+        tools = json.loads((out.with_name(out.name + "-private") / "turn-02/tools.json").read_text())
+        feedback = json.loads(tools[0]["content"])
+        self.assertTrue(feedback["development_check_completed"], feedback)
+        self.assertTrue(feedback["correct"], feedback)
+        self.assertTrue(supervise(V2_PLAN, model["id"], out, self.root / "checkpoints", self.root / "diagnostics",
+                                  image=image, problem_id=PROBLEM))
+        final = json.loads((out / f"opencode-go-{model['id']}" / PROBLEM / "rep1/record.json").read_text())
+        self.assertEqual((final["outcome"], final["attempt"]), ("correct", 1))
+        self.assertEqual(final["result"]["ratio"], 1.0)
+        self.assertIn("[agent-assisted-v2]", final["label"])
+        self.assertTrue((out / f"opencode-go-{model['id']}" / PROBLEM / "rep1_frozen/dut.v").is_file())
+
+    def test_canary_round_trip_and_disabled_window(self):
+        config = json.loads(CANARY.read_text())
+        model = self.model("responses")
+        with patch.object(agent, "call_model") as call:
+            record = agent.canary(config, model["id"], self.root / "off")
+        self.assertEqual(record["status"], "not_requested")
+        call.assert_not_called()
+
+        config["generation_enabled"] = True
+        replies = [native_call(model, "write_file", {"path": "dut.v", "content": agent.CANARY_RTL}, "call_1"),
+                   native_call(model, "check", {}, "call_2"), native_call(model, "submit", {}, "call_3")]
+        with patch.object(agent, "call_model", side_effect=replies) as call:
+            record = agent.canary(config, model["id"], self.root / "on")
+        self.assertEqual(record["status"], "completed", record)
+        self.assertTrue(record["tool_results_accepted"])
+        self.assertEqual(record["tool_calls"], ["write_file", "check", "submit"])
+        self.assertEqual(call.call_args_list[0].args[1]["max_output_tokens"], 20000)
+        saved = json.loads((self.root / "on" / model["id"] / "canary.json").read_text())
+        self.assertEqual(saved["status"], "completed")
+        with self.assertRaises(FileExistsError):
+            agent.canary(config, model["id"], self.root / "on")
 
 
 if __name__ == "__main__":

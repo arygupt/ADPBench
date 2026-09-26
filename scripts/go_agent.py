@@ -1,19 +1,25 @@
-"""The versioned agent-assisted-v1 track: a model with four host-controlled tools.
+"""The versioned agent-assisted tracks: a model with four host-controlled tools.
 
     python -m scripts.go_agent validate --plan <plan>
     python -m scripts.go_agent generate --plan <plan> --model <id> --problem <id> --subscription-only
+    python -m scripts.go_agent canary --config <canary config> --model <id> --subscription-only
 
 The model works through native tool calls only (see go_tools.py): it can read
 the task files, rewrite dut.v, run a development check, and submit. There are
-no arbitrary commands, no provider retries, and no final-score feedback. Only
-an explicit submit freezes a file. Every turn and the final outcome are
-written to disk as they happen.
+no arbitrary commands and no final-score feedback. Only an explicit submit
+freezes a file. Every turn and the final outcome are written to disk as they
+happen.
 
-Output, next to `--out`:
+v1 and v2 share the tools, prompt, and scoring. v2 allows more turns and
+resends a request, unchanged, when the provider drops it (see
+pilot/agent-assisted-v2.md). The model never sees a failed attempt.
 
-    <out>/opencode-go-<model>/<problem>/rep1/generation.json   public receipt (no model text)
-    <out>/opencode-go-<model>/<problem>/rep1/dut.v             the submitted file
+Output, next to `--out` (N is the plan's attempt):
+
+    <out>/opencode-go-<model>/<problem>/repN/generation.json   public receipt (no model text)
+    <out>/opencode-go-<model>/<problem>/repN/dut.v             the submitted file
     <out>-private/turn-NN/{request,response,tools}.json         private transcript
+    <out>-private/turn-NN/retry-K/                              evidence of each resent request
     <out>-private/revision-NN.v, check-NN/                      every write and check
     <out>-workspace/                                            the files the model sees
 """
@@ -27,6 +33,7 @@ import re
 import time
 import traceback
 import urllib.error
+from datetime import datetime
 from pathlib import Path
 from uuid import uuid4
 
@@ -37,6 +44,8 @@ from adpbench.hashing import sha256_text
 from adpbench.problem import Problem, load_problem, repo_root
 from adpbench.process import run_logged
 from scripts.go_pilot import (
+    AGENT_PROTOCOLS,
+    CAP_FINISHES,
     call_model,
     due,
     execution_health,
@@ -45,6 +54,8 @@ from scripts.go_pilot import (
     now_utc,
     output_limit,
     parse_response,
+    plan_attempt,
+    plan_slots,
     problem_dir,
     provider_error_evidence,
     read_plan,
@@ -65,18 +76,39 @@ from scripts.go_tools import (
     tool_results,
 )
 
-PROTOCOL = "agent-assisted-v1"
 MAX_FILE_BYTES = 512 * 1024
 MAX_FEEDBACK_BYTES = 2 * 1024 * 1024
 CONTAINER_LOG_LIMIT = 1024 * 1024
 
-# The versioned protocol's fixed limits. A plan must match these exactly.
+# Each versioned protocol's fixed limits. A plan must match its protocol's exactly.
 PROTOCOL_LIMITS = {
-    "max_turns": 12,
-    "max_checks": 3,
-    "slot_timeout_s": 7200,
-    "check_timeout_s": 600,
-    "max_context_bytes": 1500000,
+    "agent-assisted-v1": {
+        "max_turns": 12,
+        "max_checks": 3,
+        "slot_timeout_s": 7200,
+        "check_timeout_s": 600,
+        "max_context_bytes": 1500000,
+    },
+    "agent-assisted-v2": {
+        "max_turns": 20,
+        "max_checks": 3,
+        "slot_timeout_s": 7200,
+        "check_timeout_s": 600,
+        "max_context_bytes": 1500000,
+        "transport_retries": 2,
+    },
+}
+
+# v2 resends a request that failed in transit. Only failures that say nothing
+# about the model qualify; a wall timeout or an oversized stream does not.
+RETRY_WAITS_S = (30, 120)
+RETRY_HTTP_STATUSES = {429, 500, 502, 503, 504}
+RETRY_STREAM_FAILURES = {
+    "stream_disconnected_before_terminal_event",
+    "stream_idle_timeout",
+    "invalid_or_interrupted_stream",
+    "provider_stream_error",
+    "provider_did_not_return_event_stream",
 }
 
 TOOL_ARGUMENTS = {
@@ -87,9 +119,8 @@ TOOL_ARGUMENTS = {
 }
 
 TOOL_FINISHES = {"tool_calls", "tool_use", "stop", "end_turn", "stop_sequence"}
-CAP_FINISHES = {"length", "max_tokens"}
 
-SYSTEM = """You are an RTL coding agent in ADPBench's agent-assisted-v1 track.
+SYSTEM = """You are an RTL coding agent in ADPBench's {protocol} track.
 Use only the native read_file, write_file, check, and submit tools provided.
 Read PROBLEM.md and dut.py, implement the complete dut.v with write_file,
 check it on development cases, repair if useful, and explicitly submit().
@@ -107,14 +138,29 @@ NO_TOOL_CALL_REMINDER = (
 )
 
 
+class ProviderRejected(RuntimeError):
+    """The provider answered a request with an HTTP error. `code` is the status."""
+
+    def __init__(self, code: int):
+        super().__init__(f"provider HTTP {code}")
+        self.code = code
+
+
 def validate(plan: dict) -> None:
     """The shared plan checks, plus this protocol's fixed turn/check/time limits."""
     validate_plan(plan)
-    if plan.get("protocol") != PROTOCOL or not plan.get("stream"):
+    if plan.get("protocol") not in AGENT_PROTOCOLS or not plan.get("stream"):
         raise ValueError("agent track requires its explicit streaming protocol")
-    for name, required in PROTOCOL_LIMITS.items():
+    limits = PROTOCOL_LIMITS[plan["protocol"]]
+    for name, required in limits.items():
         if type(plan.get(name)) is not int or plan[name] != required:
-            raise ValueError("agent-assisted-v1 limits must match the versioned protocol")
+            raise ValueError(f"{plan['protocol']} limits must match the versioned protocol")
+    if "transport_retries" in plan and "transport_retries" not in limits:
+        raise ValueError(f"{plan['protocol']} does not retry requests")
+
+
+def system_prompt(plan: dict) -> str:
+    return SYSTEM.format(protocol=plan["protocol"])
 
 
 def task_files(problem: Problem) -> dict[str, str]:
@@ -363,7 +409,7 @@ def generate(plan: dict, model: dict, problem_id: str, out: Path, image: str) ->
         json.dump({"started": now_utc().isoformat()}, handle)
     atomic_json(out / "plan.json", plan)
 
-    dest = slot_dir(out, model["id"], problem_id)
+    dest = slot_dir(out, model["id"], problem_id, plan_attempt(plan))
     private = out.with_name(out.name + "-private")
     private.mkdir(parents=True, exist_ok=True)
     started = time.monotonic()
@@ -383,11 +429,16 @@ def generate(plan: dict, model: dict, problem_id: str, out: Path, image: str) ->
         workspace = out.with_name(out.name + "-workspace")
         controller = Controller(problem, workspace, private, dest, plan, image, deadline)
         _run_turns(controller, model, problem_id, record, key)
-    except urllib.error.HTTPError as exc:
-        record.update(outcome="provider_error", error=f"provider HTTP {exc.code}; no retry or fallback")
-        atomic_json(private / "provider_error.json", provider_error_evidence(exc, key))
+    except ProviderRejected as exc:
+        # v1 recorded every rejection as a provider error. v2 names an
+        # exhausted quota, so the slot can be rerun once the quota resets.
+        quota = exc.code == 429 and plan["protocol"] != "agent-assisted-v1"
+        record.update(
+            outcome="quota_exhausted" if quota else "provider_error",
+            error=f"provider HTTP {exc.code}; {_retry_note(plan)}",
+        )
     except StreamFailure as exc:
-        record.update(outcome="transport_interrupted", error=f"incomplete provider stream: {exc}; no retry")
+        record.update(outcome="transport_interrupted", error=f"incomplete provider stream: {exc}; {_retry_note(plan)}")
     except TimeoutError:
         record.update(outcome="wall_timeout", error="agent slot deadline reached")
     except Exception as exc:  # noqa: BLE001 - every failure must leave a receipt
@@ -416,11 +467,17 @@ def generate(plan: dict, model: dict, problem_id: str, out: Path, image: str) ->
     return record
 
 
+def _retry_note(plan: dict) -> str:
+    if not plan.get("transport_retries"):
+        return "no retry or fallback"
+    return "resends are listed in transport_retries; no fallback"
+
+
 def _new_receipt(plan: dict, model: dict, problem_id: str) -> dict:
-    return {
+    receipt = {
         "model": model["id"],
         "problem": problem_id,
-        "protocol": PROTOCOL,
+        "protocol": plan["protocol"],
         "started": now_utc().isoformat(),
         "generation_state": "pending",
         "outcome": "not_requested",
@@ -436,6 +493,9 @@ def _new_receipt(plan: dict, model: dict, problem_id: str) -> dict:
         "reasoning_measured": empty_reasoning_totals(),
         "github": github_context(),
     }
+    if "transport_retries" in plan:
+        receipt.update({"attempt": plan["attempt"], "try": plan["try"], "transport_retries": []})
+    return receipt
 
 
 def _copy_controller_counts(record: dict, controller: Controller) -> None:
@@ -471,7 +531,7 @@ def _run_turns(controller: Controller, model: dict, problem_id: str, record: dic
         if remaining < 5:
             record.update(outcome="wall_timeout", error="agent slot wall deadline reached")
             return
-        body = request_body(model, plan, SYSTEM, messages)
+        body = request_body(model, plan, system_prompt(plan), messages)
         if len(json.dumps(body).encode()) > plan["max_context_bytes"]:
             record.update(
                 outcome="invalid_submission",
@@ -491,15 +551,7 @@ def _run_turns(controller: Controller, model: dict, problem_id: str, record: dic
         )
         atomic_json(dest / "generation.json", record)
         print(f"{model['id']}/{problem_id}: turn {turn}/{plan['max_turns']}", flush=True)
-        data = call_model(
-            model,
-            body,
-            key,
-            session,
-            plan["request_timeout_s"],
-            evidence=turn_dir,
-            wall_timeout=min(plan["request_wall_timeout_s"], remaining - 1),
-        )
+        data = _call_with_retries(controller, model, body, key, session, turn, turn_dir, record)
         data = redact_key(data, key)
         atomic_json(turn_dir / "response.json", data)
         add_reasoning_counts(record["reasoning_measured"], reasoning_counts(data, api))
@@ -510,7 +562,9 @@ def _run_turns(controller: Controller, model: dict, problem_id: str, record: dic
             record.update(outcome="provider_error", error="invalid provider token accounting")
             return
         _add_usage(record["usage"], usage)
-        record.update(incomplete_usage=False, finish_reason=finish)
+        # A stream that broke before its usage arrived may still have been billed.
+        unaccounted = any(not retry["usage_known"] for retry in record.get("transport_retries", []))
+        record.update(incomplete_usage=unaccounted, finish_reason=finish)
         if finish in CAP_FINISHES:
             record.update(
                 outcome="truncated",
@@ -521,7 +575,7 @@ def _run_turns(controller: Controller, model: dict, problem_id: str, record: dic
             record.update(outcome="provider_error", error="unexpected provider stop reason")
             return
         try:
-            assistant, calls, _, _, _ = parse_turn(data, api)
+            history, calls, _, _, _ = parse_turn(data, api)
         except (ValueError, KeyError, TypeError):
             record.update(
                 outcome="provider_error",
@@ -532,7 +586,7 @@ def _run_turns(controller: Controller, model: dict, problem_id: str, record: dic
         # 3. Carry out the tool calls.
         record.update(outcome="interrupted", error="controller interrupted after terminal model response")
         atomic_json(dest / "generation.json", record)
-        messages.append(assistant)
+        messages.extend(history)
         results = _execute_tool_calls(controller, calls, record, turn_dir)
         if controller.submitted:
             record.update(
@@ -564,6 +618,61 @@ def _run_turns(controller: Controller, model: dict, problem_id: str, record: dic
         atomic_json(dest / "generation.json", record)
 
 
+def _call_with_retries(
+    controller: Controller,
+    model: dict,
+    body: dict,
+    key: str,
+    session: str,
+    turn: int,
+    turn_dir: Path,
+    record: dict,
+) -> dict:
+    """Send one turn's request, resending the identical body after a transport failure.
+
+    Only v2 plans retry, and only failures that say nothing about the model
+    (see RETRY_HTTP_STATUSES and RETRY_STREAM_FAILURES). The partial response
+    of a failed attempt is kept as evidence and never shown to the model.
+    Raises ProviderRejected or StreamFailure once retries are used up.
+    """
+    plan = controller.plan
+    retries = plan.get("transport_retries", 0)
+    for resent in range(retries + 1):
+        evidence = turn_dir if resent == 0 else turn_dir / f"retry-{resent}"
+        remaining = int(controller.deadline - time.monotonic())
+        try:
+            return call_model(
+                model,
+                body,
+                key,
+                session,
+                plan["request_timeout_s"],
+                evidence=evidence,
+                wall_timeout=min(plan["request_wall_timeout_s"], remaining - 1),
+            )
+        except urllib.error.HTTPError as exc:
+            atomic_json(evidence / "provider_error.json", provider_error_evidence(exc, key))
+            # A rejected request produced no output, so its usage is known: none.
+            failure, reason, usage_known = ProviderRejected(exc.code), f"http_{exc.code}", True
+            retryable = exc.code in RETRY_HTTP_STATUSES
+        except StreamFailure as exc:
+            failure, reason, usage_known = exc, str(exc), False
+            retryable = reason in RETRY_STREAM_FAILURES
+
+        if resent == retries or not retryable:
+            raise failure
+        wait = RETRY_WAITS_S[resent]
+        if controller.deadline - time.monotonic() < wait + 60:
+            raise failure
+        record["transport_retries"].append(
+            {"turn": turn, "retry": resent + 1, "reason": reason, "usage_known": usage_known}
+        )
+        atomic_json(controller.destination / "generation.json", record)
+        print(f"{model['id']}: turn {turn} {reason}; resending in {wait}s", flush=True)
+        time.sleep(wait)
+    raise AssertionError("unreachable")
+
+
 def _add_usage(totals: dict, usage: dict) -> None:
     for name, value in usage.items():
         if type(value) is int and value >= 0:
@@ -589,10 +698,179 @@ def _execute_tool_calls(controller: Controller, calls: list[dict], record: dict,
     return results
 
 
+# --------------------------------------------------------------------------
+# Compatibility canary
+# --------------------------------------------------------------------------
+
+CANARY_NAME = re.compile(r"go-compatibility-v2-[a-z0-9-]+")
+CANARY_PLAN = re.compile(r"pilot/go-agent-v2-[a-z0-9-]+\.json")
+MAX_CANARY_OUTPUT_TOKENS = 32000
+MAX_CANARY_TURNS = 4
+MAX_CANARY_WINDOW_S = 24 * 3600
+CANARY_REQUEST_WALL_S = 600
+CANARY_RTL = "module dut(input a, input b, output y); assign y = a ^ b; endmodule"
+CANARY_TASK = (
+    "Compatibility check, not a benchmark. Call write_file with path dut.v and this exact "
+    f"content: {CANARY_RTL} Then call check, then call submit."
+)
+
+
+def validate_canary(config: dict) -> dict:
+    """Check a canary config and return the round plan whose model settings it tests."""
+    if not CANARY_NAME.fullmatch(config.get("name", "")):
+        raise ValueError("invalid canary name")
+    if not CANARY_PLAN.fullmatch(config.get("source_plan", "")):
+        raise ValueError("canary must test a reviewed agent-assisted-v2 plan")
+    if type(config.get("generation_enabled")) is not bool:
+        raise ValueError("generation_enabled must be boolean")
+    cap = config.get("max_output_tokens")
+    turns = config.get("max_turns")
+    if type(cap) is not int or not 0 < cap <= MAX_CANARY_OUTPUT_TOKENS:
+        raise ValueError("invalid canary output cap")
+    if type(turns) is not int or not 2 <= turns <= MAX_CANARY_TURNS:
+        raise ValueError("invalid canary turn limit")
+    starts = datetime.fromisoformat(config["not_before"])
+    expires = datetime.fromisoformat(config["expires_at"])
+    if starts.tzinfo is None or not 0 < (expires - starts).total_seconds() <= MAX_CANARY_WINDOW_S:
+        raise ValueError("canary window must be positive and at most one day")
+
+    plan = read_plan(repo_root() / config["source_plan"])
+    validate(plan)
+    if plan["protocol"] != "agent-assisted-v2":
+        raise ValueError("canary must test a reviewed agent-assisted-v2 plan")
+    return plan
+
+
+def canary(config: dict, model_id: str, out: Path) -> dict:
+    """One tiny write/check/submit round trip for one model. Never a benchmark score.
+
+    It uses the same request builder, transport, tool encoding and reasoning
+    settings as a scored slot, so a model that passes has shown that its
+    settings are accepted and that tool results (and, for responses, its
+    reasoning) survive a second turn. Nothing is retried.
+    """
+    plan = validate_canary(config)
+    model = select_model(plan, model_id)
+    starts = datetime.fromisoformat(config["not_before"])
+    expires = datetime.fromisoformat(config["expires_at"])
+    record = {
+        "canary": config["name"],
+        "source_plan": config["source_plan"],
+        "model": model_id,
+        "api": model["api"],
+        "generation_settings": generation_settings(model),
+        "max_output_tokens": min(config["max_output_tokens"], output_limit(plan, model)),
+        "status": "not_requested",
+        "error": "",
+        "turns": 0,
+        "tool_calls": [],
+        "tool_results_accepted": False,
+        "finish_reasons": [],
+        "usage": {},
+        "reasoning_measured": empty_reasoning_totals(),
+        "github": github_context(),
+    }
+    dest = out / model_id
+    private = out.with_name(out.name + "-private") / model_id
+    dest.mkdir(parents=True, exist_ok=True)
+    # Never run twice into one directory.
+    with (dest / "canary-started.json").open("x") as handle:
+        json.dump({"started": now_utc().isoformat()}, handle)
+
+    key = os.environ.get("OPENCODE_GO_API_KEY", "")
+    try:
+        if not config["generation_enabled"] or not starts <= now_utc() < expires:
+            record["error"] = "canary is disabled or outside its authorization window"
+            return record
+        if not key:
+            raise RuntimeError("missing Go secret")
+        _canary_turns(config, plan, model, record, private, key)
+    except urllib.error.HTTPError as exc:
+        record.update(status="provider_error", error=f"provider HTTP {exc.code}; no retry")
+        atomic_json(private / "provider_error.json", provider_error_evidence(exc, key))
+    except StreamFailure as exc:
+        record.update(status="transport_interrupted", error=f"incomplete provider stream: {exc}; no retry")
+    except Exception as exc:  # noqa: BLE001 - every failure must leave a record
+        record.update(status="harness_error", error=f"canary stopped: {type(exc).__name__}")
+    finally:
+        atomic_json(dest / "canary.json", record)
+    print(f"{model_id}: canary {record['status']} after {record['turns']} turn(s)", flush=True)
+    return record
+
+
+def _canary_turns(config: dict, plan: dict, model: dict, record: dict, private: Path, key: str) -> None:
+    api = model["api"]
+    canary_plan = {**plan, "max_output_tokens": {model["id"]: record["max_output_tokens"]}}
+    session = f"{config['name']}-{model['id']}"
+    messages = [{"role": "user", "content": CANARY_TASK}]
+    written = ""
+    for turn in range(1, config["max_turns"] + 1):
+        body = request_body(model, canary_plan, system_prompt(plan), messages)
+        turn_dir = private / f"turn-{turn:02d}"
+        atomic_json(turn_dir / "request.json", body)
+        record.update(turns=turn, status="transport_interrupted", error="request interrupted")
+        data = call_model(
+            model, body, key, session, plan["request_timeout_s"],
+            evidence=turn_dir, wall_timeout=CANARY_REQUEST_WALL_S,
+        )
+        data = redact_key(data, key)
+        atomic_json(turn_dir / "response.json", data)
+        add_reasoning_counts(record["reasoning_measured"], reasoning_counts(data, api))
+
+        _, finish, usage = parse_response(data, api)
+        record["finish_reasons"].append(finish)
+        if not valid_usage(usage, api, record["max_output_tokens"]):
+            record.update(status="provider_error", error="invalid provider token accounting")
+            return
+        _add_usage(record["usage"], usage)
+        if turn > 1:
+            # The previous turn's tool results (and reasoning) were accepted.
+            record["tool_results_accepted"] = True
+        if finish in CAP_FINISHES:
+            record.update(status="output_cap", error="canary output cap reached before submit")
+            return
+        if finish not in TOOL_FINISHES:
+            record.update(status="provider_error", error="unexpected provider stop reason")
+            return
+        history, calls, _, _, _ = parse_turn(data, api)
+        messages.extend(history)
+
+        results = []
+        for call in calls:
+            record["tool_calls"].append(call["name"])
+            outcome, written = _canary_tool(call, written)
+            results.append({"id": call["id"], "content": json.dumps(outcome), "is_error": "error" in outcome})
+            if outcome.get("submitted"):
+                record.update(status="completed", error="")
+                return
+        if calls:
+            messages.extend(tool_results(api, results))
+        else:
+            messages.append({"role": "user", "content": NO_TOOL_CALL_REMINDER})
+    record.update(status="turn_limit", error="no submit within the canary turn limit")
+
+
+def _canary_tool(call: dict, written: str) -> tuple[dict, str]:
+    """The canary's in-memory stand-in for the controller. Returns (result, dut.v so far)."""
+    name, args = call["name"], call["arguments"]
+    if call.get("error"):
+        return {"error": call["error"]}, written
+    if name == "read_file":
+        return {"path": args["path"], "content": CANARY_TASK}, written
+    if name == "write_file":
+        return {"saved": "dut.v"}, args["content"]
+    if name == "check":
+        return {"scope": "compatibility canary; nothing was simulated"}, written
+    if not re.search(r"\bmodule\s+dut\b", written):
+        return {"error": "write dut.v before submitting"}, written
+    return {"submitted": True}, written
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("mode", choices=["validate", "generate"])
-    parser.add_argument("--plan", required=True, type=Path)
+    parser.add_argument("mode", choices=["validate", "generate", "canary"])
+    parser.add_argument("--plan", type=Path)
+    parser.add_argument("--config", type=Path, help="canary config (canary mode only)")
     parser.add_argument("--model")
     parser.add_argument("--problem")
     parser.add_argument("--out", type=Path, default=Path("runs/agent"))
@@ -600,11 +878,20 @@ def main():
     parser.add_argument("--subscription-only", action="store_true")
     args = parser.parse_args()
 
+    if args.mode == "canary":
+        if not args.subscription_only:
+            parser.error("--subscription-only requires Use balance to remain OFF")
+        config = json.loads(args.config.read_text())
+        record = canary(config, args.model, args.out)
+        if record["status"] not in {"completed", "not_requested"}:
+            raise SystemExit(1)
+        return
+
     plan = read_plan(args.plan)
     validate(plan)
     if args.mode == "validate":
-        slots = len(plan["models"]) * len(plan["problems"])
-        print(f"{plan['name']}: {slots} slots; protocol={PROTOCOL}; no model calls")
+        slots = len(plan_slots(plan))
+        print(f"{plan['name']}: {slots} slots; protocol={plan['protocol']}; no model calls")
         return
 
     if not args.subscription_only:

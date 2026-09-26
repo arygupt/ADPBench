@@ -5,8 +5,8 @@
     check()                    development-case feedback on the current dut.v
     submit()                   freeze the current dut.v as the submission
 
-This module only translates data between the harness and the two wire
-formats (chat/completions and messages). It never opens files, runs
+This module only translates data between the harness and the three wire
+formats (chat/completions, messages, and responses). It never opens files, runs
 commands, or decides whether a design passes; the controller in go_agent.py
 owns those boundaries.
 """
@@ -18,7 +18,7 @@ from copy import deepcopy
 
 from scripts.go_pilot import REQUEST_SETTING_KEYS, output_limit
 
-APIS = {"chat/completions", "messages"}
+APIS = {"chat/completions", "messages", "responses"}
 MAX_TOOL_CALLS = 16
 MAX_ARGUMENT_BYTES = 1024 * 1024
 MAX_TOOL_RESULT_BYTES = 1024 * 1024
@@ -78,13 +78,15 @@ def _check_api(api: str) -> None:
 def request_body(model: dict, plan: dict, system: str, messages: list[dict]) -> dict:
     """One agent turn's request, offering the four tools in the model's native schema.
 
-    `messages` is not modified.
+    `messages` is the conversation in the model's own history format (see
+    `parse_turn`); it is not modified.
     """
     api = model["api"]
     _check_api(api)
+    history_key = "input" if api == "responses" else "messages"
     body = {
         "model": model["id"],
-        "messages": deepcopy(messages),
+        history_key: deepcopy(messages),
         "stream": True,
         model.get("token_limit_key", "max_tokens"): output_limit(plan, model),
     }
@@ -92,7 +94,23 @@ def request_body(model: dict, plan: dict, system: str, messages: list[dict]) -> 
         if key in model:
             body[key] = deepcopy(model[key])
 
-    if api == "messages":
+    if api == "responses":
+        body["instructions"] = system
+        body["tools"] = [
+            {
+                "type": "function",
+                "name": tool["name"],
+                "description": tool["description"],
+                "parameters": deepcopy(tool["input_schema"]),
+                "strict": False,
+            }
+            for tool in TOOLS
+        ]
+        body["tool_choice"] = "auto"
+        # Nothing is stored server-side, so reasoning must travel with the history.
+        body["store"] = False
+        body["include"] = ["reasoning.encrypted_content"]
+    elif api == "messages":
         body["system"] = system
         body["tools"] = deepcopy(list(TOOLS))
         body["tool_choice"] = {"type": "auto"}
@@ -114,11 +132,13 @@ def request_body(model: dict, plan: dict, system: str, messages: list[dict]) -> 
     return body
 
 
-def parse_turn(data: dict, api: str) -> tuple[dict, list[dict], str, str, dict]:
-    """Split one assistant response into (history message, tool calls, text, finish, usage).
+def parse_turn(data: dict, api: str) -> tuple[list[dict], list[dict], str, str, dict]:
+    """Split one assistant response into (history items, tool calls, text, finish, usage).
 
-    The history message is the assistant's turn exactly as it must be sent
-    back next turn (thinking blocks and signatures unchanged).
+    The history items are the assistant's turn exactly as it must be sent
+    back next turn (thinking blocks, signatures and encrypted reasoning
+    unchanged): one message for chat/completions and messages, the output
+    items for responses.
 
     Each tool call is {"id", "name", "arguments"}. A call the harness will not
     execute also has an "error" (and arguments=None); the caller must send
@@ -129,9 +149,14 @@ def parse_turn(data: dict, api: str) -> tuple[dict, list[dict], str, str, dict]:
     _check_api(api)
     if api == "messages":
         assistant, raw_calls, text, finish = _split_messages_turn(data)
+        history = [assistant]
         expected_finish = "tool_use"
+    elif api == "responses":
+        history, raw_calls, text, finish = _split_responses_turn(data)
+        expected_finish = "tool_calls"
     else:
         assistant, raw_calls, text, finish = _split_chat_turn(data)
+        history = [assistant]
         expected_finish = "tool_calls"
 
     if not isinstance(text, str) or not isinstance(finish, str):
@@ -156,7 +181,7 @@ def parse_turn(data: dict, api: str) -> tuple[dict, list[dict], str, str, dict]:
         if error:
             call["error"] = error
         calls.append(call)
-    return assistant, calls, text, finish, data.get("usage", {})
+    return history, calls, text, finish, data.get("usage", {})
 
 
 def _split_messages_turn(data: dict) -> tuple[dict, list[tuple], str, str]:
@@ -195,6 +220,28 @@ def _split_chat_turn(data: dict) -> tuple[dict, list[tuple], str, str]:
         raw_calls.append((call.get("id"), function.get("name"), function.get("arguments")))
     text = assistant.get("content") or ""
     return assistant, raw_calls, text, choices[0].get("finish_reason", "")
+
+
+def _split_responses_turn(data: dict) -> tuple[list[dict], list[tuple], str, str]:
+    items = data.get("output", [])
+    if not isinstance(items, list) or any(not isinstance(item, dict) for item in items):
+        raise ValueError("invalid native output items")
+    if any(item.get("type") not in {"message", "reasoning", "function_call"} for item in items):
+        raise ValueError("unsupported native output item")
+
+    raw_calls = [
+        (item.get("call_id"), item.get("name"), item.get("arguments"))
+        for item in items
+        if item["type"] == "function_call"
+    ]
+    text = "\n".join(
+        part["text"]
+        for item in items
+        if item["type"] == "message"
+        for part in item.get("content") or []
+        if isinstance(part, dict) and part.get("type") == "output_text" and isinstance(part.get("text"), str)
+    )
+    return deepcopy(items), raw_calls, text, data.get("stop_reason", "")
 
 
 def _identifier(value, what: str) -> str:
@@ -262,6 +309,9 @@ def tool_results(api: str, results: list[dict]) -> list[dict]:
             encoded.append(
                 {"type": "tool_result", "tool_use_id": call_id, "content": content, "is_error": is_error}
             )
+        elif api == "responses":
+            prefix = "ERROR: " if is_error else ""
+            encoded.append({"type": "function_call_output", "call_id": call_id, "output": prefix + content})
         else:
             prefix = "ERROR: " if is_error else ""
             encoded.append({"role": "tool", "tool_call_id": call_id, "content": prefix + content})
@@ -298,6 +348,24 @@ def reasoning_counts(data: dict, api: str) -> dict:
                 answer += len(block.get("text") or "")
             elif block.get("type") == "tool_use":
                 answer += len(json.dumps(block.get("input")))
+    elif api == "responses":
+        for item in data.get("output") or []:
+            if not isinstance(item, dict):
+                continue
+            if item.get("type") == "reasoning":
+                for part in (item.get("summary") or []) + (item.get("content") or []):
+                    if isinstance(part, dict):
+                        reasoning += _text_length(part.get("text"))
+            elif item.get("type") == "message":
+                for part in item.get("content") or []:
+                    if isinstance(part, dict):
+                        answer += _text_length(part.get("text"))
+            elif item.get("type") == "function_call":
+                answer += _text_length(item.get("arguments"))
+        details = (data.get("usage") or {}).get("output_tokens_details") or {}
+        reported = details.get("reasoning_tokens")
+        if type(reported) is int and reported >= 0:
+            tokens = reported
     else:
         choices = data.get("choices") or [{}]
         first = choices[0]

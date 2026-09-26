@@ -12,6 +12,7 @@ from scripts.go_pilot import (
     due, extract_rtl, gate, generate, parse_response, read_plan, request_body,
     validate_plan, valid_usage, response_diagnostics,
     provider_error_evidence, ERROR_BODY_LIMIT, output_limit,
+    frozen_path, plan_slots, slot_dir,
 )
 
 
@@ -277,6 +278,60 @@ class ProviderMaximumTest(unittest.TestCase):
                 for path in Path(tmp).glob("**/generation.json"):
                     self.assertEqual(json.loads(path.read_text())["max_output_tokens"], 128000)
         self.assertFalse(valid_usage({"prompt_tokens":1,"completion_tokens":128001}, "chat/completions", 128000))
+
+
+class RoundPlanTest(unittest.TestCase):
+    """agent-assisted-v2 rounds: larger matrices, attempts, reruns, and the responses API."""
+
+    def setUp(self):
+        self.plan = read_plan(Path(__file__).resolve().parent.parent / "pilot/go-agent-v2-r1.json")
+
+    def test_reviewed_round_is_disabled_and_problem_major(self):
+        self.assertFalse(self.plan["generation_enabled"])
+        slots = plan_slots(self.plan)
+        self.assertEqual(len(slots), 56)
+        self.assertEqual({problem for _, problem in slots[:14]}, {"001_dot_product"})
+        self.assertEqual(len({model for model, _ in slots[:14]}), 14)
+        self.assertEqual(slot_dir(Path("out"), "m", "p", 3), Path("out/opencode-go-m/p/rep3"))
+        self.assertEqual(frozen_path(Path("out/opencode-go-m/p/rep3")), Path("out/opencode-go-m/p/rep3_frozen/dut.v"))
+
+    def test_round_bounds(self):
+        extra = [{**self.plan["models"][0], "id": f"extra-{index}"} for index in range(3)]
+        too_many = {**self.plan, "models": self.plan["models"] + extra,
+                    "max_output_tokens": {**self.plan["max_output_tokens"], **{m["id"]: 1000 for m in extra}}}
+        for changed in (too_many, {**self.plan, "attempt": 4}, {**self.plan, "attempt": 0},
+                        {**self.plan, "try": 3}, {**self.plan, "try": 2}):
+            with self.assertRaises(ValueError):
+                validate_plan(changed)
+        # A single-shot plan keeps its twelve-request ceiling.
+        single = {**self.plan, "protocol": "single-shot", "models": self.plan["models"][8:]}
+        single["max_output_tokens"] = {m["id"]: 1000 for m in single["models"]}
+        with self.assertRaisesRegex(ValueError, "twelve"):
+            validate_plan(single)
+
+    def test_rerun_lists_only_reviewed_slots(self):
+        rerun = {**self.plan, "try": 2, "slots": [{"model": "kimi-k3", "problem": "002_gemv"},
+                                                  {"model": "gpt-6-luna", "problem": "001_dot_product"}]}
+        validate_plan(rerun)
+        self.assertEqual(plan_slots(rerun), [("gpt-6-luna", "001_dot_product"), ("kimi-k3", "002_gemv")])
+        for slots in ([], [{"model": "unknown", "problem": "002_gemv"}],
+                      [{"model": "kimi-k3", "problem": "002_gemv"}] * 2,
+                      [{"model": "kimi-k3", "problem": "002_gemv", "attempt": 2}]):
+            with self.subTest(slots=slots), self.assertRaises(ValueError):
+                validate_plan({**rerun, "slots": slots})
+
+    def test_responses_models_need_explicit_effort_and_v2(self):
+        index = next(i for i, m in enumerate(self.plan["models"]) if m["api"] == "responses")
+        for change in ({"reasoning": {"enabled": True}}, {"reasoning": {"effort": "extreme"}},
+                       {"token_limit_key": "max_tokens"}, {"reasoning_effort": "high"}):
+            models = list(self.plan["models"])
+            models[index] = {**models[index], **change}
+            with self.subTest(change=change), self.assertRaises(ValueError):
+                validate_plan({**self.plan, "models": models})
+        v1 = read_plan(Path(__file__).resolve().parent.parent / "pilot/go-agent-20260923.json")
+        responses = {**self.plan["models"][index], "not_before": v1["models"][0]["not_before"]}
+        with self.assertRaisesRegex(ValueError, "agent-assisted-v2"):
+            validate_plan({**v1, "models": [responses], "max_output_tokens": {responses["id"]: 1000}})
 
 
 if __name__ == "__main__":
