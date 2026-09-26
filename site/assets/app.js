@@ -186,10 +186,10 @@ function reasoningSummary(model) {
 // Leaderboard page
 // ---------------------------------------------------------------------------
 
-function renderResults() {
+function renderResults(updateRanking = true) {
   if (!$("#leaderboard-rows") || !data) return;
   const models = rankModels(data.models).sort((a, b) => b[scoreMetric] - a[scoreMetric]);
-  renderRanking(models);
+  if (updateRanking) renderRanking(models);
   renderOperatorMatrix(models);
   updateScrollHints();
 }
@@ -584,9 +584,10 @@ function bindSegmentedControl(name, select) {
   const buttons = $$(`[data-${name}]`);
   for (const button of buttons) {
     button.addEventListener("click", () => {
+      if (button.getAttribute("aria-pressed") === "true") return;
       select(button.dataset[name]);
       for (const other of buttons) other.setAttribute("aria-pressed", String(other === button));
-      renderResults();
+      renderResults(name === "score");
     });
   }
 }
@@ -598,6 +599,7 @@ async function getJSON(path) {
 }
 
 async function loadData() {
+  const onProblemPage = Boolean($("#problem-grid"));
   const catalog = parseCatalog(await getJSON("data/evaluations.json"));
   datasets = catalog.paths;
   // Show the newest agent-assisted batch; the publisher prepends new batches.
@@ -607,15 +609,14 @@ async function loadData() {
   const leaderboardPath = datasets[datasetKey];
   const [leaderboard, problems, reasoningFile] = await Promise.all([
     getJSON(leaderboardPath),
-    getJSON("data/problems.json").catch(() => null),
+    onProblemPage ? getJSON("data/problems.json").catch(() => null) : null,
     // Reasoning counts backfilled for batches published before receipts recorded them.
-    getJSON(leaderboardPath.replace(/leaderboard\.json$/, "reasoning.json")).catch(() => null),
+    onProblemPage ? null : getJSON(leaderboardPath.replace(/leaderboard\.json$/, "reasoning.json")).catch(() => null),
   ]);
   if (!Array.isArray(leaderboard.models) || !Array.isArray(problems?.problems || leaderboard.problems)) {
     throw new Error("Invalid published dataset");
   }
 
-  const onProblemPage = Boolean($("#problem-grid"));
   data = {
     ...leaderboard,
     meta: leaderboard.meta || {},

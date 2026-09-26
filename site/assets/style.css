@@ -18,6 +18,8 @@
   --status-text: #d6d3d1;
   --weight-normal: 500;
   --weight-strong: 600;
+  --radius: 8px;
+  --radius-lg: 12px;
   --font:
     "Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
     sans-serif;
@@ -57,6 +59,7 @@ a,
 input,
 summary {
   touch-action: manipulation;
+  border-radius: var(--radius);
 }
 :focus-visible {
   outline: 2px solid var(--accent);
@@ -184,12 +187,12 @@ code {
   padding: 4px;
   border: 1px solid var(--border);
   background: var(--bg);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
 }
 .segmented button {
   border: 0;
   background: transparent;
-  border-radius: 5px;
+  border-radius: var(--radius);
   color: var(--muted);
   padding: 9px 17px;
   font-size: 12px;
@@ -207,7 +210,7 @@ input[type="search"] {
   background: var(--surface);
   color: var(--text);
   border: 1px solid var(--border);
-  border-radius: 4px;
+  border-radius: var(--radius);
   padding: 7px 10px;
   font: var(--weight-normal) 11px var(--font);
   width: 180px;
@@ -219,6 +222,7 @@ input::placeholder {
 .board-scroll {
   overflow: auto;
   max-width: 100%;
+  border-radius: var(--radius-lg);
 }
 .results-table {
   width: 100%;
@@ -298,7 +302,7 @@ input::placeholder {
   justify-content: center;
   border: 1px solid transparent;
   background: var(--soft);
-  border-radius: 3px;
+  border-radius: var(--radius);
   min-height: 34px;
   width: 100%;
   padding: 4px 9px;
@@ -428,6 +432,7 @@ input::placeholder {
 .problem-card {
   background: var(--surface);
   border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
   padding: 24px;
   min-width: 0;
   scroll-margin-top: 80px;
@@ -440,7 +445,7 @@ input::placeholder {
   color: var(--muted);
   background: var(--soft);
   padding: 4px 7px;
-  border-radius: 3px;
+  border-radius: var(--radius);
 }
 .problem-card h3 {
   font-size: 19px;
@@ -463,7 +468,7 @@ input::placeholder {
   color: var(--muted);
   background: var(--soft);
   padding: 4px 6px;
-  border-radius: 3px;
+  border-radius: var(--radius);
 }
 .pc-metrics {
   display: grid;
@@ -558,7 +563,7 @@ dialog {
   background: var(--bg);
   color: var(--text);
   border: 1px solid var(--border-strong);
-  border-radius: 7px;
+  border-radius: var(--radius-lg);
   padding: 0;
   box-shadow: 0 24px 100px #0008;
 }
@@ -587,7 +592,7 @@ dialog::backdrop {
   background: var(--soft);
   width: 30px;
   height: 30px;
-  border-radius: 4px;
+  border-radius: var(--radius);
   font-size: 20px;
   flex-shrink: 0;
 }
@@ -608,6 +613,7 @@ dialog::backdrop {
 .run-card {
   padding: 19px;
   border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
   background: var(--surface);
   min-width: 0;
 }
@@ -624,7 +630,7 @@ dialog::backdrop {
 .rc-status {
   font-size: 10px;
   padding: 3px 6px;
-  border-radius: 3px;
+  border-radius: var(--radius);
 }
 .rc-status.beat {
   background: var(--bar);
@@ -720,6 +726,7 @@ dialog::backdrop {
 .error-state {
   padding: 25px;
   border: 1px solid var(--border-strong);
+  border-radius: var(--radius-lg);
   margin: 20px 0;
 }
 .error-state p {
@@ -774,7 +781,7 @@ dialog::backdrop {
     font-size: 20px;
   }
   .segmented {
-    border-radius: 6px;
+    border-radius: var(--radius-lg);
     padding: 3px;
   }
   .segmented button {
@@ -886,15 +893,15 @@ dialog::backdrop {
 .page-intro { display: flex; justify-content: space-between; align-items: center; gap: 24px; padding: 34px 0 23px; }
 .page-intro .eyebrow { font-size: 9px; letter-spacing: 1.5px; margin-bottom: 10px; }
 .page-intro h1 { font-size: 30px; line-height: 1.25; letter-spacing: -1px; font-weight: var(--weight-strong); }
-.download-link { display: flex; align-items: center; gap: 18px; border: 1px solid var(--border-strong); padding: 9px 13px; border-radius: 3px; font-size: 11px; white-space: nowrap; }
+.download-link { display: flex; align-items: center; gap: 18px; border: 1px solid var(--border-strong); padding: 9px 13px; border-radius: var(--radius); font-size: 11px; white-space: nowrap; }
 .download-link span { color: var(--accent); font-size: 17px; }
 .workspace input[type="search"] { width: 220px; padding: 9px 12px; font-size: 11px; }
 .workspace .benchmark-section { margin: 26px 0 34px; scroll-margin-top: 86px; }
 .workspace .section-heading { border: 0; padding: 0; margin-bottom: 15px; }
 .workspace .section-heading h2 { font-size: 18px; font-weight: var(--weight-strong); }
 .section-heading > div > p { color: var(--muted); font-size: 10px; margin-top: 4px; }
-.workspace .segmented { border-radius: 3px; padding: 3px; }
-.workspace .segmented button { font-size: 11px; padding: 8px 13px; border-radius: 2px; }
+.workspace .segmented { border-radius: var(--radius-lg); padding: 3px; }
+.workspace .segmented button { font-size: 11px; padding: 8px 13px; border-radius: var(--radius); }
 .workspace .segmented button[aria-pressed="true"] { background: var(--soft); color: var(--text); box-shadow: inset 0 0 0 1px var(--border-strong); }
 .ranking-scroll { border: 1px solid var(--border); padding: 0 18px; }
 .ranking-table { width: 100%; min-width: 880px; border-collapse: collapse; table-layout: fixed; font-variant-numeric: tabular-nums; }
@@ -911,10 +918,11 @@ dialog::backdrop {
 .ranking-table tbody th, .ranking-table tbody td { height: 67px; padding: 9px 8px; border-bottom: 1px solid var(--border); font-weight: var(--weight-normal); }
 .ranking-table tbody tr:hover { background: var(--surface); }
 .ranking-table .model-button { font-size: 13px; gap: 10px; min-height: 42px; }
-.ranking-table .model-icon { border-radius: 4px; width: 23px; height: 23px; color: var(--accent); border-color: var(--border); background: var(--surface); }
+.ranking-table .model-icon { border-radius: var(--radius); width: 23px; height: 23px; color: var(--accent); border-color: var(--border); background: var(--surface); }
 .comparison-bar { display: block; padding: 12px 0; min-height: 44px; width: 100%; border: 0; background: transparent; }
 .comparison-track { display: block; position: relative; width: 100%; height: 17px; background: var(--surface); }
 .comparison-fill { display: block; height: 100%; background: var(--accent); opacity: .75; }
+.comparison-track, .comparison-fill, .bar-track, .bar-fill, .result-bar:before { border-radius: 999px; }
 .comparison-bar.best .comparison-fill, .comparison-bar:hover .comparison-fill { opacity: 1; }
 .primary-stat { text-align: right; }
 .primary-stat strong { display: block; font-size: 16px; font-weight: var(--weight-strong); }
@@ -926,7 +934,7 @@ dialog::backdrop {
 .workspace .matrix-table th { font-size: 11px; padding: 9px 8px; }
 .workspace .matrix-table th:first-child { width: 245px; }
 .workspace .matrix-table td { padding: 5px 5px; vertical-align: middle; }
-.workspace .result-bar { min-height: 36px; border-radius: 2px; background: var(--surface); color: var(--text); border: 1px solid var(--border); }
+.workspace .result-bar { min-height: 36px; border-radius: var(--radius); background: var(--surface); color: var(--text); border: 1px solid var(--border); }
 .workspace .result-bar:before { inset: auto auto 0 0; height: 3px; }
 .workspace .result-bar.best { box-shadow: none; color: var(--accent); }
 .workspace .result-bar.best .star { color: var(--accent); }
@@ -934,7 +942,6 @@ dialog::backdrop {
 .workspace .result-bar.infra { border-style: dashed; }
 .workspace .site-footer { border-top: 1px solid var(--border); padding-top: 20px; margin-top: 30px; }
 .library-toolbar { display: flex; justify-content: flex-end; padding-top: 24px; }
-.workspace .problem-card { border-radius: 3px; }
 @media (max-width: 1000px) {
   .scroll-hint { display: block; }
   .workspace .wrap, .workspace .header-inner, .workspace .site-footer { padding-inline: 24px; }
@@ -1003,13 +1010,14 @@ dialog::backdrop {
   color: var(--text);
   font-size: 13px;
   cursor: pointer;
+  border-radius: var(--radius-lg);
 }
 .problem-toggle::-webkit-details-marker { display: none; }
 .problem-toggle:hover { background: var(--soft); }
 .problem-number { font-size: 11px; color: var(--accent); font-variant-numeric: tabular-nums; }
 .problem-title { flex: 1; font-weight: var(--weight-strong); }
 .problem-chevron { color: var(--muted); font-size: 20px; line-height: 1; width: 16px; text-align: center; }
-.problem-accordion[open] > .problem-toggle { border-bottom: 1px solid var(--border); }
+.problem-accordion[open] > .problem-toggle { border-bottom: 1px solid var(--border); border-radius: var(--radius-lg) var(--radius-lg) 0 0; }
 .problem-accordion[open] > .problem-toggle .problem-chevron { transform: rotate(45deg); }
 .problem-content { padding: 22px 24px; }
 @media (max-width: 620px) {
