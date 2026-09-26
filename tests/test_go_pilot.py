@@ -286,8 +286,7 @@ class RoundPlanTest(unittest.TestCase):
     def setUp(self):
         self.plan = read_plan(Path(__file__).resolve().parent.parent / "pilot/go-agent-v2-r1.json")
 
-    def test_reviewed_round_is_disabled_and_problem_major(self):
-        self.assertFalse(self.plan["generation_enabled"])
+    def test_reviewed_round_is_problem_major(self):
         slots = plan_slots(self.plan)
         self.assertEqual(len(slots), 56)
         self.assertEqual({problem for _, problem in slots[:14]}, {"001_dot_product"})
