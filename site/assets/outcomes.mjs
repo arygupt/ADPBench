@@ -11,6 +11,7 @@ const STATES = {
   truncated: ["fail", "Provider output truncated", "truncated"],
   wall_timeout: ["fail", "Agent time limit reached", "time limit"],
   provider_error: ["infra", "Provider request failed · not scored", "provider"],
+  quota_exhausted: ["infra", "Provider quota exhausted · not scored", "quota"],
   transport_interrupted: ["infra", "Connection interrupted · not scored", "interrupted"],
   harness_error: ["infra", "Harness error · score unknown", "unknown"],
   scoring_interrupted: ["infra", "Scoring interrupted · score unknown", "unknown"],
@@ -21,7 +22,7 @@ const UNKNOWN = ["infra", "Outcome unavailable · score unknown", "unknown"];
 
 /** { cls, label, value } for an agent-assisted run, or null for other protocols. */
 export function agentState(run) {
-  if (run?.generation?.protocol !== "agent-assisted-v1") return null;
+  if (!run?.generation?.protocol?.startsWith("agent-assisted-")) return null;
   const [cls, label, value] = Object.hasOwn(STATES, run.outcome) ? STATES[run.outcome] : UNKNOWN;
   return { cls, label, value };
 }

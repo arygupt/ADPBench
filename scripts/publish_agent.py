@@ -1,4 +1,4 @@
-"""Publish agent-assisted-v1 results bound to their source run - never transcripts or tool contents.
+"""Publish agent-assisted results bound to their source run - never transcripts or tool contents.
 
 Used by publish_results.py for runs of the agent workflow. Each (model,
 problem) slot ran as its own pair of Actions jobs ("Generate ..." and
@@ -12,7 +12,15 @@ import re
 from pathlib import Path
 
 from adpbench.hashing import sha256_bytes
-from scripts.go_pilot import SETTING_KEYS, output_limit, slot_dir
+from scripts.go_pilot import (
+    AGENT_PROTOCOLS,
+    SETTING_KEYS,
+    frozen_path,
+    output_limit,
+    plan_attempt,
+    plan_slots,
+    slot_dir,
+)
 from scripts.publish_go import (
     FINISHED_JOB_CONCLUSIONS,
     REPOSITORY,
@@ -23,13 +31,13 @@ from scripts.publish_go import (
     write_published_records,
 )
 
-PROTOCOL = "agent-assisted-v1"
 WORKFLOW = ".github/workflows/go-agent.yml"
 
 # Every outcome a generation receipt may record.
 OUTCOMES = {
     "submitted",
     "provider_error",
+    "quota_exhausted",
     "transport_interrupted",
     "truncated",
     "invalid_submission",
@@ -55,18 +63,18 @@ PRIVATE_FIELDS = re.compile(
 
 def slots(plan: dict, run_id: int):
     """Yield (model, problem, records artifact name, generation artifact name) per slot."""
-    for model in plan["models"]:
-        for problem in plan["problems"]:
-            identity = f"{model['id']}-{problem}-{run_id}"
-            yield model, problem, f"go-agent-records-{identity}", f"go-agent-generation-{identity}"
+    models = {model["id"]: model for model in plan["models"]}
+    for model_id, problem in plan_slots(plan):
+        identity = f"{model_id}-{problem}-{run_id}"
+        yield models[model_id], problem, f"go-agent-records-{identity}", f"go-agent-generation-{identity}"
 
 
-def job_name(stage: str, model: str, problem: str) -> str:
-    return f"{stage} {model} · {problem} · {PROTOCOL}"
+def job_name(stage: str, model: str, problem: str, protocol: str) -> str:
+    return f"{stage} {model} · {problem} · {protocol}"
 
 
-def matches_job(job: dict, stage: str, model: str, problem: str) -> bool:
-    expected = job_name(stage, model, problem)
+def matches_job(job: dict, stage: str, model: str, problem: str, protocol: str) -> bool:
+    expected = job_name(stage, model, problem, protocol)
     # Reusable-workflow jobs are prefixed with their caller's display name.
     return job.get("name") in {expected, f"{model} · {problem} / {expected}"}
 
@@ -76,7 +84,7 @@ def validate_generation(generation: dict, model: dict, problem: str, plan: dict)
     if (
         generation.get("model") != model["id"]
         or generation.get("problem") != problem
-        or generation.get("protocol") != PROTOCOL
+        or generation.get("protocol") != plan["protocol"]
     ):
         raise ValueError("agent generation identity mismatch")
     if generation.get("max_output_tokens") != output_limit(plan, model):
@@ -92,6 +100,8 @@ def validate_generation(generation: dict, model: dict, problem: str, plan: dict)
         or not 0 <= turns <= plan["max_turns"]
     ):
         raise ValueError("agent turn budget differs from reviewed plan")
+    if "transport_retries" in plan:
+        _validate_round_receipt(generation, plan)
     if generation.get("outcome") not in OUTCOMES:
         raise ValueError("unknown agent generation outcome")
     if generation.get("max_checks") != plan.get("max_checks"):
@@ -114,18 +124,43 @@ def validate_generation(generation: dict, model: dict, problem: str, plan: dict)
         raise ValueError("private field in agent generation receipt")
 
 
+def _validate_round_receipt(generation: dict, plan: dict) -> None:
+    """v2 receipts name their round and try, and list every resent request."""
+    if generation.get("attempt") != plan_attempt(plan) or generation.get("try") != plan["try"]:
+        raise ValueError("agent generation round differs from reviewed plan")
+    retries = generation.get("transport_retries")
+    turns = generation.get("turns")
+    if not isinstance(retries, list) or len(retries) > plan["transport_retries"] * max(turns, 1):
+        raise ValueError("invalid agent transport retries")
+    for retry in retries:
+        if (
+            not isinstance(retry, dict)
+            or set(retry) != {"turn", "retry", "reason", "usage_known"}
+            or type(retry["turn"]) is not int
+            or not 1 <= retry["turn"] <= turns
+            or type(retry["retry"]) is not int
+            or not 1 <= retry["retry"] <= plan["transport_retries"]
+            or not isinstance(retry["reason"], str)
+            or not re.fullmatch(r"[a-z0-9_]{1,64}", retry["reason"])
+            or type(retry["usage_known"]) is not bool
+        ):
+            raise ValueError("invalid agent transport retry entry")
+
+
 def publish_agent(
     artifacts: Path, plan: dict, run: dict, jobs: list[dict], output: Path, site_output: Path
 ) -> dict:
     """Validate each slot's artifacts against its jobs, then publish. Returns the leaderboard."""
-    if run.get("path") != WORKFLOW or plan.get("protocol") != PROTOCOL:
+    if run.get("path") != WORKFLOW or plan.get("protocol") not in AGENT_PROTOCOLS:
         raise ValueError("agent publication requires its own workflow and protocol")
+    if plan.get("try", 1) > 1:
+        raise ValueError("publishing a rerun into an existing round is not supported yet")
     if output.exists() or site_output.exists():
         raise FileExistsError("never overwrite published results")
 
     prepared = []
     for model, problem, records_artifact, _ in slots(plan, run["id"]):
-        job = _scoring_job(jobs, model["id"], problem)
+        job = _scoring_job(jobs, model["id"], problem, plan["protocol"])
         slot = _prepare_slot(artifacts / records_artifact, plan, run, job, model, problem)
         slot["record"]["execution"] = execution_evidence(run, job)
         prepared.append(slot)
@@ -137,8 +172,8 @@ def publish_agent(
     board["meta"].update(
         {
             "git_commit": run["head_sha"],
-            "protocol": PROTOCOL,
-            "repetitions": 1,
+            "protocol": plan["protocol"],
+            "repetitions": plan_attempt(plan),
             "max_turns": plan["max_turns"],
             "max_output_tokens": plan["max_output_tokens"],
             "output_budget": plan.get("output_budget", "fixed"),
@@ -154,8 +189,8 @@ def publish_agent(
     return board
 
 
-def _scoring_job(jobs: list[dict], model_id: str, problem: str) -> dict:
-    matches = [job for job in jobs if matches_job(job, "Evaluate", model_id, problem)]
+def _scoring_job(jobs: list[dict], model_id: str, problem: str, protocol: str) -> dict:
+    matches = [job for job in jobs if matches_job(job, "Evaluate", model_id, problem, protocol)]
     if len(matches) != 1:
         raise ValueError("missing or duplicate agent scoring job")
     job = matches[0]
@@ -167,7 +202,8 @@ def _scoring_job(jobs: list[dict], model_id: str, problem: str) -> dict:
 def _prepare_slot(artifact: Path, plan: dict, run: dict, job: dict, model: dict, problem: str) -> dict:
     """The record, receipt and frozen RTL to publish for one slot, after every check."""
     model_id = model["id"]
-    label = f"opencode-go/{model_id} [{PROTOCOL}]"
+    label = f"opencode-go/{model_id} [{plan['protocol']}]"
+    attempt = plan_attempt(plan)
 
     if not artifact.exists():
         if job["conclusion"] == "success":
@@ -175,7 +211,7 @@ def _prepare_slot(artifact: Path, plan: dict, run: dict, job: dict, model: dict,
         generation = {
             "model": model_id,
             "problem": problem,
-            "protocol": PROTOCOL,
+            "protocol": plan["protocol"],
             "outcome": "interrupted",
             "evidence_unavailable": True,
             "incomplete_usage": True,
@@ -188,11 +224,12 @@ def _prepare_slot(artifact: Path, plan: dict, run: dict, job: dict, model: dict,
             error="Actions job ended before canonical evidence was uploaded; score and usage are unknown.",
             manifest={"generation": generation},
         )
-        return {"model_id": model_id, "problem": problem, "record": record, "generation": generation, "source": None}
+        return {"model_id": model_id, "problem": problem, "attempt": attempt, "record": record,
+                "generation": generation, "source": None}
 
     if json.loads((artifact / "plan.json").read_text()) != plan:
         raise ValueError("agent artifact plan differs from source plan")
-    dest = slot_dir(artifact, model_id, problem)
+    dest = slot_dir(artifact, model_id, problem, attempt)
     generation = json.loads((dest / "generation.json").read_text())
     validate_generation(generation, model, problem, plan)
     _check_provenance(generation.get("github", {}), run)
@@ -228,7 +265,8 @@ def _prepare_slot(artifact: Path, plan: dict, run: dict, job: dict, model: dict,
             raise ValueError("frozen agent submission hash mismatch")
     elif scored_sha or record.get("result") is not None:
         raise ValueError("agent score has no frozen submission")
-    return {"model_id": model_id, "problem": problem, "record": record, "generation": generation, "source": source}
+    return {"model_id": model_id, "problem": problem, "attempt": attempt, "record": record,
+            "generation": generation, "source": source}
 
 
 def _check_provenance(github_context: dict, run: dict) -> None:
@@ -243,7 +281,7 @@ def _check_provenance(github_context: dict, run: dict) -> None:
 
 def _frozen_source(dest: Path) -> Path | None:
     """The submitted dut.v (scored copy preferred). Every copy present must be identical."""
-    candidates = [dest.parent / "rep1_frozen" / "dut.v", dest / "dut.v"]
+    candidates = [frozen_path(dest), dest / "dut.v"]
     present = [path for path in candidates if path.is_file()]
     if not present:
         return None
@@ -259,7 +297,7 @@ def _unscored_record(plan: dict, problem: str, label: str, *, origin: str, error
         "problem": problem,
         "label": label,
         "group": plan["name"],
-        "attempt": 1,
+        "attempt": plan_attempt(plan),
         "record_origin": origin,
         "outcome": "scoring_interrupted",
         "execution_health": "failed",

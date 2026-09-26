@@ -102,3 +102,24 @@ results are never scores.
 
 Both the canary and round 1 are committed with `generation_enabled: false`.
 Enabling either needs a reviewed authorization window.
+
+## Running a round
+
+Both dispatches of [OpenCode Go agent runs](https://github.com/arygupt/ADPBench/actions/workflows/go-agent.yml)
+must select `main` and confirm `subscription_only`. Keep Go **Use balance** off.
+
+1. **Canary.** Set `generation_enabled: true` and a current window (at most
+   one day) in `go-canary-v2.json`, merge, then dispatch with `run_canary`.
+   Each model runs as its own job and claims the tag
+   `go-compatibility-v2-…-<model>`, so a rerun cannot spend again.
+2. **Round.** Once every model's canary is `completed`, set
+   `generation_enabled: true` and a window of at most two days on the round
+   plan (and its models' `not_before`), merge, then dispatch with
+   `run_models`. The slot matrix comes from the plan. Each slot claims
+   `<plan name>-<model>-<problem>`, and a rerun adds `-t2`.
+3. **Publish.** A finished round triggers the publisher, which opens a
+   review-only results PR for that round's dataset.
+
+Not implemented yet: publishing a rerun into an already published round,
+and a leaderboard that combines rounds. Until then, each round publishes as
+its own dataset.

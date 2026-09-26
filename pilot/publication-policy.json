@@ -8,7 +8,7 @@
     },
     ".github/workflows/go-agent.yml": {
       "name": "OpenCode Go agent runs",
-      "plans": ["pilot/go-agent-20260923.json", "pilot/go-agent-high-20260924.json"],
+      "plans": ["pilot/go-agent-20260923.json", "pilot/go-agent-high-20260924.json", "pilot/go-agent-v2-r1.json"],
       "artifact_prefix": "go-agent-records-"
     }
   }

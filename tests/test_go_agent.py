@@ -311,6 +311,10 @@ class AgentV2Tests(unittest.TestCase):
         self.assertEqual(final["result"]["ratio"], 1.0)
         self.assertIn("[agent-assisted-v2]", final["label"])
         self.assertTrue((out / f"opencode-go-{model['id']}" / PROBLEM / "rep1_frozen/dut.v").is_file())
+        from scripts.publish_results import validate_records
+        artifacts = self.root / "artifacts"
+        shutil.copytree(out, artifacts / f"go-agent-records-{model['id']}-{PROBLEM}-123")
+        validate_records(artifacts, plan, {"id": 123})
 
     def test_canary_round_trip_and_disabled_window(self):
         config = json.loads(CANARY.read_text())

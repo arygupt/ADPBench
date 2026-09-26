@@ -28,7 +28,7 @@ from adpbench.hashing import sha256_bytes
 from adpbench.problem import repo_root
 from adpbench.report import write_report
 from adpbench.site import export_site
-from scripts.go_pilot import read_plan, slot_dir
+from scripts.go_pilot import frozen_path, read_plan, slot_dir
 
 REPOSITORY = "arygupt/ADPBench"
 WORKFLOW = ".github/workflows/go-core.yml"
@@ -68,17 +68,18 @@ def write_published_records(output: Path, plan: dict, slots: list[dict]) -> None
     """Write plan.json and each slot's generation, record, manifest, and frozen RTL.
 
     Each slot is {"model_id", "problem", "record", "generation", "source"},
-    where `source` is the frozen dut.v to copy, or None.
+    plus an optional "attempt" (default 1), where `source` is the frozen dut.v
+    to copy, or None.
     """
     output.mkdir(parents=True)
     atomic_json(output / "plan.json", plan)
     for slot in slots:
-        dest = slot_dir(output, slot["model_id"], slot["problem"])
+        dest = slot_dir(output, slot["model_id"], slot["problem"], slot.get("attempt", 1))
         atomic_json(dest / "generation.json", slot["generation"])
         atomic_json(dest / "record.json", slot["record"])
         atomic_json(dest / "manifest.json", slot["record"]["manifest"])
         if slot["source"] is not None:
-            frozen = dest.parent / "rep1_frozen" / "dut.v"
+            frozen = frozen_path(dest)
             frozen.parent.mkdir(parents=True)
             shutil.copyfile(slot["source"], frozen)
 

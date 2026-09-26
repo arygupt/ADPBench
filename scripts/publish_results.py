@@ -34,14 +34,16 @@ from pathlib import Path, PurePosixPath
 
 from adpbench.durable import atomic_json
 from scripts.go_pilot import (
+    AGENT_PROTOCOLS,
     SETTING_KEYS,
     execution_health,
+    is_agent_plan,
     output_limit,
+    plan_attempt,
     slot_dir,
     validate_plan,
 )
 from scripts.publish_agent import OUTCOMES as AGENT_OUTCOMES
-from scripts.publish_agent import PROTOCOL as AGENT_PROTOCOL
 from scripts.publish_agent import WORKFLOW as AGENT_WORKFLOW
 from scripts.publish_agent import matches_job, publish_agent, validate_generation
 from scripts.publish_agent import slots as agent_slots
@@ -52,6 +54,7 @@ MAX_EXPANDED = 128 * 1024 * 1024
 MAX_FILE = 16 * 1024 * 1024
 MAX_FILES = 300
 MAX_API = 2 * 1024 * 1024
+MAX_LISTED = 1000  # jobs or artifacts in one source run; a 64-slot round has about 260 artifacts
 SAFE_ID = re.compile(r"[a-z0-9][a-z0-9-]{0,79}")
 GITHUB_TIMESTAMP = re.compile(r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z")
 COMMIT_SHA = re.compile(r"[0-9a-f]{40}")
@@ -129,6 +132,25 @@ def api(path: str) -> dict:
     return strict_json(command(["gh", "api", f"repos/{REPOSITORY}/{path}"]))
 
 
+def api_list(path: str, key: str) -> list[dict]:
+    """Every item of a paginated list endpoint (100 per page), or ValueError if incomplete."""
+    items: list[dict] = []
+    page = 1
+    while True:
+        response = api(f"{path}?per_page=100&page={page}")
+        total = response.get("total_count")
+        batch = response.get(key)
+        if type(total) is not int or not isinstance(batch, list) or total > MAX_LISTED:
+            raise ValueError("unexpected or unexpectedly large source run listing")
+        items.extend(batch)
+        if len(items) >= total or not batch:
+            break
+        page += 1
+    if len(items) != total:
+        raise ValueError("incomplete source run listing")
+    return items
+
+
 def positive_id(value) -> int:
     if type(value) is not int or value <= 0:
         raise ValueError("expected a positive integer ID")
@@ -174,7 +196,7 @@ def validate_source(run: dict, jobs: list[dict], plan: dict, policy: dict) -> No
 
 
 def _validate_agent_jobs(run: dict, jobs: list[dict], plan: dict) -> None:
-    if plan.get("protocol") != AGENT_PROTOCOL:
+    if plan.get("protocol") not in AGENT_PROTOCOLS:
         raise ValueError("agent workflow requires agent-assisted protocol")
     if type(plan.get("max_turns")) is not int or not 1 <= plan["max_turns"] <= 100:
         raise ValueError("invalid agent turn budget")
@@ -182,7 +204,7 @@ def _validate_agent_jobs(run: dict, jobs: list[dict], plan: dict) -> None:
     selected = []
     for model, problem, _, _ in agent_slots(plan, run["id"]):
         for stage in ("Generate", "Evaluate"):
-            matches = [job for job in jobs if matches_job(job, stage, model["id"], problem)]
+            matches = [job for job in jobs if matches_job(job, stage, model["id"], problem, plan["protocol"])]
             if len(matches) != 1:
                 raise ValueError("missing or duplicate agent slot jobs")
             selected.extend(matches)
@@ -298,42 +320,45 @@ def _is_safe_entry(entry: zipfile.ZipInfo, seen_names: set[str]) -> bool:
 
 def validate_records(artifacts: Path, plan: dict, run: dict) -> None:
     """Reject fabricated passing records, unexpected budgets, and sensitive fields."""
-    agent_track = plan.get("protocol") == AGENT_PROTOCOL
-    for model in plan["models"]:
-        for problem in plan["problems"]:
-            if agent_track:
-                artifact = artifacts / f"go-agent-records-{model['id']}-{problem}-{run['id']}"
-            else:
-                artifact = artifacts / f"go-core-{model['id']}-{run['id']}"
-            if not artifact.exists():
-                continue  # publish() distinguishes missing evidence from failed jobs
-            dest = slot_dir(artifact, model["id"], problem)
+    agent_track = is_agent_plan(plan)
+    if agent_track:
+        planned = [(model, problem, artifacts / name) for model, problem, name, _ in agent_slots(plan, run["id"])]
+    else:
+        planned = [
+            (model, problem, artifacts / f"go-core-{model['id']}-{run['id']}")
+            for model in plan["models"]
+            for problem in plan["problems"]
+        ]
+    for model, problem, artifact in planned:
+        if not artifact.exists():
+            continue  # publish() distinguishes missing evidence from failed jobs
+        dest = slot_dir(artifact, model["id"], problem, plan_attempt(plan))
 
-            generation = strict_json((dest / "generation.json").read_bytes())
-            if agent_track:
-                validate_generation(generation, model, problem, plan)
-            if generation.get("max_output_tokens") != output_limit(plan, model):
-                raise ValueError("generation budget differs from reviewed plan")
-            settings = {key: model[key] for key in SETTING_KEYS if key in model}
-            if generation.get("generation_settings") != settings:
-                raise ValueError("generation settings differ from reviewed plan")
+        generation = strict_json((dest / "generation.json").read_bytes())
+        if agent_track:
+            validate_generation(generation, model, problem, plan)
+        if generation.get("max_output_tokens") != output_limit(plan, model):
+            raise ValueError("generation budget differs from reviewed plan")
+        settings = {key: model[key] for key in SETTING_KEYS if key in model}
+        if generation.get("generation_settings") != settings:
+            raise ValueError("generation settings differ from reviewed plan")
 
-            record_path = dest / "record.json"
-            if not record_path.exists():
-                continue
-            record = strict_json(record_path.read_bytes())
-            if record.get("attempt") != 1 or record.get("group") != plan["name"]:
-                raise ValueError("unexpected record attempt or group")
-            if agent_track:
-                _validate_agent_record(record, generation)
-            if record.get("result") is not None:
-                _validate_result(record, generation)
+        record_path = dest / "record.json"
+        if not record_path.exists():
+            continue
+        record = strict_json(record_path.read_bytes())
+        if record.get("attempt") != plan_attempt(plan) or record.get("group") != plan["name"]:
+            raise ValueError("unexpected record attempt or group")
+        if agent_track:
+            _validate_agent_record(record, generation)
+        if record.get("result") is not None:
+            _validate_result(record, generation)
 
-            serialized = json.dumps(record)
-            if CREDENTIAL_FIELD.search(serialized):
-                raise ValueError("sensitive credential field in publication record")
-            if agent_track and TRANSCRIPT_FIELD.search(serialized):
-                raise ValueError("private transcript field in agent publication record")
+        serialized = json.dumps(record)
+        if CREDENTIAL_FIELD.search(serialized):
+            raise ValueError("sensitive credential field in publication record")
+        if agent_track and TRANSCRIPT_FIELD.search(serialized):
+            raise ValueError("private transcript field in agent publication record")
 
 
 def _validate_agent_record(record: dict, generation: dict) -> None:
@@ -407,7 +432,7 @@ def register(catalog: dict, plan: dict) -> dict:
     if not SAFE_ID.fullmatch(name) or catalog.get("schema_version") != 1:
         raise ValueError("invalid dataset catalog")
     protocol = plan.get("protocol", "single-shot")
-    if protocol not in {"single-shot", AGENT_PROTOCOL}:
+    if protocol not in {"single-shot", *AGENT_PROTOCOLS}:
         raise ValueError("unregistered protocol")
 
     entry = {
@@ -441,7 +466,7 @@ def stage_publication(
 
     with tempfile.TemporaryDirectory(prefix="adpbench-publish-") as temp:
         draft = Path(temp)
-        publisher = publish_agent if plan.get("protocol") == AGENT_PROTOCOL else publish
+        publisher = publish_agent if is_agent_plan(plan) else publish
         board = publisher(artifacts, plan, run, jobs, draft / "records", draft / "site")
         hashes = payload_files(draft / "records")
         if records_dir.exists() or site_dir.exists():
@@ -571,12 +596,8 @@ def main() -> None:
     plan_path = source_plan_path(workflow, rule["plans"])
     plan = strict_json(command(["git", "show", f"{run['head_sha']}:{plan_path}"], repo))
 
-    jobs_response = api(f"actions/runs/{run['id']}/attempts/{positive_id(run['run_attempt'])}/jobs?per_page=100")
-    artifacts_response = api(f"actions/runs/{run['id']}/artifacts?per_page=100")
-    if jobs_response["total_count"] > 100 or artifacts_response["total_count"] > 100:
-        raise ValueError("unexpectedly large source run")
-    jobs = jobs_response["jobs"]
-    available = artifacts_response["artifacts"]
+    jobs = api_list(f"actions/runs/{run['id']}/attempts/{positive_id(run['run_attempt'])}/jobs", "jobs")
+    available = api_list(f"actions/runs/{run['id']}/artifacts", "artifacts")
 
     # 3. The jobs; 4. the artifacts; 5. validation and staging.
     with tempfile.TemporaryDirectory(prefix="adpbench-artifacts-") as temp:
@@ -613,7 +634,7 @@ def main() -> None:
 
 def _expected_artifacts(plan: dict, run: dict) -> list[tuple[str, str]]:
     """(final artifact name, earlier backup name) for each expected artifact."""
-    if plan.get("protocol") == AGENT_PROTOCOL:
+    if is_agent_plan(plan):
         return [(final, early) for _, _, final, early in agent_slots(plan, run["id"])]
     return [
         (f"go-core-{model['id']}-{run['id']}", f"go-generation-{model['id']}-{run['id']}")
