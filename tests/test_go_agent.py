@@ -75,7 +75,7 @@ class AgentTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             ctl.call("submit", {})
         self.assertEqual(ctl.call("read_file", {"path": "dut.py"})["content"], self.problem.root.joinpath("dut.py").read_text())
-        self.assertIn("EVAL_SEEDS = ()", (ctl.bundle / "adpbench/evaluate.py").read_text())
+        self.assertIn("EVAL_SEEDS = ()", (ctl.bundle / "adpbench/seeds.py").read_text())
 
     def test_explicit_freeze_and_dev_failure_not_hidden(self):
         ctl = self.controller()

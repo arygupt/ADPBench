@@ -117,6 +117,25 @@ sandbox/                  Docker boundary and agent image definitions
 pilot/                    configs plus published pilot results
 site/                     zero-dependency static leaderboard
 tests/                    pipeline, protocol, audit, report, and site tests
+scripts/                  OpenCode Go tracks: generation, scoring, publication
+```
+
+Inside `adpbench/`, in pipeline order:
+
+```text
+problem.py       load and validate a problem's dut.py spec
+seeds.py         development seeds vs held-out evaluation seeds
+synth.py         yosys synthesis and cell count
+vectors.py       NumPy reference -> hex test vectors, and output comparison
+sim.py           generated testbenches and iverilog gate-level simulation
+evaluate.py      synth -> vectors -> sim -> score, with resumable checkpoints
+audit.py         static checks that reject simulation-only or cheating constructs
+environment.py   the agent's task directory and the read-only sandbox bundle
+agent.py         run an agent CLI, freeze and audit its dut.v, score, record
+pilot.py         agent x problem x repetition matrix
+report.py        aggregate run records into a scoreboard
+site.py          export site/data JSON from frozen records
+cli.py           the `adpbench` command
 ```
 
 Methodology lives with the implementation in the problem specs and harness

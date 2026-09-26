@@ -1,4 +1,4 @@
-"""Command line interface."""
+"""Command line interface. Run `adpbench <command> --help` for each command."""
 
 from __future__ import annotations
 
@@ -7,52 +7,46 @@ import json
 import sys
 from pathlib import Path
 
-from .agent import DEFAULT_IMAGE, sha256_file
-from .evaluate import DEV_SEEDS, EVAL_SEEDS, evaluate, evaluate_multi, record_baseline
-from .problem import discover_problems, load_problem, repo_root
-
-
-def _resolve(spec: str) -> Path:
-    candidate = Path(spec)
-    if (candidate / "dut.py").is_file():
-        return candidate
-    matches = [p for p in discover_problems() if p.name == spec or str(p).endswith(spec)]
-    if len(matches) == 1:
-        return matches[0]
-    if not matches:
-        raise SystemExit(f"no problem matching '{spec}'")
-    raise SystemExit(
-        "ambiguous problem '{}':\n  {}".format(spec, "\n  ".join(str(m) for m in matches))
-    )
+from . import sim, synth
+from .agent import DEFAULT_IMAGE, run_agent
+from .environment import build_environment, snapshot
+from .evaluate import evaluate, evaluate_multi, record_baseline
+from .hashing import sha256_file
+from .pilot import load_pilot, run_pilot
+from .problem import discover_problems, find_problem, load_problem, repo_root
+from .report import load_runs, markdown, summarize
+from .seeds import DEV_SEEDS, EVAL_SEEDS
+from .site import export_sanity, export_site
 
 
 def cmd_list(args: argparse.Namespace) -> int:
     for path in discover_problems():
         problem = load_problem(path)
-        rel = path.relative_to(repo_root())
-        params = " ".join(f"{k}={v}" for k, v in problem.params.items())
+        relative = path.relative_to(repo_root())
+        params = " ".join(f"{name}={value}" for name, value in problem.params.items())
         marker = "baseline recorded" if problem.baseline_metrics.is_file() else "no baseline"
-        print(f"{rel}\n    {params}\n    {marker} ({problem.transactions} transactions)")
+        print(f"{relative}\n    {params}\n    {marker} ({problem.transactions} transactions)")
     return 0
 
 
 def cmd_baseline(args: argparse.Namespace) -> int:
-    problem = load_problem(_resolve(args.problem))
+    problem = load_problem(find_problem(args.problem))
     result = record_baseline(problem, [problem.baseline_rtl])
     if result.correct:
         print(f"{problem.name}: baseline recorded")
         print(f"  cells={result.cells} cycles={result.cycles} adp={result.adp:.0f}")
         print(f"  frozen -> {problem.baseline_metrics.relative_to(repo_root())}")
-    else:
-        print(f"{problem.name}: baseline FAILED")
-        print(f"  {result.metadata.get('correctness')}")
-        if "synthesis_log" in result.metadata:
-            print(result.metadata["synthesis_log"])
-    return 0 if result.correct else 1
+        return 0
+
+    print(f"{problem.name}: baseline FAILED")
+    print(f"  {result.metadata.get('correctness')}")
+    if "synthesis_log" in result.metadata:
+        print(result.metadata["synthesis_log"])
+    return 1
 
 
 def cmd_run(args: argparse.Namespace) -> int:
-    problem = load_problem(_resolve(args.problem))
+    problem = load_problem(find_problem(args.problem))
     rtl = Path(args.file).resolve() if args.file else problem.baseline_rtl
     if not rtl.is_file():
         raise SystemExit(f"no such RTL file: {rtl}")
@@ -61,19 +55,20 @@ def cmd_run(args: argparse.Namespace) -> int:
 
     if args.json:
         print(result.to_json())
-    else:
-        print(f"{problem.name} <- {rtl.name}")
-        print(f"  synthesizable : {result.synthesizable}")
-        print(f"  cells         : {result.cells}")
-        print(f"  cycles        : {result.cycles}")
-        print(f"  correct       : {result.correct}  ({result.metadata.get('correctness', '')})")
-        if result.correct and result.ratio > 0:
-            print(f"  adp           : {result.adp:.0f}")
-            print(f"  score         : {result.ratio:.2f}x baseline")
-        elif result.correct:
-            print("  score         : no baseline recorded (run `adpbench baseline`)")
+        return 0 if result.correct or result.synthesizable else 1
 
-    if not result.correct and not args.json:
+    print(f"{problem.name} <- {rtl.name}")
+    print(f"  synthesizable : {result.synthesizable}")
+    print(f"  cells         : {result.cells}")
+    print(f"  cycles        : {result.cycles}")
+    print(f"  correct       : {result.correct}  ({result.metadata.get('correctness', '')})")
+    if result.correct and result.ratio > 0:
+        print(f"  adp           : {result.adp:.0f}")
+        print(f"  score         : {result.ratio:.2f}x baseline")
+    elif result.correct:
+        print("  score         : no baseline recorded (run `adpbench baseline`)")
+
+    if not result.correct:
         for key in ("synthesis_log", "sim_log", "protocol_log"):
             if key in result.metadata:
                 print(f"\n--- {key} ---")
@@ -82,19 +77,19 @@ def cmd_run(args: argparse.Namespace) -> int:
 
 
 def cmd_env(args: argparse.Namespace) -> int:
-    from .agent import build_environment
-
-    problem = load_problem(_resolve(args.problem))
-    dest = Path(args.dest).resolve() if args.dest else repo_root() / "runs" / problem.name / "env"
+    problem = load_problem(find_problem(args.problem))
+    if args.dest:
+        dest = Path(args.dest).resolve()
+    else:
+        dest = repo_root() / "runs" / problem.name / "env"
     build_environment(problem, dest, force=args.force, sandbox=args.sandbox)
     print(dest)
     return 0
 
 
 def cmd_check(args: argparse.Namespace) -> int:
-    from .agent import snapshot
-
-    problem = load_problem(_resolve(args.problem))
+    """Dev-seed feedback, run by an agent's check.sh."""
+    problem = load_problem(find_problem(args.problem))
     rtl = Path(args.file).resolve()
     if not rtl.is_file():
         raise SystemExit(f"no such RTL file: {rtl}")
@@ -127,9 +122,7 @@ def cmd_check(args: argparse.Namespace) -> int:
 
 
 def cmd_agent(args: argparse.Namespace) -> int:
-    from .agent import run_agent
-
-    problem = load_problem(_resolve(args.problem))
+    problem = load_problem(find_problem(args.problem))
     dest = Path(args.dest).resolve() if args.dest else None
     record = run_agent(
         problem,
@@ -143,11 +136,12 @@ def cmd_agent(args: argparse.Namespace) -> int:
         network=args.network,
     )
 
+    timed_out = " (TIMED OUT)" if record.timed_out else ""
     print(f"problem    {problem.name}")
     print(f"label      {record.label}")
     print(f"agent      {record.agent_cmd}")
     print(f"sandbox    {record.sandbox}")
-    print(f"duration   {record.duration_s}s" + (" (TIMED OUT)" if record.timed_out else ""))
+    print(f"duration   {record.duration_s}s{timed_out}")
     print(f"history    {len(record.history)} submission(s) tested")
     print(f"audit      {'ok' if record.audit['ok'] else 'REJECTED'}")
     for violation in record.audit["violations"]:
@@ -171,8 +165,6 @@ def cmd_agent(args: argparse.Namespace) -> int:
 
 
 def cmd_report(args: argparse.Namespace) -> int:
-    from .report import load_runs, markdown, summarize
-
     runs_root = Path(args.runs).resolve() if args.runs else repo_root() / "runs"
     report = summarize(load_runs(runs_root))
     if args.json:
@@ -183,63 +175,69 @@ def cmd_report(args: argparse.Namespace) -> int:
 
 
 def cmd_replay(args: argparse.Namespace) -> int:
-    """Re-score a frozen run and check the number reproduces."""
-    import json
-    from .evaluate import evaluate_multi
-
+    """Re-score a frozen run and check that the recorded numbers reproduce."""
     run_dir = Path(args.run).resolve()
     record_path = run_dir / "record.json"
     if not record_path.is_file():
         raise SystemExit(f"no record.json under {run_dir}")
     record = json.loads(record_path.read_text())
 
-    problem = load_problem(_resolve(args.problem or record["problem"]))
-    for candidate in (
-        run_dir.parent / f"{run_dir.name}_frozen" / "dut.v",
-        run_dir / "clean" / "dut.v",
-        run_dir / "dut.v",
-    ):
-        if candidate.is_file() and not candidate.is_symlink():
-            submission = candidate
-            break
-    else:
+    problem = load_problem(find_problem(args.problem or record["problem"]))
+    submission = _find_frozen_submission(run_dir)
+    if submission is None:
         raise SystemExit(f"no frozen submission under {run_dir}")
 
-    result = evaluate_multi(
-        problem, [submission], seeds=EVAL_SEEDS, source=str(submission), tag="replay"
-    )
+    result = evaluate_multi(problem, [submission], seeds=EVAL_SEEDS, source=str(submission), tag="replay")
     recorded = record.get("result") or {}
     print(f"problem    {problem.name}")
     print(f"submission {submission}")
-    print(f"replayed   correct={result.correct} cells={result.cells} cycles={result.cycles} "
-          f"ratio={result.ratio:.4f}")
+    print(
+        f"replayed   correct={result.correct} cells={result.cells} cycles={result.cycles} "
+        f"ratio={result.ratio:.4f}"
+    )
     if recorded.get("correct") is not None:
-        print(f"recorded   correct={recorded.get('correct')} cells={recorded.get('cells')} "
-              f"cycles={recorded.get('cycles')} ratio={float(recorded.get('ratio', -1)):.4f}")
+        recorded_ratio = float(recorded.get("ratio", -1))
+        print(
+            f"recorded   correct={recorded.get('correct')} cells={recorded.get('cells')} "
+            f"cycles={recorded.get('cycles')} ratio={recorded_ratio:.4f}"
+        )
 
     matches = (
         bool(recorded.get("correct")) == result.correct
         and recorded.get("cells") == result.cells
         and recorded.get("cycles") == result.cycles
     )
+
     manifest_path = run_dir / "manifest.json"
     if manifest_path.is_file():
-        manifest = json.loads(manifest_path.read_text())
-        recorded_sha = manifest.get("submission_sha256", "")
+        recorded_sha = json.loads(manifest_path.read_text()).get("submission_sha256", "")
         if recorded_sha and recorded_sha != sha256_file(submission):
             print("replay     MISMATCH - frozen submission hash differs from the manifest")
             return 1
+
     if recorded.get("ratio") is not None and result.ratio >= 0:
         if abs(float(recorded["ratio"]) - result.ratio) > 1e-6:
             matches = False
             print("replay     MISMATCH - ratio differs (baseline or case set changed)")
+
     print(f"replay     {'MATCH' if matches else 'MISMATCH'}")
     return 0 if matches else 1
 
 
-def cmd_pilot(args: argparse.Namespace) -> int:
-    from .pilot import load_pilot, run_pilot
+def _find_frozen_submission(run_dir: Path) -> Path | None:
+    """The scored copy of dut.v for a run, checking current and older layouts."""
+    candidates = (
+        run_dir.parent / f"{run_dir.name}_frozen" / "dut.v",
+        run_dir / "clean" / "dut.v",
+        run_dir / "dut.v",
+    )
+    for candidate in candidates:
+        if candidate.is_file() and not candidate.is_symlink():
+            return candidate
+    return None
 
+
+def cmd_pilot(args: argparse.Namespace) -> int:
     config = load_pilot(args.config)
     if args.sandbox:
         config.sandbox = args.sandbox
@@ -254,21 +252,19 @@ def cmd_pilot(args: argparse.Namespace) -> int:
     return 0
 
 
-def cmd_site(args: argparse.Namespace) -> int:
-    from .site import export_sanity, export_site
+def cmd_site_export(args: argparse.Namespace) -> int:
+    out = export_site(args.pilot, args.out, sanity_file=args.sanity)
+    print(f"exported -> {out}")
+    return 0
 
-    if args.site_command == "export":
-        out = export_site(args.pilot, args.out, sanity_file=args.sanity)
-        print(f"exported -> {out}")
-    elif args.site_command == "sanity":
-        out = export_sanity(args.out)
-        print(f"sanity metrics -> {out}")
+
+def cmd_site_sanity(args: argparse.Namespace) -> int:
+    out = export_sanity(args.out)
+    print(f"sanity metrics -> {out}")
     return 0
 
 
 def cmd_seeds(args: argparse.Namespace) -> int:
-    from . import sim, synth
-
     payload = {
         "tool_versions": {"yosys": synth.tool_version(), "iverilog": sim.tool_version()},
         "problems": {},
@@ -292,82 +288,80 @@ def cmd_seeds(args: argparse.Namespace) -> int:
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="adpbench", description=__doc__)
-    sub = parser.add_subparsers(dest="command", required=True)
+    commands = parser.add_subparsers(dest="command", required=True)
 
-    p_list = sub.add_parser("list", help="list problems")
-    p_list.set_defaults(func=cmd_list)
+    p = commands.add_parser("list", help="list problems")
+    p.set_defaults(func=cmd_list)
 
-    p_base = sub.add_parser("baseline", help="score baseline.v and freeze it as the denominator")
-    p_base.add_argument("problem")
-    p_base.set_defaults(func=cmd_baseline)
+    p = commands.add_parser("baseline", help="score baseline.v and freeze it as the denominator")
+    p.add_argument("problem")
+    p.set_defaults(func=cmd_baseline)
 
-    p_run = sub.add_parser("run", help="evaluate a Verilog submission")
-    p_run.add_argument("problem")
-    p_run.add_argument("--file", "-f", help="Verilog file (default: the problem's baseline.v)")
-    p_run.add_argument("--seed", default=0)
-    p_run.add_argument("--json", action="store_true")
-    p_run.set_defaults(func=cmd_run)
+    p = commands.add_parser("run", help="evaluate a Verilog submission")
+    p.add_argument("problem")
+    p.add_argument("--file", "-f", help="Verilog file (default: the problem's baseline.v)")
+    p.add_argument("--seed", default=0)
+    p.add_argument("--json", action="store_true")
+    p.set_defaults(func=cmd_run)
 
-    p_env = sub.add_parser("env", help="build an agent task directory")
-    p_env.add_argument("problem")
-    p_env.add_argument("--dest")
-    p_env.add_argument("--force", action="store_true")
-    p_env.add_argument("--sandbox", choices=("none", "docker"), default="none")
-    p_env.set_defaults(func=cmd_env)
+    p = commands.add_parser("env", help="build an agent task directory")
+    p.add_argument("problem")
+    p.add_argument("--dest")
+    p.add_argument("--force", action="store_true")
+    p.add_argument("--sandbox", choices=("none", "docker"), default="none")
+    p.set_defaults(func=cmd_env)
 
-    p_check = sub.add_parser("check", help="dev-seed feedback for an agent (synth + sim + score)")
-    p_check.add_argument("--problem", required=True)
-    p_check.add_argument("--file", "-f", default="dut.v")
-    p_check.add_argument("--no-snapshot", action="store_true")
-    p_check.set_defaults(func=cmd_check)
+    p = commands.add_parser("check", help="dev-seed feedback for an agent (synth + sim + score)")
+    p.add_argument("--problem", required=True)
+    p.add_argument("--file", "-f", default="dut.v")
+    p.add_argument("--no-snapshot", action="store_true")
+    p.set_defaults(func=cmd_check)
 
-    p_agent = sub.add_parser("agent", help="run an agent CLI against a problem, then audit and score")
-    p_agent.add_argument("problem")
-    p_agent.add_argument("--cmd", required=True, help="shell command for the agent CLI")
-    p_agent.add_argument("--timeout", type=int, default=1800, help="seconds")
-    p_agent.add_argument("--dest")
-    p_agent.add_argument("--label", default="", help="evaluated system name for reports")
-    p_agent.add_argument("--attempt", type=int, default=1)
-    p_agent.add_argument("--sandbox", choices=("none", "docker"), default="none")
-    p_agent.add_argument("--image", default=DEFAULT_IMAGE)
-    p_agent.add_argument("--network", default="bridge")
-    p_agent.set_defaults(func=cmd_agent)
+    p = commands.add_parser("agent", help="run an agent CLI against a problem, then audit and score")
+    p.add_argument("problem")
+    p.add_argument("--cmd", required=True, help="shell command for the agent CLI")
+    p.add_argument("--timeout", type=int, default=1800, help="seconds")
+    p.add_argument("--dest")
+    p.add_argument("--label", default="", help="evaluated system name for reports")
+    p.add_argument("--attempt", type=int, default=1)
+    p.add_argument("--sandbox", choices=("none", "docker"), default="none")
+    p.add_argument("--image", default=DEFAULT_IMAGE)
+    p.add_argument("--network", default="bridge")
+    p.set_defaults(func=cmd_agent)
 
-    p_report = sub.add_parser("report", help="aggregate run records into a scoreboard")
-    p_report.add_argument("--runs", help="runs directory (default: runs/)")
-    p_report.add_argument("--json", action="store_true")
-    p_report.set_defaults(func=cmd_report)
+    p = commands.add_parser("report", help="aggregate run records into a scoreboard")
+    p.add_argument("--runs", help="runs directory (default: runs/)")
+    p.add_argument("--json", action="store_true")
+    p.set_defaults(func=cmd_report)
 
-    p_replay = sub.add_parser("replay", help="re-score a frozen run and check the number")
-    p_replay.add_argument("run", help="a run directory containing record.json")
-    p_replay.add_argument("--problem", help="override the problem recorded in the run")
-    p_replay.set_defaults(func=cmd_replay)
+    p = commands.add_parser("replay", help="re-score a frozen run and check the number")
+    p.add_argument("run", help="a run directory containing record.json")
+    p.add_argument("--problem", help="override the problem recorded in the run")
+    p.set_defaults(func=cmd_replay)
 
-    p_pilot = sub.add_parser("pilot", help="run a model x problem x repetition matrix")
-    p_pilot.add_argument("--config", required=True, help="pilot config JSON")
-    p_pilot.add_argument("--runs", help="runs directory (default: runs/)")
-    p_pilot.add_argument("--sandbox", choices=("none", "docker"))
-    p_pilot.add_argument("--repetitions", type=int)
-    p_pilot.add_argument("--jobs", type=int, default=1, help="parallel run cells")
-    p_pilot.add_argument("--publish", help="copy plan and report files here")
-    p_pilot.set_defaults(func=cmd_pilot)
+    p = commands.add_parser("pilot", help="run a model x problem x repetition matrix")
+    p.add_argument("--config", required=True, help="pilot config JSON")
+    p.add_argument("--runs", help="runs directory (default: runs/)")
+    p.add_argument("--sandbox", choices=("none", "docker"))
+    p.add_argument("--repetitions", type=int)
+    p.add_argument("--jobs", type=int, default=1, help="parallel run cells")
+    p.add_argument("--publish", help="copy plan and report files here")
+    p.set_defaults(func=cmd_pilot)
 
-    p_seeds = sub.add_parser("seeds", help="publish the evaluation seed manifest")
-    p_seeds.add_argument("--out")
-    p_seeds.set_defaults(func=cmd_seeds)
+    p = commands.add_parser("seeds", help="publish the evaluation seed manifest")
+    p.add_argument("--out")
+    p.set_defaults(func=cmd_seeds)
 
-    p_site = sub.add_parser("site", help="export data for the static leaderboard site")
-    site_sub = p_site.add_subparsers(dest="site_command", required=True)
-    p_export = site_sub.add_parser("export", help="export a frozen pilot directory")
-    p_export.add_argument("--pilot", required=True, help="pilot run directory")
-    p_export.add_argument("--out", required=True, help="site data directory")
-    p_export.add_argument("--sanity", help="sanity metrics file (adpbench site sanity)")
-    p_export.set_defaults(func=cmd_site)
-    p_sanity = site_sub.add_parser(
-        "sanity", help="evaluate every sanity solution into a metrics file"
-    )
-    p_sanity.add_argument("--out", required=True)
-    p_sanity.set_defaults(func=cmd_site)
+    site = commands.add_parser("site", help="export data for the static leaderboard site")
+    site_commands = site.add_subparsers(dest="site_command", required=True)
+    p = site_commands.add_parser("export", help="export a frozen pilot directory")
+    p.add_argument("--pilot", required=True, help="pilot run directory")
+    p.add_argument("--out", required=True, help="site data directory")
+    p.add_argument("--sanity", help="sanity metrics file (adpbench site sanity)")
+    p.set_defaults(func=cmd_site_export)
+    p = site_commands.add_parser("sanity", help="evaluate every sanity solution into a metrics file")
+    p.add_argument("--out", required=True)
+    p.set_defaults(func=cmd_site_sanity)
 
     return parser
 

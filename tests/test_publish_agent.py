@@ -5,7 +5,8 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from scripts.go_pilot import read_plan, write_json
+from adpbench.durable import atomic_json
+from scripts.go_pilot import read_plan
 from scripts.publish_agent import PROTOCOL, WORKFLOW, job_name, publish_agent
 from scripts.publish_go import REPOSITORY
 from scripts.publish_results import validate_source, validate_records, stage_publication, strict_json
@@ -25,12 +26,12 @@ class AgentPublicationTest(unittest.TestCase):
         self.policy = {"schema_version":1, "workflows":{WORKFLOW:{"name":"OpenCode Go agent runs"}}}
         self.jobs, self.paths = [], []
         self.repo = self.root / "checkout"
-        write_json(self.repo / "site/data/evaluations.json", {"schema_version":1, "default":"pilot-001", "evaluations":[
+        atomic_json(self.repo / "site/data/evaluations.json", {"schema_version":1, "default":"pilot-001", "evaluations":[
             {"id":"pilot-001", "label":"Original", "path":"data/leaderboard.json", "protocol":"iterative"}]})
         for index, problem in enumerate(self.plan["problems"]):
             model = self.plan["models"][0]
             artifact = self.root / "artifacts" / f"go-agent-records-{model['id']}-{problem}-123"
-            write_json(artifact / "plan.json", self.plan)
+            atomic_json(artifact / "plan.json", self.plan)
             dest = artifact / f"opencode-go-{model['id']}" / problem / "rep1"
             source = dest.parent / "rep1_frozen/dut.v"
             source.parent.mkdir(parents=True)
@@ -45,8 +46,8 @@ class AgentPublicationTest(unittest.TestCase):
                 "group":"agent-test", "outcome":"correct", "execution_health":"completed", "audit":{"ok":True},
                 "result":{"correct":True, "ratio":1.2, "cells":10, "cycles":20, "adp":200, "metadata":{"stage":"ok"}},
                 "manifest":{"generation":generation, "submission_sha256":hashlib.sha256(source.read_bytes()).hexdigest()}}
-            write_json(dest / "generation.json", generation)
-            write_json(dest / "record.json", record)
+            atomic_json(dest / "generation.json", generation)
+            atomic_json(dest / "record.json", record)
             self.paths.append(dest)
             for offset, stage in enumerate(("Generate", "Evaluate")):
                 self.jobs.append({"id":456 + index*2 + offset, "name":f"{model['id']} · {problem} / {job_name(stage, model['id'], problem)}",
@@ -61,10 +62,10 @@ class AgentPublicationTest(unittest.TestCase):
     def set_generation(self, dest, **change):
         generation = strict_json((dest / "generation.json").read_bytes())
         generation.update(change)
-        write_json(dest / "generation.json", generation)
+        atomic_json(dest / "generation.json", generation)
         record = strict_json((dest / "record.json").read_bytes())
         record["manifest"]["generation"] = generation
-        write_json(dest / "record.json", record)
+        atomic_json(dest / "record.json", record)
 
     def test_slot_artifacts_publish_separate_track_and_usage(self):
         board = self.publish()
@@ -80,7 +81,7 @@ class AgentPublicationTest(unittest.TestCase):
         dest = self.paths[0]
         record = strict_json((dest / "record.json").read_bytes())
         record.update(outcome="scoring_interrupted", execution_health="failed", result=None, error="interrupted")
-        write_json(dest / "record.json", record)
+        atomic_json(dest / "record.json", record)
         board = self.publish()
         model = board["models"][0]
         self.assertEqual(model["correct"], 1)
@@ -104,10 +105,10 @@ class AgentPublicationTest(unittest.TestCase):
             self.set_generation(dest, **original)
             current = strict_json((dest / "generation.json").read_bytes())
             current.pop("messages", None)
-            write_json(dest / "generation.json", current)
+            atomic_json(dest / "generation.json", current)
         record = strict_json((dest / "record.json").read_bytes())
         record["outcome"] = "incorrect"
-        write_json(dest / "record.json", record)
+        atomic_json(dest / "record.json", record)
         with self.assertRaisesRegex(ValueError, "contradicts"):
             validate_records(self.root / "artifacts", self.plan, self.run)
 
@@ -143,13 +144,13 @@ class AgentPublicationTest(unittest.TestCase):
         record.update(outcome="incorrect")
         record["result"].update(correct=False, ratio=-1)
         record["result"]["metadata"]["stage"] = "incorrect"
-        write_json(dest / "record.json", record)
+        atomic_json(dest / "record.json", record)
         board = self.publish()
         self.assertEqual(board["models"][0]["wrong_rtl"], 1)
         self.assertEqual(board["models"][0]["scored"], 2)
         self.assertEqual(board["models"][0]["infra"], 0)
         record.update(outcome="scoring_interrupted", error="timeout")
-        write_json(dest / "record.json", record)
+        atomic_json(dest / "record.json", record)
         with self.assertRaisesRegex(ValueError, "health contradicts"):
             validate_records(self.root / "artifacts", self.plan, self.run)
 

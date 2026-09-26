@@ -7,7 +7,7 @@ import zipfile
 from pathlib import Path
 from unittest.mock import patch
 
-from scripts.go_pilot import write_json
+from adpbench.durable import atomic_json
 from scripts.publish_results import (
     REPOSITORY, MAX_FILES, extract_archive, strict_json, validate_source,
     validate_records, stage_publication, open_results_pr, register, source_plan_path,
@@ -23,16 +23,16 @@ class PublicationTest(PublishGoTest):
         self.policy = {"schema_version":1, "workflows": {".github/workflows/go-core.yml": {"name":"OpenCode Go model runs"}}}
         self.catalog = {"schema_version":1, "default":"pilot-001", "evaluations":[{"id":"pilot-001", "label":"Original", "path":"data/leaderboard.json", "protocol":"iterative"}]}
         self.repo = self.root / "checkout"
-        write_json(self.repo / "site/data/evaluations.json", self.catalog)
+        atomic_json(self.repo / "site/data/evaluations.json", self.catalog)
         for path in self.artifact.glob("**/generation.json"):
             generation = strict_json(path.read_bytes())
             generation.update(max_output_tokens=8192, generation_settings={"reasoning":{"enabled":False}, "token_limit_key":"max_completion_tokens"})
-            write_json(path, generation)
+            atomic_json(path, generation)
             record_path = path.parent / "record.json"
             record = strict_json(record_path.read_bytes())
             record.update(group=self.plan["name"], audit={"ok":True})
             record["manifest"]["generation"] = generation
-            write_json(record_path, record)
+            atomic_json(record_path, record)
 
     def test_only_completed_same_repo_main_generations_are_accepted(self):
         validate_source(self.run, self.jobs, self.plan, self.policy)
@@ -74,14 +74,14 @@ class PublicationTest(PublishGoTest):
         original = strict_json(path.read_bytes())
         for change in [dict(error="provider rejected"), dict(audit={"ok":False}), dict(attempt=2),
                        dict(group="other"), dict(api_key="never publish")]:
-            write_json(path, {**original, **change})
+            atomic_json(path, {**original, **change})
             with self.subTest(change=change), self.assertRaises(ValueError):
                 validate_records(self.root / "artifacts", self.plan, self.run)
-        write_json(path, original)
+        atomic_json(path, original)
         gen = path.parent / "generation.json"
         original_gen = strict_json(gen.read_bytes())
         for change in [dict(max_output_tokens=99999), dict(generation_settings={})]:
-            write_json(gen, {**original_gen, **change})
+            atomic_json(gen, {**original_gen, **change})
             with self.assertRaises(ValueError):
                 validate_records(self.root / "artifacts", self.plan, self.run)
 
@@ -118,21 +118,21 @@ class PublicationTest(PublishGoTest):
 
     def test_per_model_output_limits_are_validated_and_exported(self):
         self.plan.update(output_budget="provider_max", max_output_tokens={"mimo-v2.5":128000})
-        write_json(self.artifact / "plan.json", self.plan)
+        atomic_json(self.artifact / "plan.json", self.plan)
         for path in self.artifact.glob("**/generation.json"):
             generation = strict_json(path.read_bytes())
             generation["max_output_tokens"] = 128000
-            write_json(path, generation)
+            atomic_json(path, generation)
             record_path = path.parent / "record.json"
             record = strict_json(record_path.read_bytes())
             record["manifest"]["generation"] = generation
-            write_json(record_path, record)
+            atomic_json(record_path, record)
         stage_publication(self.repo, self.root / "artifacts", self.plan, self.run, self.jobs, [])
         board = strict_json((self.repo / "site/data" / self.plan["name"] / "leaderboard.json").read_bytes())
         self.assertEqual(board["meta"]["output_budget"], "provider_max")
         self.assertEqual(board["meta"]["max_output_tokens"], {"mimo-v2.5":128000})
         generation["max_output_tokens"] = 384000
-        write_json(path, generation)
+        atomic_json(path, generation)
         with self.assertRaisesRegex(ValueError, "budget differs"):
             validate_records(self.root / "artifacts", self.plan, self.run)
 

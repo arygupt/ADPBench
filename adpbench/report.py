@@ -34,12 +34,13 @@ class RunSummary:
     error: str
     timed_out: bool
     group: str = ""
+    # Only set for the agent-assisted track, which records a typed outcome.
     outcome: str = ""
     execution_health: str = ""
 
     @property
     def kind(self) -> str:
-        """ok, wrong_rtl, or infrastructure.
+        """How the run ended: ok, wrong_rtl, infrastructure, or submission_failure.
 
         Infrastructure means nothing was scored: a harness error or a run that
         timed out before producing any submission. A timeout that still left a
@@ -47,10 +48,15 @@ class RunSummary:
         """
         if self.correct:
             return "ok"
+
         if self.outcome:
+            # Agent-assisted track: trust the typed outcome.
             if self.execution_health == "failed":
                 return "infrastructure"
-            return "wrong_rtl" if self.outcome == "incorrect" else "submission_failure"
+            if self.outcome == "incorrect":
+                return "wrong_rtl"
+            return "submission_failure"
+
         if self.error:
             return "infrastructure"
         if self.stage in INFRASTRUCTURE_STAGES:
@@ -58,6 +64,48 @@ class RunSummary:
         if self.timed_out and not self.stage:
             return "infrastructure"
         return "wrong_rtl"
+
+
+# --------------------------------------------------------------------------
+# Loading records
+# --------------------------------------------------------------------------
+
+
+def load_runs(root: str | Path) -> list[RunSummary]:
+    """Every harness-written record.json under `root`, sorted by label/problem/attempt."""
+    root = Path(root)
+    runs = [
+        _summary_from_record(path)
+        for path in root.glob("**/record.json")
+        if _is_canonical(path, root)
+    ]
+    runs.sort(key=lambda run: (run.label, run.problem, run.attempt))
+    return runs
+
+
+def _is_canonical(path: Path, root: Path) -> bool:
+    """Only records at the exact locations the harness writes are counted.
+
+    Task directories are agent-writable, so a nested `record.json` could be
+    fabricated. Records are accepted only at these depths:
+
+        <problem>/<stamp>/record.json                     (a single `adpbench agent` run)
+        <label>/<problem>/rep<N>/record.json              (inside a pilot directory)
+        pilot_<...>/<label>/<problem>/rep<N>/record.json  (a runs/ directory of pilots)
+
+    Anything deeper is ignored.
+    """
+    try:
+        parts = path.relative_to(root).parts
+    except ValueError:
+        return False
+    if len(parts) == 3:
+        return True
+    if len(parts) == 4 and parts[2].startswith("rep"):
+        return True
+    if len(parts) == 5 and parts[0].startswith("pilot_") and parts[3].startswith("rep"):
+        return True
+    return False
 
 
 def _summary_from_record(path: Path) -> RunSummary:
@@ -81,61 +129,47 @@ def _summary_from_record(path: Path) -> RunSummary:
     )
 
 
-def _is_canonical(path: Path, root: Path) -> bool:
-    """Only host-written record locations count.
-
-    Task directories are agent-writable, so a nested `record.json` could be
-    fabricated. Records are accepted only at the exact depths this harness
-    writes: `runs/<problem>/<stamp>/record.json`, or a pilot's
-    `<pilot>/<label>/<problem>/rep<N>/record.json` (also relative to a pilot
-    root). Anything deeper is ignored.
-    """
-    try:
-        rel = path.relative_to(root).parts
-    except ValueError:
-        return False
-    if len(rel) == 3:
-        return True
-    if len(rel) == 4 and rel[2].startswith("rep"):
-        return True
-    if len(rel) == 5 and rel[0].startswith("pilot_") and rel[3].startswith("rep"):
-        return True
-    return False
+# --------------------------------------------------------------------------
+# Aggregation
+# --------------------------------------------------------------------------
 
 
-def load_runs(root: str | Path) -> list[RunSummary]:
-    root = Path(root)
-    return sorted(
-        (
-            _summary_from_record(path)
-            for path in root.glob("**/record.json")
-            if _is_canonical(path, root)
-        ),
-        key=lambda run: (run.label, run.problem, run.attempt),
-    )
+def summarize(runs: list[RunSummary]) -> dict:
+    """{"labels": {label: bucket with "per_problem"}, "totals": bucket}."""
+    by_label: dict[str, list[RunSummary]] = {}
+    for run in runs:
+        by_label.setdefault(run.label, []).append(run)
 
+    report: dict = {"labels": {}, "totals": _bucket(runs)}
+    for label, label_runs in sorted(by_label.items()):
+        by_problem: dict[str, list[RunSummary]] = {}
+        for run in label_runs:
+            by_problem.setdefault(run.problem, []).append(run)
 
-def _geomean(values: list[float]) -> float:
-    positive = [value for value in values if value > 0]
-    if not positive:
-        return -1.0
-    return math.exp(sum(math.log(value) for value in positive) / len(positive))
+        bucket = _bucket(label_runs)
+        bucket["per_problem"] = {
+            problem: _bucket(problem_runs) for problem, problem_runs in sorted(by_problem.items())
+        }
+        report["labels"][label] = bucket
+    return report
 
 
 def _bucket(runs: list[RunSummary]) -> dict:
+    """Counts and rates for a group of runs. Rates use every attempt as the denominator."""
     attempts = len(runs)
     correct = [run for run in runs if run.correct]
     beating = [run for run in correct if run.ratio > 1.0]
     kinds = Counter(run.kind for run in runs)
+
     bucket = {
         "attempts": attempts,
         "correct": len(correct),
-        "correctness_rate": round(len(correct) / attempts, 4) if attempts else 0.0,
+        "correctness_rate": _rate(len(correct), attempts),
         "beating_baseline": len(beating),
-        "beat_baseline_rate": round(len(beating) / attempts, 4) if attempts else 0.0,
-        "geomean_ratio_successful": round(_geomean([run.ratio for run in correct]), 4)
-        if correct
-        else -1.0,
+        "beat_baseline_rate": _rate(len(beating), attempts),
+        "geomean_ratio_successful": (
+            round(_geomean([run.ratio for run in correct]), 4) if correct else -1.0
+        ),
         "failures": {
             "wrong_rtl": kinds.get("wrong_rtl", 0),
             "infrastructure": kinds.get("infrastructure", 0),
@@ -148,68 +182,62 @@ def _bucket(runs: list[RunSummary]) -> dict:
     return bucket
 
 
-def summarize(runs: list[RunSummary]) -> dict:
-    labels: dict[str, list[RunSummary]] = {}
-    for run in runs:
-        labels.setdefault(run.label, []).append(run)
+def _rate(count: int, attempts: int) -> float:
+    return round(count / attempts, 4) if attempts else 0.0
 
-    report: dict = {"labels": {}, "totals": _bucket(runs)}
-    for label, group in sorted(labels.items()):
-        bucket = _bucket(group)
-        problems: dict[str, list[RunSummary]] = {}
-        for run in group:
-            problems.setdefault(run.problem, []).append(run)
-        bucket["per_problem"] = {
-            problem: _bucket(problem_runs)
-            for problem, problem_runs in sorted(problems.items())
-        }
-        report["labels"][label] = bucket
-    return report
+
+def _geomean(values: list[float]) -> float:
+    positive = [value for value in values if value > 0]
+    if not positive:
+        return -1.0
+    return math.exp(sum(math.log(value) for value in positive) / len(positive))
+
+
+# --------------------------------------------------------------------------
+# Output
+# --------------------------------------------------------------------------
 
 
 def markdown(report: dict) -> str:
     lines = [
-        "| evaluated system | attempts | correct | correctness | beat baseline | beat rate | geomean (successful) | wrong RTL | infra |",
+        "| evaluated system | attempts | correct | correctness | beat baseline | beat rate "
+        "| geomean (successful) | wrong RTL | infra |",
         "|---|---:|---:|---:|---:|---:|---:|---:|---:|",
     ]
     for label, bucket in report["labels"].items():
-        lines.append(
-            "| `{label}` | {attempts} | {correct} | {correctness:.0%} | {beating} | "
-            "{beat_rate:.0%} | {geomean:.2f}x | {wrong} | {infra} |".format(
-                label=label,
-                attempts=bucket["attempts"],
-                correct=bucket["correct"],
-                correctness=bucket["correctness_rate"],
-                beating=bucket["beating_baseline"],
-                beat_rate=bucket["beat_baseline_rate"],
-                geomean=bucket["geomean_ratio_successful"],
-                wrong=bucket["failures"]["wrong_rtl"],
-                infra=bucket["failures"]["infrastructure"],
-            )
-        )
+        lines.append(_table_row(f"`{label}`", bucket))
     totals = report["totals"]
-    lines.append(
-        "| **all** | {attempts} | {correct} | {correctness:.0%} | {beating} | "
-        "{beat_rate:.0%} | {geomean:.2f}x | {wrong} | {infra} |".format(
-            attempts=totals["attempts"],
-            correct=totals["correct"],
-            correctness=totals["correctness_rate"],
-            beating=totals["beating_baseline"],
-            beat_rate=totals["beat_baseline_rate"],
-            geomean=totals["geomean_ratio_successful"],
-            wrong=totals["failures"]["wrong_rtl"],
-            infra=totals["failures"]["infrastructure"],
-        )
-    )
+    lines.append(_table_row("**all**", totals))
+
     if totals.get("outcomes"):
         lines += ["", "Agent-assisted outcomes (separate from execution health):", ""]
         for outcome, count in sorted(totals["outcomes"].items()):
             lines.append(f"- {outcome}: {count}")
-        lines += ["", "Rates use all scheduled slots. Unscored submissions and interrupted jobs are not claims of incorrect arithmetic. Development checks are not held-out benchmark passes."]
+        lines += [
+            "",
+            "Rates use all scheduled slots. Unscored submissions and interrupted jobs are not "
+            "claims of incorrect arithmetic. Development checks are not held-out benchmark passes.",
+        ]
     return "\n".join(lines) + "\n"
 
 
+def _table_row(name: str, bucket: dict) -> str:
+    cells = [
+        name,
+        str(bucket["attempts"]),
+        str(bucket["correct"]),
+        f"{bucket['correctness_rate']:.0%}",
+        str(bucket["beating_baseline"]),
+        f"{bucket['beat_baseline_rate']:.0%}",
+        f"{bucket['geomean_ratio_successful']:.2f}x",
+        str(bucket["failures"]["wrong_rtl"]),
+        str(bucket["failures"]["infrastructure"]),
+    ]
+    return "| " + " | ".join(cells) + " |"
+
+
 def write_report(runs_root: str | Path, out_dir: str | Path | None = None) -> dict:
+    """Summarize the runs under `runs_root` into report.json and REPORT.md."""
     runs_root = Path(runs_root)
     out_dir = Path(out_dir) if out_dir else runs_root
     report = summarize(load_runs(runs_root))

@@ -11,7 +11,7 @@ from unittest.mock import patch
 
 from adpbench.durable import atomic_json
 from adpbench.evaluate import evaluate_multi
-from adpbench.process import deadline, run_logged
+from adpbench.process import run_logged
 from adpbench.problem import load_problem, repo_root
 from adpbench.result import EvalResult
 from adpbench import sim
@@ -53,8 +53,8 @@ class ProcessTest(unittest.TestCase):
             self.assertEqual((root / "size.log").stat().st_size, 128)
 
     def test_parent_deadline_prevents_tool_launch(self):
-        with tempfile.TemporaryDirectory() as tmp, deadline(-1), patch("adpbench.process.subprocess.Popen") as popen:
-            result = run_logged(["never-execute"],Path(tmp),"deadline")
+        with tempfile.TemporaryDirectory() as tmp, patch("adpbench.process.subprocess.Popen") as popen:
+            result = run_logged(["never-execute"],Path(tmp),"deadline",deadline_at=time.monotonic() - 1)
             self.assertTrue(result["timed_out"])
             popen.assert_not_called()
 
@@ -80,7 +80,7 @@ class CheckpointTest(unittest.TestCase):
         self.tools.start()
         self.addCleanup(self.tools.stop)
 
-    def synth(self, problem, paths, workdir):
+    def synth(self, problem, paths, workdir, deadline_at=None):
         workdir.mkdir(parents=True,exist_ok=True)
         netlist = workdir / "netlist.v"
         netlist.write_text("trusted netlist fixture")

@@ -1,34 +1,133 @@
-"""Validate actual Actions artifacts and export a separate single-shot dataset.
+"""Validate real Actions artifacts and export them as a separate single-shot dataset.
 
-No model calls. No invented scores. No automatic git commit or repository push.
-Only canonical records for the reviewed plan can be published; all submissions
-are checked against the scorer's frozen SHA-256. Raw reasoning stays in Actions
-artifacts and is never included in the website.
+    python -m scripts.publish_go --artifacts <dir> --run-id <id>
+
+No model calls, no invented scores, no automatic git commit or push. Only
+canonical records for the reviewed plan can be published, and every
+submission is checked against the scorer's frozen SHA-256. Raw reasoning stays
+in Actions artifacts and never reaches the website.
+
+When a job ended before uploading its evidence, the published record says so
+(`record_origin`) and carries no score.
+
+This module also holds the steps shared with publish_agent.py: writing the
+published record tree and building the leaderboard from it.
 """
+
 from __future__ import annotations
 
 import argparse
-import hashlib
 import json
 import re
 import shutil
 import subprocess
 from pathlib import Path
 
+from adpbench.durable import atomic_json
+from adpbench.hashing import sha256_bytes
 from adpbench.problem import repo_root
 from adpbench.report import write_report
 from adpbench.site import export_site
-from scripts.go_pilot import read_plan, write_json
+from scripts.go_pilot import read_plan, slot_dir
 
 REPOSITORY = "arygupt/ADPBench"
+WORKFLOW = ".github/workflows/go-core.yml"
+PROTOCOL = "single-shot"
+FINISHED_JOB_CONCLUSIONS = {"success", "failure", "timed_out", "cancelled"}
+FAILED_JOB_CONCLUSIONS = {"failure", "timed_out", "cancelled"}
+ACTIONS_RUN_FIELDS = ("id", "run_attempt", "head_sha", "html_url", "status", "conclusion", "event", "path")
+ACTIONS_JOB_FIELDS = ("id", "name", "status", "conclusion", "started_at", "completed_at")
 
 
 def github(path: str) -> dict:
-    return json.loads(subprocess.run(["gh", "api", f"repos/{REPOSITORY}/{path}"], check=True, capture_output=True, text=True).stdout)
+    """GET a GitHub REST API path for this repository, via the `gh` CLI."""
+    command = ["gh", "api", f"repos/{REPOSITORY}/{path}"]
+    return json.loads(subprocess.run(command, check=True, capture_output=True, text=True).stdout)
 
 
-def publish(artifacts: Path, plan: dict, run: dict, jobs: list[dict], output: Path, site_output: Path) -> dict:
-    if run["status"] != "completed" or run["event"] != "workflow_dispatch" or run["path"] != ".github/workflows/go-core.yml":
+# --------------------------------------------------------------------------
+# Shared with publish_agent.py
+# --------------------------------------------------------------------------
+
+
+def execution_evidence(run: dict, job: dict) -> dict:
+    """Where a published result came from: the exact Actions run, attempt, job, and commit."""
+    return {
+        "kind": "model-evaluation",
+        "repository": REPOSITORY,
+        "run_id": run["id"],
+        "run_attempt": run["run_attempt"],
+        "job_id": job["id"],
+        "commit": run["head_sha"],
+        "completed_at": job["completed_at"],
+        "job_conclusion": job["conclusion"],
+    }
+
+
+def write_published_records(output: Path, plan: dict, slots: list[dict]) -> None:
+    """Write plan.json and each slot's generation, record, manifest, and frozen RTL.
+
+    Each slot is {"model_id", "problem", "record", "generation", "source"},
+    where `source` is the frozen dut.v to copy, or None.
+    """
+    output.mkdir(parents=True)
+    atomic_json(output / "plan.json", plan)
+    for slot in slots:
+        dest = slot_dir(output, slot["model_id"], slot["problem"])
+        atomic_json(dest / "generation.json", slot["generation"])
+        atomic_json(dest / "record.json", slot["record"])
+        atomic_json(dest / "manifest.json", slot["record"]["manifest"])
+        if slot["source"] is not None:
+            frozen = dest.parent / "rep1_frozen" / "dut.v"
+            frozen.parent.mkdir(parents=True)
+            shutil.copyfile(slot["source"], frozen)
+
+
+def export_leaderboard(output: Path, site_output: Path, plan: dict) -> dict:
+    """Report and site data for the published records. Returns the leaderboard to finish."""
+    write_report(output)
+    export_site(output, site_output, repo_root() / "pilot/sanity.json")
+    board = json.loads((site_output / "leaderboard.json").read_text())
+    board["problems"] = [problem for problem in board["problems"] if problem["name"] in plan["problems"]]
+    return board
+
+
+def save_leaderboard(output: Path, site_output: Path, board: dict, run: dict, jobs: list[dict]) -> None:
+    """Write the finished leaderboard, plus actions.json describing the source run and jobs."""
+    atomic_json(site_output / "leaderboard.json", board)
+    actions = {
+        "run": {field: run[field] for field in ACTIONS_RUN_FIELDS if field in run},
+        "jobs": [{field: job[field] for field in ACTIONS_JOB_FIELDS if field in job} for job in jobs],
+    }
+    atomic_json(output / "actions.json", actions)
+
+
+def check_frozen_hash(source: Path | None, record: dict) -> None:
+    """The published RTL must be exactly the RTL the recorded score was computed on."""
+    expected = record["manifest"].get("submission_sha256")
+    if source is not None:
+        if sha256_bytes(source.read_bytes()) != expected:
+            raise ValueError("frozen submission hash mismatch")
+    elif expected or (record.get("result") or {}).get("correct"):
+        raise ValueError("score has no matching frozen submission")
+
+
+def output_tokens(generation: dict, *, prefer: str = "completion_tokens") -> int:
+    usage = generation.get("usage", {})
+    other = "output_tokens" if prefer == "completion_tokens" else "completion_tokens"
+    return usage.get(prefer, usage.get(other, 0))
+
+
+# --------------------------------------------------------------------------
+# Single-shot publication
+# --------------------------------------------------------------------------
+
+
+def publish(
+    artifacts: Path, plan: dict, run: dict, jobs: list[dict], output: Path, site_output: Path
+) -> dict:
+    """Validate a completed go-core run's artifacts and publish them. Returns the leaderboard."""
+    if run["status"] != "completed" or run["event"] != "workflow_dispatch" or run["path"] != WORKFLOW:
         raise ValueError("only a completed manually dispatched Go core evaluation may be published")
     if run.get("repository", {}).get("full_name", "").lower() != REPOSITORY.lower():
         raise ValueError("unexpected repository")
@@ -36,112 +135,147 @@ def publish(artifacts: Path, plan: dict, run: dict, jobs: list[dict], output: Pa
         raise ValueError("invalid evaluated commit")
     if output.exists() or site_output.exists():
         raise FileExistsError("never overwrite published results")
-    prepared = []
+
+    slots = []
     for model in plan["models"]:
-        model_id = model["id"]
-        job = next(j for j in jobs if j["name"] == f"Evaluate {model_id} · dot product + GEMV")
-        if job["status"] != "completed" or job["conclusion"] not in {"success", "failure", "timed_out", "cancelled"}:
-            raise ValueError(f"model job not evaluated: {model_id}")
-        artifact = artifacts / f"go-core-{model_id}-{run['id']}"
-        if not artifact.exists() and job["conclusion"] in {"failure", "timed_out", "cancelled"}:
-            # A job-level timeout can prevent always() artifact-upload steps.
-            # Publish only the observed job status, never fabricated scores,
-            # provider responses, token counts, or submission hashes.
-            for problem in plan["problems"]:
-                outcome = {"timed_out": "timed out", "cancelled": "was cancelled", "failure": "failed"}[job["conclusion"]]
-                error = f"GitHub job {outcome} before final artifacts were uploaded. Per-problem generation, scores, RTL and token usage are unavailable."
-                gen = {"model": model_id, "problem": problem, "protocol": "single-shot", "evidence_unavailable": True}
-                record = {
-                    "problem": problem, "label": f"opencode-go/{model_id} [single-shot]", "attempt": 1,
-                    "group": plan["name"], "record_origin": "github-job-status-only", "error": error,
-                    "result": None, "manifest": {"generation": gen},
-                    "execution": {"kind": "model-evaluation", "repository": REPOSITORY,
-                                  "run_id": run["id"], "run_attempt": run["run_attempt"], "job_id": job["id"],
-                                  "commit": run["head_sha"], "completed_at": job["completed_at"],
-                                  "job_conclusion": job["conclusion"]},
-                }
-                prepared.append((model_id, problem, record, gen, artifact / "missing.v"))
-            continue
-        if json.loads((artifact / "plan.json").read_text()) != plan:
-            raise ValueError("artifact plan differs from the reviewed plan")
-        for problem in plan["problems"]:
-            path = artifact / f"opencode-go-{model_id}" / problem / "rep1"
-            gen = json.loads((path / "generation.json").read_text())
-            if gen["model"] != model_id or gen["problem"] != problem or gen["protocol"] != "single-shot":
-                raise ValueError("record identity mismatch")
-            meta = gen["github"]
-            if (meta["GITHUB_REPOSITORY"].lower() != REPOSITORY.lower()
-                    or int(meta["GITHUB_RUN_ID"]) != run["id"]
-                    or int(meta["GITHUB_RUN_ATTEMPT"]) != run["run_attempt"]
-                    or meta["GITHUB_SHA"] != run["head_sha"]):
-                raise ValueError("generation provenance mismatch")
-            source = path.parent / "rep1_frozen/dut.v"
-            if (path / "record.json").exists():
-                record = json.loads((path / "record.json").read_text())
-            elif job["conclusion"] in {"failure", "timed_out", "cancelled"}:
-                # Preserve verified generation evidence without inventing an
-                # interrupted scorer's result. This hash identifies the saved
-                # artifact only; it is not a claim of completed evaluation.
-                if not source.exists() and (path / "dut.v").is_file():
-                    source = path / "dut.v"  # Pre-scoring generation artifact; not a measured score.
-                record = {
-                    "problem": problem, "label": f"opencode-go/{model_id} [single-shot]", "attempt": 1,
-                    "group": plan["name"], "record_origin": "github-generation-only",
-                    "error": f"GitHub job {job['conclusion']}; generation artifacts were saved but scoring did not produce a final record. Score is unknown.",
-                    "result": None,
-                    "manifest": {"generation": gen, "submission_sha256": hashlib.sha256(source.read_bytes()).hexdigest() if source.exists() else ""},
-                }
-            else:
-                raise ValueError("successful job has no scoring record")
-            if record["problem"] != problem or record["label"] != f"opencode-go/{model_id} [single-shot]":
-                raise ValueError("record identity mismatch")
-            if record["manifest"]["generation"] != gen:
-                raise ValueError("manifest generation mismatch")
-            expected = record["manifest"].get("submission_sha256")
-            if source.exists():
-                if hashlib.sha256(source.read_bytes()).hexdigest() != expected:
-                    raise ValueError("frozen submission hash mismatch")
-            elif expected or (record.get("result") or {}).get("correct"):
-                raise ValueError("score has no matching frozen submission")
-            record["execution"] = {
-                "kind": "model-evaluation", "repository": REPOSITORY,
-                "run_id": run["id"], "run_attempt": run["run_attempt"], "job_id": job["id"],
-                "commit": run["head_sha"], "completed_at": job["completed_at"],
-                "job_conclusion": job["conclusion"],
-            }
-            prepared.append((model_id, problem, record, gen, source))
-    output.mkdir(parents=True)
-    write_json(output / "plan.json", plan)
-    for model_id, problem, record, gen, source in prepared:
-        dest = output / f"opencode-go-{model_id}" / problem / "rep1"
-        write_json(dest / "record.json", record)
-        write_json(dest / "generation.json", gen)
-        write_json(dest / "manifest.json", record["manifest"])
-        if source.exists():
-            frozen = dest.parent / "rep1_frozen/dut.v"
-            frozen.parent.mkdir(parents=True)
-            shutil.copyfile(source, frozen)
-    write_report(output)
-    export_site(output, site_output, repo_root() / "pilot/sanity.json")
-    board_path = site_output / "leaderboard.json"
-    board = json.loads(board_path.read_text())
-    board["problems"] = [p for p in board["problems"] if p["name"] in plan["problems"]]
-    board["meta"].update({
-        "git_commit": run["head_sha"], "protocol": "single-shot", "repetitions": 1,
-        "max_output_tokens": plan["max_output_tokens"], "sandbox": {"mode": "docker · network disabled"},
-        "workflow_url": run["html_url"], "generation_requests": sum(bool(g.get("response_id")) for _, _, _, g, _ in prepared),
-        "incomplete_evidence": any(r.get("record_origin", "scorer") != "scorer" for _, _, r, _, _ in prepared),
-        "incomplete_usage": any(g.get("evidence_unavailable") or g.get("incomplete_usage") for _, _, _, g, _ in prepared),
-        "output_tokens": sum(g.get("usage", {}).get("completion_tokens", g.get("usage", {}).get("output_tokens", 0)) for _, _, _, g, _ in prepared),
-    })
+        slots += _model_slots(artifacts, plan, run, jobs, model["id"])
+
+    write_published_records(output, plan, slots)
+    board = export_leaderboard(output, site_output, plan)
+    generations = [slot["generation"] for slot in slots]
+    records = [slot["record"] for slot in slots]
+    board["meta"].update(
+        {
+            "git_commit": run["head_sha"],
+            "protocol": PROTOCOL,
+            "repetitions": 1,
+            "max_output_tokens": plan["max_output_tokens"],
+            "sandbox": {"mode": "docker · network disabled"},
+            "workflow_url": run["html_url"],
+            "generation_requests": sum(1 for g in generations if g.get("response_id")),
+            "incomplete_evidence": any(r.get("record_origin", "scorer") != "scorer" for r in records),
+            "incomplete_usage": any(
+                g.get("evidence_unavailable") or g.get("incomplete_usage") for g in generations
+            ),
+            "output_tokens": sum(output_tokens(g) for g in generations),
+        }
+    )
     if plan.get("output_budget") == "provider_max":
         board["meta"]["output_budget"] = "provider_max"
-    write_json(board_path, board)
-    write_json(output / "actions.json", {
-        "run": {k: run[k] for k in ("id", "run_attempt", "head_sha", "html_url", "status", "conclusion", "event", "path") if k in run},
-        "jobs": [{k: job[k] for k in ("id", "name", "status", "conclusion", "started_at", "completed_at") if k in job} for job in jobs],
-    })
+    save_leaderboard(output, site_output, board, run, jobs)
     return board
+
+
+def _model_slots(artifacts: Path, plan: dict, run: dict, jobs: list[dict], model_id: str) -> list[dict]:
+    """The publishable slots for one model, from its artifact (or its job status alone)."""
+    job = _evaluation_job(jobs, model_id)
+    if job["status"] != "completed" or job["conclusion"] not in FINISHED_JOB_CONCLUSIONS:
+        raise ValueError(f"model job not evaluated: {model_id}")
+    label = f"opencode-go/{model_id} [{PROTOCOL}]"
+    artifact = artifacts / f"go-core-{model_id}-{run['id']}"
+
+    if not artifact.exists() and job["conclusion"] in FAILED_JOB_CONCLUSIONS:
+        # A job-level timeout can prevent always() artifact-upload steps. Publish
+        # only the observed job status - never made-up scores, provider
+        # responses, token counts, or submission hashes.
+        return [
+            _job_status_only_slot(plan, run, job, model_id, label, problem) for problem in plan["problems"]
+        ]
+
+    if json.loads((artifact / "plan.json").read_text()) != plan:
+        raise ValueError("artifact plan differs from the reviewed plan")
+    slots = []
+    for problem in plan["problems"]:
+        dest = slot_dir(artifact, model_id, problem)
+        generation = json.loads((dest / "generation.json").read_text())
+        if (
+            generation["model"] != model_id
+            or generation["problem"] != problem
+            or generation["protocol"] != PROTOCOL
+        ):
+            raise ValueError("record identity mismatch")
+        _check_provenance(generation["github"], run)
+
+        source = dest.parent / "rep1_frozen" / "dut.v"
+        if (dest / "record.json").exists():
+            record = json.loads((dest / "record.json").read_text())
+        elif job["conclusion"] in FAILED_JOB_CONCLUSIONS:
+            # Scoring never finished. Keep the verified generation evidence, but
+            # invent no result. The hash only identifies the saved RTL; it does
+            # not claim the RTL was evaluated.
+            if not source.exists() and (dest / "dut.v").is_file():
+                source = dest / "dut.v"
+            record = {
+                "problem": problem,
+                "label": label,
+                "attempt": 1,
+                "group": plan["name"],
+                "record_origin": "github-generation-only",
+                "error": (
+                    f"GitHub job {job['conclusion']}; generation artifacts were saved but scoring "
+                    "did not produce a final record. Score is unknown."
+                ),
+                "result": None,
+                "manifest": {
+                    "generation": generation,
+                    "submission_sha256": sha256_bytes(source.read_bytes()) if source.exists() else "",
+                },
+            }
+        else:
+            raise ValueError("successful job has no scoring record")
+
+        if record["problem"] != problem or record["label"] != label:
+            raise ValueError("record identity mismatch")
+        if record["manifest"]["generation"] != generation:
+            raise ValueError("manifest generation mismatch")
+        source = source if source.exists() else None
+        check_frozen_hash(source, record)
+        record["execution"] = execution_evidence(run, job)
+        slots.append(
+            {"model_id": model_id, "problem": problem, "record": record, "generation": generation, "source": source}
+        )
+    return slots
+
+
+def _evaluation_job(jobs: list[dict], model_id: str) -> dict:
+    name = f"Evaluate {model_id} · dot product + GEMV"
+    for job in jobs:
+        if job["name"] == name:
+            return job
+    raise ValueError(f"missing evaluation job: {model_id}")
+
+
+def _check_provenance(github_context: dict, run: dict) -> None:
+    """The generation must have happened in exactly this Actions run and commit."""
+    if (
+        github_context["GITHUB_REPOSITORY"].lower() != REPOSITORY.lower()
+        or int(github_context["GITHUB_RUN_ID"]) != run["id"]
+        or int(github_context["GITHUB_RUN_ATTEMPT"]) != run["run_attempt"]
+        or github_context["GITHUB_SHA"] != run["head_sha"]
+    ):
+        raise ValueError("generation provenance mismatch")
+
+
+def _job_status_only_slot(
+    plan: dict, run: dict, job: dict, model_id: str, label: str, problem: str
+) -> dict:
+    ended = {"timed_out": "timed out", "cancelled": "was cancelled", "failure": "failed"}[job["conclusion"]]
+    generation = {"model": model_id, "problem": problem, "protocol": PROTOCOL, "evidence_unavailable": True}
+    record = {
+        "problem": problem,
+        "label": label,
+        "attempt": 1,
+        "group": plan["name"],
+        "record_origin": "github-job-status-only",
+        "error": (
+            f"GitHub job {ended} before final artifacts were uploaded. Per-problem generation, "
+            "scores, RTL and token usage are unavailable."
+        ),
+        "result": None,
+        "manifest": {"generation": generation},
+        "execution": execution_evidence(run, job),
+    }
+    return {"model_id": model_id, "problem": problem, "record": record, "generation": generation, "source": None}
 
 
 def main() -> None:
@@ -152,10 +286,21 @@ def main() -> None:
     plan = read_plan(repo_root() / "pilot/go-core-20260922.json")
     run = github(f"actions/runs/{args.run_id}")
     jobs = github(f"actions/runs/{args.run_id}/jobs?per_page=100")["jobs"]
-    board = publish(args.artifacts, plan, run, jobs,
-                    repo_root() / "pilot/results" / plan["name"], repo_root() / "site/data" / plan["name"])
-    print(json.dumps({"models": len(board["models"]), "attempts": sum(m["attempts"] for m in board["models"]),
-                      "correct": sum(m["correct"] for m in board["models"]), "output_tokens": board["meta"]["output_tokens"]}))
+    board = publish(
+        args.artifacts,
+        plan,
+        run,
+        jobs,
+        repo_root() / "pilot/results" / plan["name"],
+        repo_root() / "site/data" / plan["name"],
+    )
+    summary = {
+        "models": len(board["models"]),
+        "attempts": sum(model["attempts"] for model in board["models"]),
+        "correct": sum(model["correct"] for model in board["models"]),
+        "output_tokens": board["meta"]["output_tokens"],
+    }
+    print(json.dumps(summary))
 
 
 if __name__ == "__main__":

@@ -11,15 +11,13 @@ from adpbench.agent import (
     RunRecord,
     _write_host_file,
     build_manifest,
-    build_sandbox_bundle,
-    bundle_path,
     docker_command,
     freeze_submission,
     redact_secrets,
-    render_check_sh,
     script_argv,
     strip_ansi,
 )
+from adpbench.environment import build_sandbox_bundle, bundle_path, render_check_sh
 from adpbench.problem import load_problem
 
 PROBLEM_DIR = (
@@ -91,9 +89,10 @@ class BundleTest(unittest.TestCase):
         problem = load_problem(PROBLEM_DIR)
         with tempfile.TemporaryDirectory() as tmp:
             bundle = build_sandbox_bundle(problem, Path(tmp) / "bundle")
-            evaluate = (bundle / "adpbench" / "evaluate.py").read_text()
-            self.assertIn("EVAL_SEEDS = ()", evaluate)
-            self.assertNotIn("EVAL_SEEDS = (1000", evaluate)
+            seeds = (bundle / "adpbench" / "seeds.py").read_text()
+            self.assertIn("EVAL_SEEDS = ()", seeds)
+            self.assertNotIn("1000", seeds)
+            self.assertNotIn("1000", (bundle / "adpbench" / "evaluate.py").read_text())
             self.assertTrue((bundle / "adpbench" / "sim.py").is_file())
             self.assertTrue((bundle / "flows" / "synth.ys").is_file())
             relative = problem.root.relative_to(

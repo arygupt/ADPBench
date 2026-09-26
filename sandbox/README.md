@@ -15,7 +15,7 @@ What the boundary does:
   `PROBLEM.md`, `dut.py`, the skeleton, and `check.sh`.
 - A per-run harness bundle is mounted read-only at `/adpbench`. It contains
   the `adpbench` package, `flows/`, and the current problem, with
-  `EVAL_SEEDS` redacted to `()`. The container can run `./check.sh` on dev
+  `EVAL_SEEDS` in `adpbench/seeds.py` redacted to `()`. The container can run `./check.sh` on dev
   seeds but cannot read the held-out scoring cases.
 - The network is on by default (the model API needs it). Use
   `--network none` for a fully offline run.

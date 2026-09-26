@@ -1,8 +1,21 @@
 """Data-only Actions publication: validate artifacts, stage a snapshot, open a PR.
 
-Run trusted main-branch code only. Never run artifact code, call a model, change
-old scores, approve a PR, or merge a PR. Publication policy is reviewed in main.
+    python -m scripts.publish_results --run-id <id> [--open-pr]
+
+Runs trusted main-branch code only. It never runs artifact code, calls a
+model, changes old scores, approves a PR, or merges a PR. Which workflows and
+plans may publish is set by pilot/publication-policy.json, reviewed in main.
+
+Steps:
+  1. Fetch the source run; it must be a completed, manually dispatched main
+     run of a registered workflow, at a commit that is an ancestor of HEAD.
+  2. Read that run's plan from the workflow file *at that commit*.
+  3. Check the run's jobs actually generated something.
+  4. Download each artifact, verify its digest, and extract it safely.
+  5. Validate every record, then stage results, site data, and a receipt.
+  6. Optionally commit the staged files to a branch and open a PR.
 """
+
 from __future__ import annotations
 
 import argparse
@@ -19,9 +32,20 @@ import tempfile
 import zipfile
 from pathlib import Path, PurePosixPath
 
-from scripts.go_pilot import output_limit, validate_plan, write_json
+from adpbench.durable import atomic_json
+from scripts.go_pilot import (
+    SETTING_KEYS,
+    execution_health,
+    output_limit,
+    slot_dir,
+    validate_plan,
+)
+from scripts.publish_agent import OUTCOMES as AGENT_OUTCOMES
+from scripts.publish_agent import PROTOCOL as AGENT_PROTOCOL
+from scripts.publish_agent import WORKFLOW as AGENT_WORKFLOW
+from scripts.publish_agent import matches_job, publish_agent, validate_generation
+from scripts.publish_agent import slots as agent_slots
 from scripts.publish_go import REPOSITORY, publish
-from scripts.publish_agent import PROTOCOL as AGENT_PROTOCOL, WORKFLOW as AGENT_WORKFLOW, OUTCOMES as AGENT_OUTCOMES, slots as agent_slots, matches_job, publish_agent, validate_generation
 
 MAX_ARCHIVE = 32 * 1024 * 1024
 MAX_EXPANDED = 128 * 1024 * 1024
@@ -29,44 +53,76 @@ MAX_FILE = 16 * 1024 * 1024
 MAX_FILES = 300
 MAX_API = 2 * 1024 * 1024
 SAFE_ID = re.compile(r"[a-z0-9][a-z0-9-]{0,79}")
+GITHUB_TIMESTAMP = re.compile(r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z")
+COMMIT_SHA = re.compile(r"[0-9a-f]{40}")
+
+FINISHED_JOB_CONCLUSIONS = {"success", "failure", "cancelled", "timed_out"}
+AGENT_GENERATION_STEP = "Run standardized agent"
+SINGLE_SHOT_GENERATION_STEP = "Generate two single-shot submissions (no retries or fallback)"
+PUBLISHED_FILES = {"record.json", "generation.json", "manifest.json", "dut.v", "plan.json"}
+
+# Published records must never contain these fields.
+CREDENTIAL_FIELD = re.compile(r'"(?:authorization|api_key|x-api-key|OPENCODE_GO_API_KEY)"\s*:', re.I)
+TRANSCRIPT_FIELD = re.compile(
+    r'"(?:messages|reasoning_content|raw_response|response_text|tool_calls|tool_results)"\s*:', re.I
+)
+
+
+# --------------------------------------------------------------------------
+# Commands and strict JSON
+# --------------------------------------------------------------------------
 
 
 def command(args: list[str], cwd: Path | None = None, limit: int = MAX_API) -> bytes:
-    """Bound stdout, don't include raw API/provider output in exceptions."""
+    """Run a command and return its stdout, bounded to `limit` bytes.
+
+    stderr is discarded and never included in exceptions, so raw API or
+    provider output cannot leak into logs.
+    """
     with subprocess.Popen(args, cwd=cwd, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL) as proc:
-        value = proc.stdout.read(limit + 1)
-        if len(value) > limit:
+        output = proc.stdout.read(limit + 1)
+        if len(output) > limit:
             proc.kill()
             raise ValueError("command output exceeds limit")
         if proc.wait(timeout=60) != 0:
             raise RuntimeError(f"{args[0]} failed; check permissions or source metadata")
-        return value
+        return output
 
 
 def strict_json(raw: bytes) -> dict:
-    def pairs(items):
-        result = {}
-        for key, value in items:
-            if key in result:
-                raise ValueError("duplicate JSON key")
-            result[key] = value
-        return result
-
-    def reject(value):
-        raise ValueError("nonfinite JSON value")
-
-    def finite_float(value):
-        parsed = float(value)
-        if not math.isfinite(parsed):
-            reject(value)
-        return parsed
-
+    """Parse a JSON object, rejecting duplicate keys, NaN, and infinities."""
     if len(raw) > MAX_FILE:
         raise ValueError("JSON file exceeds limit")
-    result = json.loads(raw, object_pairs_hook=pairs, parse_constant=reject, parse_float=finite_float)
+    result = json.loads(
+        raw,
+        object_pairs_hook=_reject_duplicate_keys,
+        parse_constant=_reject_constant,
+        parse_float=_finite_float,
+    )
     if not isinstance(result, dict):
         raise ValueError("expected a JSON object")
     return result
+
+
+def _reject_duplicate_keys(pairs: list[tuple]) -> dict:
+    result = {}
+    for key, value in pairs:
+        if key in result:
+            raise ValueError("duplicate JSON key")
+        result[key] = value
+    return result
+
+
+def _reject_constant(name: str):
+    # Called for NaN, Infinity and -Infinity.
+    raise ValueError("nonfinite JSON value")
+
+
+def _finite_float(text: str) -> float:
+    value = float(text)
+    if not math.isfinite(value):  # e.g. 1e999
+        raise ValueError("nonfinite JSON value")
+    return value
 
 
 def api(path: str) -> dict:
@@ -79,8 +135,13 @@ def positive_id(value) -> int:
     return value
 
 
+# --------------------------------------------------------------------------
+# Source run
+# --------------------------------------------------------------------------
+
+
 def source_plan_path(workflow: str, allowed: list[str]) -> str:
-    """Read the literal reviewed PLAN from source code; never evaluate YAML/expressions."""
+    """The literal `PLAN:` path in the source workflow file. YAML and expressions are never evaluated."""
     matches = re.findall(r"^  PLAN: (pilot/[a-z0-9-]+\.json)\s*$", workflow, re.M)
     if len(matches) != 1 or matches[0] not in allowed:
         raise ValueError("source workflow must select exactly one registered literal plan")
@@ -88,94 +149,126 @@ def source_plan_path(workflow: str, allowed: list[str]) -> str:
 
 
 def validate_source(run: dict, jobs: list[dict], plan: dict, policy: dict) -> None:
+    """The run must be a completed main-branch dispatch whose jobs really generated results."""
     validate_plan(plan)
     positive_id(run["id"])
     positive_id(run["run_attempt"])
     rule = policy["workflows"].get(run.get("path"))
-    if (policy.get("schema_version") != 1 or not rule
-            or run.get("status") != "completed" or run.get("event") != "workflow_dispatch"
-            or run.get("head_branch") != "main"
-            or run.get("repository", {}).get("full_name") != REPOSITORY
-            or run.get("head_repository", {}).get("full_name") != REPOSITORY
-            or not re.fullmatch(r"[0-9a-f]{40}", run.get("head_sha", ""))
-            or run.get("html_url") != f"https://github.com/{REPOSITORY}/actions/runs/{run['id']}"):
+    if (
+        policy.get("schema_version") != 1
+        or not rule
+        or run.get("status") != "completed"
+        or run.get("event") != "workflow_dispatch"
+        or run.get("head_branch") != "main"
+        or run.get("repository", {}).get("full_name") != REPOSITORY
+        or run.get("head_repository", {}).get("full_name") != REPOSITORY
+        or not COMMIT_SHA.fullmatch(run.get("head_sha", ""))
+        or run.get("html_url") != f"https://github.com/{REPOSITORY}/actions/runs/{run['id']}"
+    ):
         raise ValueError("not an allowed completed main-branch model run")
+
     if run.get("path") == AGENT_WORKFLOW:
-        if plan.get("protocol") != AGENT_PROTOCOL:
-            raise ValueError("agent workflow requires agent-assisted protocol")
-        if type(plan.get("max_turns")) is not int or not 1 <= plan["max_turns"] <= 100:
-            raise ValueError("invalid agent turn budget")
-        selected = []
-        for model, problem, _, _ in agent_slots(plan, run["id"]):
-            for stage in ("Generate", "Evaluate"):
-                matches = [j for j in jobs if matches_job(j, stage, model["id"], problem)]
-                if len(matches) != 1:
-                    raise ValueError("missing or duplicate agent slot jobs")
-                selected.extend(matches)
-        generated = False
-        for job in selected:
-            positive_id(job["id"])
-            if (job.get("run_id") != run["id"] or job.get("status") != "completed"
-                    or job.get("conclusion") not in {"success", "failure", "cancelled", "timed_out"}
-                    or not re.fullmatch(r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z", job.get("completed_at", ""))):
-                raise ValueError("invalid agent slot job provenance")
-            generated |= any(s.get("name") == "Run standardized agent"
-                             and (s.get("conclusion") in {"success", "failure"}
-                                  or (s.get("conclusion") in {"cancelled", "timed_out"}
-                                      and re.fullmatch(r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z", s.get("started_at") or "")))
-                             for s in job.get("steps", []))
-        if not generated:
-            raise ValueError("preparation-only or duplicate-claim agent run")
-        return
+        _validate_agent_jobs(run, jobs, plan)
+    else:
+        _validate_single_shot_jobs(run, jobs, plan)
+
+
+def _validate_agent_jobs(run: dict, jobs: list[dict], plan: dict) -> None:
+    if plan.get("protocol") != AGENT_PROTOCOL:
+        raise ValueError("agent workflow requires agent-assisted protocol")
+    if type(plan.get("max_turns")) is not int or not 1 <= plan["max_turns"] <= 100:
+        raise ValueError("invalid agent turn budget")
+
+    selected = []
+    for model, problem, _, _ in agent_slots(plan, run["id"]):
+        for stage in ("Generate", "Evaluate"):
+            matches = [job for job in jobs if matches_job(job, stage, model["id"], problem)]
+            if len(matches) != 1:
+                raise ValueError("missing or duplicate agent slot jobs")
+            selected.extend(matches)
+
+    for job in selected:
+        if not _job_belongs_to_run(job, run):
+            raise ValueError("invalid agent slot job provenance")
+    if not any(_step_ran(job, AGENT_GENERATION_STEP) for job in selected):
+        raise ValueError("preparation-only or duplicate-claim agent run")
+
+
+def _validate_single_shot_jobs(run: dict, jobs: list[dict], plan: dict) -> None:
     if plan.get("protocol", "single-shot") != "single-shot":
         raise ValueError("single-shot workflow cannot publish another protocol")
-    names = [f"Evaluate {model['id']} · dot product + GEMV" for model in plan["models"]]
-    evaluated = [j for j in jobs if j.get("name") in names]
-    if len(evaluated) != len(names) or len({j["name"] for j in evaluated}) != len(names):
+
+    evaluate_names = [f"Evaluate {model['id']} · dot product + GEMV" for model in plan["models"]]
+    evaluated = [job for job in jobs if job.get("name") in evaluate_names]
+    if len(evaluated) != len(evaluate_names) or len({job["name"] for job in evaluated}) != len(evaluate_names):
         raise ValueError("missing or duplicate model jobs")
-    generation_names = [f"Generate {model['id']} · two single-shot submissions" for model in plan["models"]]
-    generation_jobs = [j for j in jobs if j.get("name") in generation_names]
-    if generation_jobs and (len(generation_jobs) != len(generation_names)
-                            or len({j["name"] for j in generation_jobs}) != len(generation_names)):
+
+    # Older runs generated inside the Evaluate job; newer ones have separate Generate jobs.
+    generate_names = [f"Generate {model['id']} · two single-shot submissions" for model in plan["models"]]
+    generation_jobs = [job for job in jobs if job.get("name") in generate_names]
+    if generation_jobs and (
+        len(generation_jobs) != len(generate_names)
+        or len({job["name"] for job in generation_jobs}) != len(generate_names)
+    ):
         raise ValueError("missing or duplicate generation jobs")
-    generated = False
-    for job in [*evaluated, *generation_jobs]:
-        positive_id(job["id"])
-        if (job.get("run_id") != run["id"] or job.get("status") != "completed"
-                or job.get("conclusion") not in {"success", "failure", "cancelled", "timed_out"}
-                or not re.fullmatch(r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z", job.get("completed_at", ""))):
+
+    all_jobs = evaluated + generation_jobs
+    for job in all_jobs:
+        if not _job_belongs_to_run(job, run):
             raise ValueError("invalid model job provenance")
-        generated |= any(s.get("name") == "Generate two single-shot submissions (no retries or fallback)"
-                         and (s.get("conclusion") in {"success", "failure"}
-                              or (s.get("conclusion") in {"cancelled", "timed_out"}
-                                  and re.fullmatch(r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z", s.get("started_at") or "")))
-                         for s in job.get("steps", []))
-    if not generated:
+    if not any(_step_ran(job, SINGLE_SHOT_GENERATION_STEP) for job in all_jobs):
         raise ValueError("preparation-only or duplicate-claim run; no model generation occurred")
 
 
+def _job_belongs_to_run(job: dict, run: dict) -> bool:
+    positive_id(job["id"])
+    return (
+        job.get("run_id") == run["id"]
+        and job.get("status") == "completed"
+        and job.get("conclusion") in FINISHED_JOB_CONCLUSIONS
+        and bool(GITHUB_TIMESTAMP.fullmatch(job.get("completed_at", "")))
+    )
+
+
+def _step_ran(job: dict, step_name: str) -> bool:
+    """Whether the named step actually started (so a model may have been called).
+
+    A step that succeeded or failed ran. A cancelled or timed-out step only
+    counts if it has a start time; otherwise it never began.
+    """
+    for step in job.get("steps", []):
+        if step.get("name") != step_name:
+            continue
+        if step.get("conclusion") in {"success", "failure"}:
+            return True
+        started = GITHUB_TIMESTAMP.fullmatch(step.get("started_at") or "")
+        if step.get("conclusion") in {"cancelled", "timed_out"} and started:
+            return True
+    return False
+
+
+# --------------------------------------------------------------------------
+# Artifacts and records
+# --------------------------------------------------------------------------
+
+
 def extract_archive(raw: bytes, target: Path) -> None:
-    """Validate the entire zip before extracting ordinary files only."""
+    """Validate the whole zip first, then extract only ordinary files."""
     if len(raw) > MAX_ARCHIVE:
         raise ValueError("archive too large")
     with zipfile.ZipFile(io.BytesIO(raw)) as archive:
         entries = archive.infolist()
-        if len(entries) > MAX_FILES or sum(e.file_size for e in entries) > MAX_EXPANDED:
+        if len(entries) > MAX_FILES or sum(entry.file_size for entry in entries) > MAX_EXPANDED:
             raise ValueError("expanded archive exceeds limits")
-        names = set()
+
+        seen_names = set()
         for entry in entries:
-            name = entry.filename
-            path = PurePosixPath(name)
-            mode = (entry.external_attr >> 16) & 0o170000
-            if (not name or "\\" in name or ":" in name or path.is_absolute()
-                    or any(part in {"..", ".", ""} for part in name.rstrip("/").split("/"))
-                    or name.casefold() in names or entry.file_size > MAX_FILE
-                    or mode not in {0, stat.S_IFREG, stat.S_IFDIR}
-                    or entry.flag_bits & 1):
+            if not _is_safe_entry(entry, seen_names):
                 raise ValueError("unsafe artifact entry")
-            names.add(name.casefold())
-            if name.endswith(".json") and not entry.is_dir():
+            seen_names.add(entry.filename.casefold())
+            if entry.filename.endswith(".json") and not entry.is_dir():
                 strict_json(archive.read(entry))
+
         target.mkdir(parents=True, exist_ok=False)
         for entry in entries:
             if entry.is_dir():
@@ -185,168 +278,268 @@ def extract_archive(raw: bytes, target: Path) -> None:
             dest.write_bytes(archive.read(entry))
 
 
+def _is_safe_entry(entry: zipfile.ZipInfo, seen_names: set[str]) -> bool:
+    """A relative, non-traversing, case-unique, unencrypted regular file or directory."""
+    name = entry.filename
+    file_type = (entry.external_attr >> 16) & 0o170000
+    parts = name.rstrip("/").split("/")
+    return not (
+        not name
+        or "\\" in name
+        or ":" in name
+        or PurePosixPath(name).is_absolute()
+        or any(part in {"..", ".", ""} for part in parts)
+        or name.casefold() in seen_names
+        or entry.file_size > MAX_FILE
+        or file_type not in {0, stat.S_IFREG, stat.S_IFDIR}
+        or entry.flag_bits & 1  # encrypted
+    )
+
+
 def validate_records(artifacts: Path, plan: dict, run: dict) -> None:
-    """Reject fabricated passing records, unexpected budgets and sensitive fields."""
+    """Reject fabricated passing records, unexpected budgets, and sensitive fields."""
+    agent_track = plan.get("protocol") == AGENT_PROTOCOL
     for model in plan["models"]:
         for problem in plan["problems"]:
-            agent = plan.get("protocol") == AGENT_PROTOCOL
-            name = (f"go-agent-records-{model['id']}-{problem}-{run['id']}" if agent
-                    else f"go-core-{model['id']}-{run['id']}")
-            root = artifacts / name
-            if not root.exists():
-                continue  # publish() explicitly distinguishes missing failed-job evidence.
-            dest = root / f"opencode-go-{model['id']}" / problem / "rep1"
+            if agent_track:
+                artifact = artifacts / f"go-agent-records-{model['id']}-{problem}-{run['id']}"
+            else:
+                artifact = artifacts / f"go-core-{model['id']}-{run['id']}"
+            if not artifact.exists():
+                continue  # publish() distinguishes missing evidence from failed jobs
+            dest = slot_dir(artifact, model["id"], problem)
+
             generation = strict_json((dest / "generation.json").read_bytes())
-            if agent:
+            if agent_track:
                 validate_generation(generation, model, problem, plan)
             if generation.get("max_output_tokens") != output_limit(plan, model):
                 raise ValueError("generation budget differs from reviewed plan")
-            settings = {k: model[k] for k in ("thinking", "reasoning_effort", "reasoning", "token_limit_key") if k in model}
+            settings = {key: model[key] for key in SETTING_KEYS if key in model}
             if generation.get("generation_settings") != settings:
                 raise ValueError("generation settings differ from reviewed plan")
+
             record_path = dest / "record.json"
             if not record_path.exists():
                 continue
             record = strict_json(record_path.read_bytes())
             if record.get("attempt") != 1 or record.get("group") != plan["name"]:
                 raise ValueError("unexpected record attempt or group")
-            result = record.get("result")
-            if agent:
-                outcome = record.get("outcome")
-                if outcome not in {"correct", "incorrect", "audit_rejected", "scoring_interrupted", *AGENT_OUTCOMES}:
-                    raise ValueError("unknown agent record outcome")
-                if record.get("execution_health") not in {"completed", "failed"}:
-                    raise ValueError("missing agent execution health")
-                infra_outcomes = {"provider_error", "transport_interrupted", "harness_error", "scoring_interrupted", "not_requested", "interrupted"}
-                if record["execution_health"] != ("failed" if outcome in infra_outcomes else "completed"):
-                    raise ValueError("agent execution health contradicts typed outcome")
-                if (outcome == "correct") != bool(result and result.get("correct")):
-                    raise ValueError("agent outcome contradicts measured correctness")
-                if outcome == "incorrect" and (result is None or record.get("error") or not record.get("audit", {}).get("ok")):
-                    raise ValueError("incorrect agent outcome requires completed scoring")
-                if outcome == "audit_rejected" and (record.get("audit", {}).get("ok") or generation["outcome"] != "submitted"):
-                    raise ValueError("agent audit outcome contradicts submission")
-                if outcome in AGENT_OUTCOMES and outcome != generation["outcome"]:
-                    raise ValueError("agent generation and record outcomes disagree")
-                if result is not None and generation.get("outcome") != "submitted":
-                    raise ValueError("agent score has no submitted generation")
-                if result is not None and outcome not in {"correct", "incorrect", "scoring_interrupted"}:
-                    raise ValueError("agent outcome contradicts scoring result")
-                if generation["outcome"] == "submitted" and record.get("manifest", {}).get("submission_sha256") != generation["submission_sha256"]:
-                    raise ValueError("agent frozen hash differs from explicit submit receipt")
-            if result is not None:
-                if not isinstance(result, dict) or type(result.get("correct")) is not bool:
-                    raise ValueError("invalid scorer result")
-                if result["correct"] and (record.get("error") or generation.get("error") or generation.get("invalid_rtl")
-                                          or not record.get("audit", {}).get("ok")
-                                          or result.get("metadata", {}).get("stage") != "ok"):
-                    raise ValueError("passing result contradicts recorded failures")
-                for key in ("cells", "cycles", "adp", "ratio"):
-                    if type(result.get(key)) not in {int, float}:
-                        raise ValueError("invalid numeric score")
-                if result["correct"] and (result["cells"] <= 0 or result["cycles"] <= 0
-                                          or result["adp"] != result["cells"] * result["cycles"]):
-                    raise ValueError("inconsistent passing score")
+            if agent_track:
+                _validate_agent_record(record, generation)
+            if record.get("result") is not None:
+                _validate_result(record, generation)
+
             serialized = json.dumps(record)
-            if re.search(r'"(?:authorization|api_key|x-api-key|OPENCODE_GO_API_KEY)"\s*:', serialized, re.I):
+            if CREDENTIAL_FIELD.search(serialized):
                 raise ValueError("sensitive credential field in publication record")
-            if agent and re.search(r'"(?:messages|reasoning_content|raw_response|response_text|tool_calls|tool_results)"\s*:', serialized, re.I):
+            if agent_track and TRANSCRIPT_FIELD.search(serialized):
                 raise ValueError("private transcript field in agent publication record")
 
 
+def _validate_agent_record(record: dict, generation: dict) -> None:
+    """The typed outcome, execution health, and score must all tell the same story."""
+    outcome = record.get("outcome")
+    result = record.get("result")
+    audit_ok = record.get("audit", {}).get("ok")
+    if outcome not in {"correct", "incorrect", "audit_rejected", "scoring_interrupted", *AGENT_OUTCOMES}:
+        raise ValueError("unknown agent record outcome")
+    if record.get("execution_health") not in {"completed", "failed"}:
+        raise ValueError("missing agent execution health")
+    if record["execution_health"] != execution_health(outcome):
+        raise ValueError("agent execution health contradicts typed outcome")
+    if (outcome == "correct") != bool(result and result.get("correct")):
+        raise ValueError("agent outcome contradicts measured correctness")
+    if outcome == "incorrect" and (result is None or record.get("error") or not audit_ok):
+        raise ValueError("incorrect agent outcome requires completed scoring")
+    if outcome == "audit_rejected" and (audit_ok or generation["outcome"] != "submitted"):
+        raise ValueError("agent audit outcome contradicts submission")
+    if outcome in AGENT_OUTCOMES and outcome != generation["outcome"]:
+        raise ValueError("agent generation and record outcomes disagree")
+    if result is not None and generation.get("outcome") != "submitted":
+        raise ValueError("agent score has no submitted generation")
+    if result is not None and outcome not in {"correct", "incorrect", "scoring_interrupted"}:
+        raise ValueError("agent outcome contradicts scoring result")
+    if generation["outcome"] == "submitted":
+        if record.get("manifest", {}).get("submission_sha256") != generation["submission_sha256"]:
+            raise ValueError("agent frozen hash differs from explicit submit receipt")
+
+
+def _validate_result(record: dict, generation: dict) -> None:
+    """A scorer result must be well-formed, and a pass must have no recorded failure."""
+    result = record["result"]
+    if not isinstance(result, dict) or type(result.get("correct")) is not bool:
+        raise ValueError("invalid scorer result")
+    if result["correct"]:
+        has_failure = (
+            record.get("error")
+            or generation.get("error")
+            or generation.get("invalid_rtl")
+            or not record.get("audit", {}).get("ok")
+            or result.get("metadata", {}).get("stage") != "ok"
+        )
+        if has_failure:
+            raise ValueError("passing result contradicts recorded failures")
+    for key in ("cells", "cycles", "adp", "ratio"):
+        if type(result.get(key)) not in {int, float}:
+            raise ValueError("invalid numeric score")
+    if result["correct"]:
+        if result["cells"] <= 0 or result["cycles"] <= 0 or result["adp"] != result["cells"] * result["cycles"]:
+            raise ValueError("inconsistent passing score")
+
+
+# --------------------------------------------------------------------------
+# Staging
+# --------------------------------------------------------------------------
+
+
 def payload_files(root: Path) -> dict[str, str]:
-    return {str(p.relative_to(root)): hashlib.sha256(p.read_bytes()).hexdigest()
-            for p in sorted(root.rglob("*")) if p.is_file() and p.name in {"record.json", "generation.json", "manifest.json", "dut.v", "plan.json"}}
+    """sha256 of every published file under `root`, keyed by relative path."""
+    return {
+        str(path.relative_to(root)): hashlib.sha256(path.read_bytes()).hexdigest()
+        for path in sorted(root.rglob("*"))
+        if path.is_file() and path.name in PUBLISHED_FILES
+    }
 
 
 def register(catalog: dict, plan: dict) -> dict:
+    """Add the plan's dataset to the site catalog (as the new default), if not already there."""
     name = plan["name"]
     if not SAFE_ID.fullmatch(name) or catalog.get("schema_version") != 1:
         raise ValueError("invalid dataset catalog")
     protocol = plan.get("protocol", "single-shot")
     if protocol not in {"single-shot", AGENT_PROTOCOL}:
         raise ValueError("unregistered protocol")
-    entry = {"id": name, "label": f"OpenCode Go · {name} · {protocol}", "path": f"data/{name}/leaderboard.json", "protocol": protocol}
-    existing = next((e for e in catalog["evaluations"] if e["id"] == name), None)
-    if existing:
-        if existing["path"] != entry["path"] or existing["protocol"] != entry["protocol"]:
-            raise ValueError("conflicting dataset catalog entry")
-    else:
+
+    entry = {
+        "id": name,
+        "label": f"OpenCode Go · {name} · {protocol}",
+        "path": f"data/{name}/leaderboard.json",
+        "protocol": protocol,
+    }
+    existing = next((item for item in catalog["evaluations"] if item["id"] == name), None)
+    if existing is None:
         catalog["evaluations"].insert(0, entry)
         catalog["default"] = name
+    elif existing["path"] != entry["path"] or existing["protocol"] != entry["protocol"]:
+        raise ValueError("conflicting dataset catalog entry")
     return catalog
 
 
-def stage_publication(repo: Path, artifacts: Path, plan: dict, run: dict, jobs: list[dict], evidence: list[dict]) -> list[str]:
+def stage_publication(
+    repo: Path, artifacts: Path, plan: dict, run: dict, jobs: list[dict], evidence: list[dict]
+) -> list[str]:
+    """Write results, site data, a receipt, and the catalog entry. Returns the changed paths.
+
+    Publishing the same run twice is a no-op; publishing different content
+    over existing results is an error.
+    """
     name = plan["name"]
-    records = repo / "pilot/results" / name
-    website = repo / "site/data" / name
-    receipt = repo / "pilot/publications" / f"run-{run['id']}-attempt-{run['run_attempt']}.json"
+    records_dir = repo / "pilot/results" / name
+    site_dir = repo / "site/data" / name
+    receipt_path = repo / "pilot/publications" / f"run-{run['id']}-attempt-{run['run_attempt']}.json"
     validate_records(artifacts, plan, run)
+
     with tempfile.TemporaryDirectory(prefix="adpbench-publish-") as temp:
         draft = Path(temp)
         publisher = publish_agent if plan.get("protocol") == AGENT_PROTOCOL else publish
         board = publisher(artifacts, plan, run, jobs, draft / "records", draft / "site")
         hashes = payload_files(draft / "records")
-        if records.exists() or website.exists():
-            if not records.is_dir() or not website.is_dir() or payload_files(records) != hashes:
+        if records_dir.exists() or site_dir.exists():
+            if not records_dir.is_dir() or not site_dir.is_dir() or payload_files(records_dir) != hashes:
                 raise ValueError("existing immutable results differ from source artifacts")
-            previous = strict_json((website / "leaderboard.json").read_bytes())
+            previous = strict_json((site_dir / "leaderboard.json").read_bytes())
             if previous["models"] != board["models"] or previous["meta"]["git_commit"] != run["head_sha"]:
                 raise ValueError("existing website scores differ from source artifacts")
         else:
-            shutil.copytree(draft / "records", records)
-            shutil.copytree(draft / "site", website)
-    data = {"schema_version": 1, "kind": "validated-model-results-publication",
-            "source_run_id": run["id"], "source_attempt": run["run_attempt"],
-            "source_commit": run["head_sha"], "source_workflow": run["path"],
-            "dataset": name, "confirmed_correct": sum(m["correct"] for m in board["models"]),
-            "result_slots": sum(m["attempts"] for m in board["models"]),
-            "artifacts": evidence, "record_file_sha256": hashes}
-    if receipt.exists() and strict_json(receipt.read_bytes()) != data:
+            shutil.copytree(draft / "records", records_dir)
+            shutil.copytree(draft / "site", site_dir)
+
+    receipt = {
+        "schema_version": 1,
+        "kind": "validated-model-results-publication",
+        "source_run_id": run["id"],
+        "source_attempt": run["run_attempt"],
+        "source_commit": run["head_sha"],
+        "source_workflow": run["path"],
+        "dataset": name,
+        "confirmed_correct": sum(model["correct"] for model in board["models"]),
+        "result_slots": sum(model["attempts"] for model in board["models"]),
+        "artifacts": evidence,
+        "record_file_sha256": hashes,
+    }
+    if receipt_path.exists() and strict_json(receipt_path.read_bytes()) != receipt:
         raise ValueError("conflicting publication receipt")
-    write_json(receipt, data)
+    atomic_json(receipt_path, receipt)
+
     catalog_path = repo / "site/data/evaluations.json"
-    write_json(catalog_path, register(strict_json(catalog_path.read_bytes()), plan))
-    return [str(p.relative_to(repo)) for p in (records, website, receipt, catalog_path)]
+    atomic_json(catalog_path, register(strict_json(catalog_path.read_bytes()), plan))
+    return [str(path.relative_to(repo)) for path in (records_dir, site_dir, receipt_path, catalog_path)]
 
 
 def open_results_pr(repo: Path, paths: list[str], run: dict) -> str | None:
+    """Commit the staged paths to a new branch and open a PR. Returns its URL, if any."""
     branch = f"automation/results-{run['id']}-{run['run_attempt']}"
-    found = json.loads(command(["gh", "pr", "list", "--repo", REPOSITORY, "--state", "all", "--head", branch, "--json", "url,state"]))
-    if found:
+    existing = json.loads(
+        command(["gh", "pr", "list", "--repo", REPOSITORY, "--state", "all", "--head", branch, "--json", "url,state"])
+    )
+    if existing:
         # Never overwrite somebody's edits or reopen a deliberately closed PR.
-        print(f"Results PR already exists: {found[0]['url']} ({found[0]['state']})")
-        return found[0]["url"]
+        print(f"Results PR already exists: {existing[0]['url']} ({existing[0]['state']})")
+        return existing[0]["url"]
+
     command(["git", "add", "--", *paths], repo)
     changed = command(["git", "diff", "--cached", "--name-only", "-z"], repo).decode().split("\0")
-    changed = [p for p in changed if p]
+    changed = [path for path in changed if path]
     if not changed:
         print("Publication already present; no new PR or model calls.")
         return None
-    if any(not any(p == allowed or p.startswith(allowed + "/") for allowed in paths) for p in changed):
-        raise ValueError("refusing to publish unrelated changes")
+    for path in changed:
+        if not any(path == allowed or path.startswith(allowed + "/") for allowed in paths):
+            raise ValueError("refusing to publish unrelated changes")
+
     command(["git", "switch", "-c", branch], repo)
-    command(["git", "-c", "user.name=github-actions[bot]", "-c", "user.email=41898282+github-actions[bot]@users.noreply.github.com",
-             "commit", "-m", f"results: publish validated Actions run {run['id']}"], repo)
+    command(
+        [
+            "git",
+            "-c", "user.name=github-actions[bot]",
+            "-c", "user.email=41898282+github-actions[bot]@users.noreply.github.com",
+            "commit", "-m", f"results: publish validated Actions run {run['id']}",
+        ],
+        repo,
+    )
     command(["gh", "auth", "setup-git"], repo)
     remote = command(["git", "ls-remote", "origin", f"refs/heads/{branch}"], repo).strip()
     if remote:
-        # Recover a push that succeeded before PR creation failed. A conflicting
-        # remote branch is never force-pushed or silently replaced.
+        # An earlier push succeeded but PR creation failed. Only continue if the
+        # remote branch is identical; never force-push or silently replace it.
         command(["git", "fetch", "--no-tags", "origin", f"refs/heads/{branch}"], repo)
         command(["git", "diff", "--quiet", "HEAD", "FETCH_HEAD"], repo)
     else:
         command(["git", "push", "origin", f"HEAD:refs/heads/{branch}"], repo)
-    body = (f"Validated results from {run['html_url']} (attempt {run['run_attempt']}).\n\n"
-            "Includes failed and interrupted attempts. No model calls, retries, score changes, or raw API responses. "
-            "Source run/commit/plan, artifact digests, record identity, and frozen RTL hashes were checked.\n\n"
-            "Review this PR before merging. Approval of queued CI workflows may be needed for bot-created PRs. "
-            "A human merge triggers the existing Site workflow. The publisher never approves or merges PRs.")
-    url = command(["gh", "pr", "create", "--repo", REPOSITORY, "--base", "main", "--head", branch,
-                   "--title", f"results: Actions run {run['id']}", "--body", body], repo).decode().strip()
+
+    body = (
+        f"Validated results from {run['html_url']} (attempt {run['run_attempt']}).\n\n"
+        "Includes failed and interrupted attempts. No model calls, retries, score changes, or raw "
+        "API responses. Source run/commit/plan, artifact digests, record identity, and frozen RTL "
+        "hashes were checked.\n\n"
+        "Review this PR before merging. Approval of queued CI workflows may be needed for "
+        "bot-created PRs. A human merge triggers the existing Site workflow. The publisher never "
+        "approves or merges PRs."
+    )
+    url = command(
+        [
+            "gh", "pr", "create", "--repo", REPOSITORY, "--base", "main", "--head", branch,
+            "--title", f"results: Actions run {run['id']}", "--body", body,
+        ],
+        repo,
+    ).decode().strip()
     print(url)
     return url
+
+
+# --------------------------------------------------------------------------
+# Command line
+# --------------------------------------------------------------------------
 
 
 def main() -> None:
@@ -359,62 +552,96 @@ def main() -> None:
     positive_id(args.run_id)
     if args.open_pr and command(["git", "status", "--porcelain"], repo).strip():
         raise ValueError("publication requires a clean trusted checkout")
+
+    # 1. The source run, from a registered workflow at an ancestor of HEAD.
     policy = strict_json((repo / "pilot/publication-policy.json").read_bytes())
     run = api(f"actions/runs/{args.run_id}")
     rule = policy["workflows"].get(run.get("path"))
     if not rule:
         raise ValueError("workflow is not registered for publication")
-    # Only ancestral main commits; never execute the evaluated revision.
-    if not re.fullmatch(r"[0-9a-f]{40}", run.get("head_sha", "")):
+    if not COMMIT_SHA.fullmatch(run.get("head_sha", "")):
         raise ValueError("invalid source SHA")
+    # Only ancestral main commits whose problems and flows match HEAD; the
+    # evaluated revision's code is never executed.
     command(["git", "merge-base", "--is-ancestor", run["head_sha"], "HEAD"], repo)
     command(["git", "diff", "--quiet", run["head_sha"], "HEAD", "--", "problems", "flows"], repo)
+
+    # 2. The plan that workflow file selected at that commit.
     workflow = command(["git", "show", f"{run['head_sha']}:{run['path']}"], repo).decode()
-    path = source_plan_path(workflow, rule["plans"])
-    plan = strict_json(command(["git", "show", f"{run['head_sha']}:{path}"], repo))
+    plan_path = source_plan_path(workflow, rule["plans"])
+    plan = strict_json(command(["git", "show", f"{run['head_sha']}:{plan_path}"], repo))
+
     jobs_response = api(f"actions/runs/{run['id']}/attempts/{positive_id(run['run_attempt'])}/jobs?per_page=100")
     artifacts_response = api(f"actions/runs/{run['id']}/artifacts?per_page=100")
     if jobs_response["total_count"] > 100 or artifacts_response["total_count"] > 100:
         raise ValueError("unexpectedly large source run")
     jobs = jobs_response["jobs"]
-    entries = artifacts_response["artifacts"]
+    available = artifacts_response["artifacts"]
+
+    # 3. The jobs; 4. the artifacts; 5. validation and staging.
     with tempfile.TemporaryDirectory(prefix="adpbench-artifacts-") as temp:
-        dest = Path(temp)
-        evidence = []
-        # The source workflow selects its reviewed plan, not downloaded artifacts.
+        downloads = Path(temp)
         validate_source(run, jobs, plan, policy)
-        artifacts = ([(final, early) for _, _, final, early in agent_slots(plan, run["id"])]
-                     if plan.get("protocol") == AGENT_PROTOCOL else
-                     [(f"go-core-{m['id']}-{run['id']}", f"go-generation-{m['id']}-{run['id']}") for m in plan["models"]])
-        for final, early in artifacts:
-            matches = [a for a in entries if a["name"] == final]
-            if not matches:
-                matches = [a for a in entries if a["name"] == early]
-            if not matches:
+        evidence = []
+        for final_name, early_name in _expected_artifacts(plan, run):
+            artifact = _pick_artifact(available, final_name, early_name)
+            if artifact is None:
                 continue
-            if len(matches) != 1:
-                raise ValueError("ambiguous model artifact")
-            artifact = matches[0]
-            if (artifact.get("expired") or artifact["size_in_bytes"] > MAX_ARCHIVE
-                    or artifact.get("workflow_run", {}).get("id") != run["id"]
-                    or artifact.get("workflow_run", {}).get("head_sha") != run["head_sha"]):
-                raise ValueError("artifact metadata does not match source run")
-            raw = command(["gh", "api", f"repos/{REPOSITORY}/actions/artifacts/{positive_id(artifact['id'])}/zip"], limit=MAX_ARCHIVE)
+            _check_artifact_metadata(artifact, run)
+            raw = command(
+                ["gh", "api", f"repos/{REPOSITORY}/actions/artifacts/{positive_id(artifact['id'])}/zip"],
+                limit=MAX_ARCHIVE,
+            )
             digest = "sha256:" + hashlib.sha256(raw).hexdigest()
             if artifact.get("digest") != digest:
                 raise ValueError("artifact digest mismatch or unavailable")
-            extract_archive(raw, dest / final)
+            extract_archive(raw, downloads / final_name)
             evidence.append({"id": artifact["id"], "name": artifact["name"], "digest": digest})
-        paths = stage_publication(repo, dest, plan, run, jobs, evidence)
-    if args.open_pr:
-        url = open_results_pr(repo, paths, run)
-        if url and os.environ.get("GITHUB_STEP_SUMMARY"):
-            if not re.fullmatch(r"https://github.com/arygupt/ADPBench/pull/[0-9]+", url):
-                raise ValueError("unexpected results PR URL")
-            with Path(os.environ["GITHUB_STEP_SUMMARY"]).open("a") as summary:
-                summary.write(f"## Validated results\n\n[Review results PR]({url})\n\nNo new model calls.\n")
-    else:
+        paths = stage_publication(repo, downloads, plan, run, jobs, evidence)
+
+    # 6. The PR.
+    if not args.open_pr:
         print(json.dumps({"validated": True, "paths": paths, "model_calls": 0}))
+        return
+    url = open_results_pr(repo, paths, run)
+    if url and os.environ.get("GITHUB_STEP_SUMMARY"):
+        if not re.fullmatch(r"https://github.com/arygupt/ADPBench/pull/[0-9]+", url):
+            raise ValueError("unexpected results PR URL")
+        with Path(os.environ["GITHUB_STEP_SUMMARY"]).open("a") as summary:
+            summary.write(f"## Validated results\n\n[Review results PR]({url})\n\nNo new model calls.\n")
+
+
+def _expected_artifacts(plan: dict, run: dict) -> list[tuple[str, str]]:
+    """(final artifact name, earlier backup name) for each expected artifact."""
+    if plan.get("protocol") == AGENT_PROTOCOL:
+        return [(final, early) for _, _, final, early in agent_slots(plan, run["id"])]
+    return [
+        (f"go-core-{model['id']}-{run['id']}", f"go-generation-{model['id']}-{run['id']}")
+        for model in plan["models"]
+    ]
+
+
+def _pick_artifact(available: list[dict], final_name: str, early_name: str) -> dict | None:
+    """The final artifact, else the earlier generation backup, else None."""
+    matches = [artifact for artifact in available if artifact["name"] == final_name]
+    if not matches:
+        matches = [artifact for artifact in available if artifact["name"] == early_name]
+    if not matches:
+        return None
+    if len(matches) != 1:
+        raise ValueError("ambiguous model artifact")
+    return matches[0]
+
+
+def _check_artifact_metadata(artifact: dict, run: dict) -> None:
+    source_run = artifact.get("workflow_run", {})
+    if (
+        artifact.get("expired")
+        or artifact["size_in_bytes"] > MAX_ARCHIVE
+        or source_run.get("id") != run["id"]
+        or source_run.get("head_sha") != run["head_sha"]
+    ):
+        raise ValueError("artifact metadata does not match source run")
 
 
 if __name__ == "__main__":

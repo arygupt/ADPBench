@@ -9,7 +9,7 @@ from __future__ import annotations
 import unittest
 from pathlib import Path
 
-from adpbench.agent import audit_submission
+from adpbench.audit import audit_submission
 
 FIXTURES = Path(__file__).resolve().parent / "fixtures"
 
