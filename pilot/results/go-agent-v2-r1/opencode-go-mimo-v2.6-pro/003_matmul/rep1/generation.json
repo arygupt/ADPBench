@@ -1,0 +1,55 @@
+{
+  "model": "mimo-v2.6-pro",
+  "problem": "003_matmul",
+  "protocol": "agent-assisted-v2",
+  "started": "2026-09-26T19:48:32.156434+00:00",
+  "generation_state": "failed",
+  "outcome": "quota_exhausted",
+  "error": "provider HTTP 429; resends are listed in transport_retries; no fallback",
+  "turns": 1,
+  "checks": 0,
+  "max_turns": 20,
+  "max_checks": 3,
+  "max_output_tokens": 131072,
+  "usage": {},
+  "incomplete_usage": true,
+  "generation_settings": {
+    "reasoning": {
+      "enabled": true
+    },
+    "token_limit_key": "max_completion_tokens"
+  },
+  "reasoning_measured": {
+    "turns": 0,
+    "turns_with_reasoning": 0,
+    "reasoning_chars": 0,
+    "answer_chars": 0,
+    "reasoning_tokens": null
+  },
+  "github": {
+    "GITHUB_REPOSITORY": "arygupt/ADPBench",
+    "GITHUB_RUN_ID": "36265411322",
+    "GITHUB_RUN_ATTEMPT": "1",
+    "GITHUB_SHA": "a218a152859ade906e34f719960a2f36b198e183"
+  },
+  "attempt": 1,
+  "try": 1,
+  "transport_retries": [
+    {
+      "turn": 1,
+      "retry": 1,
+      "reason": "http_429",
+      "usage_known": true
+    },
+    {
+      "turn": 1,
+      "retry": 2,
+      "reason": "http_429",
+      "usage_known": true
+    }
+  ],
+  "writes": 0,
+  "development_checks": [],
+  "duration_s": 150.62,
+  "execution_health": "failed"
+}

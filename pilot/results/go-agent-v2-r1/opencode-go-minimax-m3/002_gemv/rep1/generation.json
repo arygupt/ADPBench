@@ -1,0 +1,85 @@
+{
+  "model": "minimax-m3",
+  "problem": "002_gemv",
+  "protocol": "agent-assisted-v2",
+  "started": "2026-09-26T19:35:52.175214+00:00",
+  "generation_state": "failed",
+  "outcome": "quota_exhausted",
+  "error": "provider HTTP 429; resends are listed in transport_retries; no fallback",
+  "turns": 11,
+  "checks": 3,
+  "max_turns": 20,
+  "max_checks": 3,
+  "max_output_tokens": 131072,
+  "usage": {
+    "input_tokens": 66526,
+    "output_tokens": 85021,
+    "cache_read_input_tokens": 396230
+  },
+  "incomplete_usage": true,
+  "generation_settings": {
+    "thinking": {
+      "type": "enabled",
+      "budget_tokens": 16000
+    }
+  },
+  "reasoning_measured": {
+    "turns": 10,
+    "turns_with_reasoning": 7,
+    "reasoning_chars": 272703,
+    "answer_chars": 20397,
+    "reasoning_tokens": null
+  },
+  "github": {
+    "GITHUB_REPOSITORY": "arygupt/ADPBench",
+    "GITHUB_RUN_ID": "36265411322",
+    "GITHUB_RUN_ATTEMPT": "1",
+    "GITHUB_SHA": "a218a152859ade906e34f719960a2f36b198e183"
+  },
+  "attempt": 1,
+  "try": 1,
+  "transport_retries": [
+    {
+      "turn": 11,
+      "retry": 1,
+      "reason": "http_429",
+      "usage_known": true
+    },
+    {
+      "turn": 11,
+      "retry": 2,
+      "reason": "http_429",
+      "usage_known": true
+    }
+  ],
+  "finish_reason": "tool_use",
+  "writes": 5,
+  "development_checks": [
+    {
+      "index": 1,
+      "submission_sha256": "f727223836d902fb2762c5d80494809cffc7404cbe4460cbdcc3bcb1b7eaf0ce",
+      "completed": true,
+      "correct": false,
+      "reason": "",
+      "audit_ok": true
+    },
+    {
+      "index": 2,
+      "submission_sha256": "9fda069252e1dea223ea791235cd0afab4e141a6d722a7a7a8abfa48035710ce",
+      "completed": true,
+      "correct": false,
+      "reason": "",
+      "audit_ok": true
+    },
+    {
+      "index": 3,
+      "submission_sha256": "ccda386382ed48e0f5136e5a86873a9d3915e32ce58ace6a04870303c3dfbd93",
+      "completed": true,
+      "correct": false,
+      "reason": "",
+      "audit_ok": true
+    }
+  ],
+  "duration_s": 487.28,
+  "execution_health": "failed"
+}

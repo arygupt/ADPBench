@@ -1,0 +1,173 @@
+{
+  "problems": [
+    {
+      "name": "001_dot_product",
+      "title": "Dot product",
+      "level": 1,
+      "params": {
+        "LEN": 256,
+        "LANES": 32,
+        "DATA_W": 8,
+        "ACC_W": 32
+      },
+      "input_lens": {
+        "in_a_flat": 256,
+        "in_b_flat": 256
+      },
+      "out_len": 1,
+      "transactions": 2,
+      "directed": [
+        "zeros",
+        "min_values",
+        "extreme_signs"
+      ],
+      "quant": {
+        "in_a_flat": "int8 two's complement",
+        "in_b_flat": "int8 two's complement",
+        "out_c": "int32 two's complement, exact",
+        "accumulator": "int32, no saturation, no rounding",
+        "tolerance": "none - bit exact"
+      },
+      "baseline": {
+        "cells": 2142,
+        "cycles": 546,
+        "adp": 1169532.0
+      },
+      "sanity": {
+        "correct": true,
+        "cells": 20200,
+        "cycles": 20,
+        "adp": 404000.0,
+        "ratio": 2.894881188118812
+      }
+    },
+    {
+      "name": "002_gemv",
+      "title": "Matrix-vector (GEMV)",
+      "level": 1,
+      "params": {
+        "ROWS": 16,
+        "COLS": 64,
+        "LANES": 16,
+        "DATA_W": 8,
+        "ACC_W": 32
+      },
+      "input_lens": {
+        "in_a_flat": 1024,
+        "in_x_flat": 64
+      },
+      "out_len": 16,
+      "transactions": 2,
+      "directed": [
+        "zeros",
+        "min_values",
+        "extreme_signs"
+      ],
+      "quant": {
+        "in_a_flat": "int8 two's complement, row-major A",
+        "in_x_flat": "int8 two's complement",
+        "out_c": "int32 two's complement, exact, one word per row",
+        "accumulator": "int32, no saturation, no rounding",
+        "tolerance": "none - bit exact"
+      },
+      "baseline": {
+        "cells": 3295,
+        "cycles": 2216,
+        "adp": 7301720.0
+      },
+      "sanity": {
+        "correct": true,
+        "cells": 11657,
+        "cycles": 298,
+        "adp": 3473786.0,
+        "ratio": 2.101948709563571
+      }
+    },
+    {
+      "name": "003_matmul",
+      "title": "Matrix multiply",
+      "level": 1,
+      "params": {
+        "M": 8,
+        "N": 8,
+        "K": 16,
+        "LANES": 16,
+        "DATA_W": 8,
+        "ACC_W": 32
+      },
+      "input_lens": {
+        "in_a_flat": 128,
+        "in_b_flat": 128
+      },
+      "out_len": 64,
+      "transactions": 2,
+      "directed": [
+        "zeros",
+        "min_values",
+        "extreme_signs"
+      ],
+      "quant": {
+        "in_a_flat": "int8 two's complement, row-major A (M x K)",
+        "in_b_flat": "int8 two's complement, row-major B (K x N)",
+        "out_c": "int32 two's complement, exact, row-major C (M x N)",
+        "accumulator": "int32, no saturation, no rounding",
+        "tolerance": "none - bit exact"
+      },
+      "baseline": {
+        "cells": 6253,
+        "cycles": 2194,
+        "adp": 13719082.0
+      },
+      "sanity": {
+        "correct": true,
+        "cells": 15501,
+        "cycles": 146,
+        "adp": 2263146.0,
+        "ratio": 6.061951813979301
+      }
+    },
+    {
+      "name": "004_conv1d",
+      "title": "1-D convolution",
+      "level": 1,
+      "params": {
+        "IN_LEN": 128,
+        "F": 4,
+        "K": 4,
+        "LANES": 16,
+        "DATA_W": 8,
+        "ACC_W": 32
+      },
+      "input_lens": {
+        "in_x_flat": 128,
+        "in_w_flat": 16
+      },
+      "out_len": 500,
+      "transactions": 2,
+      "directed": [
+        "zeros",
+        "zero_weights",
+        "extreme_signs"
+      ],
+      "quant": {
+        "in_x_flat": "int8 two's complement",
+        "in_w_flat": "int8 two's complement, row-major filters (F x K)",
+        "out_c": "int32 two's complement, exact, row-major y (F x OUT_POS)",
+        "accumulator": "int32, no saturation, no rounding",
+        "tolerance": "none - bit exact"
+      },
+      "baseline": {
+        "cells": 4565,
+        "cycles": 5018,
+        "adp": 22907170.0
+      },
+      "sanity": {
+        "correct": true,
+        "cells": 7988,
+        "cycles": 1018,
+        "adp": 8131784.0,
+        "ratio": 2.8169919417436566
+      }
+    }
+  ]
+}

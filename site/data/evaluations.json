@@ -1,7 +1,13 @@
 {
   "schema_version": 1,
-  "default": "go-agent-20260923",
+  "default": "go-agent-v2-r1",
   "evaluations": [
+    {
+      "id": "go-agent-v2-r1",
+      "label": "OpenCode Go \u00b7 go-agent-v2-r1 \u00b7 agent-assisted-v2",
+      "path": "data/go-agent-v2-r1/leaderboard.json",
+      "protocol": "agent-assisted-v2"
+    },
     {
       "id": "go-agent-20260923",
       "label": "OpenCode Go \u00b7 go-agent-20260923 \u00b7 agent-assisted-v1",
