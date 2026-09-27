@@ -92,6 +92,8 @@ MAX_ROUND_MODELS = 16
 MAX_ROUND_SLOTS = 64
 MAX_ATTEMPTS = 3
 MAX_TRIES = 2
+MAX_PARALLEL = 14
+SCHEDULES = {"hourly"}
 MAX_PROMPT_BYTES = 24000
 MAX_REQUEST_TIMEOUT_S = 600
 MAX_REQUEST_WALL_TIMEOUT_S = 3600
@@ -140,6 +142,20 @@ def plan_slots(plan: dict) -> list[tuple[str, str]]:
         return matrix
     chosen = {(slot["model"], slot["problem"]) for slot in plan["slots"]}
     return [slot for slot in matrix if slot in chosen]
+
+
+def claim_name(plan: dict, model_id: str, problem_id: str) -> str:
+    """The durable tag that claims one slot, so no dispatch can spend on it twice.
+
+    The plan name carries the round; a rerun (try 2) claims its own tag.
+    """
+    suffix = f"-t{plan['try']}" if plan.get("try", 1) > 1 else ""
+    return f"{plan['name']}-{model_id}-{problem_id}{suffix}"
+
+
+def pause_name(plan: dict, run_id: str) -> str:
+    """The tag one slot sets when the account quota runs out, so later slots in that run skip."""
+    return f"{plan['name']}-paused-{run_id}"
 
 
 def problem_dir(problem_id: str) -> Path:
@@ -296,6 +312,14 @@ def _validate_round(plan: dict) -> None:
         raise ValueError("a rerun must list its slots")
     if len(plan_slots(plan)) > MAX_ROUND_SLOTS:
         raise ValueError("a round may contain at most sixty-four slots")
+
+    # Pacing under OpenCode Go's shared 5-hour account limit.
+    if not _is_positive_int(plan.get("max_parallel", MAX_PARALLEL), MAX_PARALLEL):
+        raise ValueError("max_parallel must be 1-14")
+    if type(plan.get("release_on_quota", False)) is not bool:
+        raise ValueError("release_on_quota must be boolean")
+    if "schedule" in plan and (plan["schedule"] not in SCHEDULES or not plan.get("release_on_quota")):
+        raise ValueError("a scheduled plan runs hourly and must release quota-cut slots")
 
 
 def _validate_output_limits(plan: dict, model_ids: list[str]) -> None:

@@ -24,6 +24,7 @@ on:
       - "scripts/go_stream.py"
       - "scripts/go_pilot.py"
       - "scripts/go_score.py"
+      - "scripts/go_schedule.py"
       - "pilot/go-agent*.json"
       - "pilot/go-canary-v2.json"
       - "adpbench/**"
@@ -43,7 +44,7 @@ concurrency:
   cancel-in-progress: false
 
 env:
-  PLAN: pilot/go-agent-v2-r1.json
+  PLAN: pilot/go-agent-v2-r1-t2.json
   CANARY: pilot/go-canary-v2.json
 
 jobs:
@@ -82,7 +83,7 @@ jobs:
           plan = validate_canary(json.loads(Path(os.environ['CANARY']).read_text()))
           print('models=' + json.dumps([model['id'] for model in plan['models']]))
           PY
-      - run: python -m unittest tests.test_go_agent tests.test_go_tools tests.test_go_stream tests.test_go_pilot tests.test_reliability -v
+      - run: python -m unittest tests.test_go_agent tests.test_go_tools tests.test_go_stream tests.test_go_pilot tests.test_go_schedule tests.test_reliability -v
 
   integration:
     name: Pinned agent sandbox and held-out scorer checks (no model calls)
@@ -126,6 +127,8 @@ jobs:
     timeout-minutes: 30
     outputs:
       matrix: ${{ steps.round.outputs.matrix }}
+      slots: ${{ steps.round.outputs.slots }}
+      parallel: ${{ steps.round.outputs.parallel }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -134,23 +137,32 @@ jobs:
         with:
           python-version: "3.12"
       - run: python -m pip install 'numpy>=1.24,<3'
-      - name: Verify authorization and list the round's slots
+      - name: Verify authorization and list the round's unclaimed slots
         id: round
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           python -m scripts.go_agent validate --plan "$PLAN"
           python - <<'PY'
           import json, os
           from pathlib import Path
-          from scripts.go_pilot import read_plan, due, now_utc, plan_slots
+          from scripts.go_pilot import read_plan, due, now_utc, plan_slots, claim_name
+          from scripts.go_schedule import claimed_tags
           plan = read_plan(Path(os.environ['PLAN']))
           assert plan['protocol'] == 'agent-assisted-v2', 'This workflow runs agent-assisted-v2 rounds'
           assert plan['generation_enabled'], 'Generation is disabled'
           assert all(due(plan, model, now_utc()) for model in plan['models']), 'Round authorization expired or not yet due'
           assert plan['slot_timeout_s'] <= 7200, 'Slot deadline must leave artifact-upload time'
-          slots = [{'model': model, 'problem': problem} for model, problem in plan_slots(plan)]
+          # Claimed slots already ran (or are running); a slot released after
+          # hitting the account usage limit is unclaimed again.
+          claimed = claimed_tags(plan)
+          slots = [{'model': m, 'problem': p} for m, p in plan_slots(plan) if claim_name(plan, m, p) not in claimed]
           with open(os.environ['GITHUB_OUTPUT'], 'a') as out:
               out.write('matrix=' + json.dumps({'include': slots}) + '\n')
-          print(f"Round {plan['attempt']} try {plan['try']}: {len(slots)} independent slots; no fallback.")
+              out.write(f"slots={len(slots)}\n")
+              out.write(f"parallel={plan.get('max_parallel', 14)}\n")
+          print(f"Round {plan['attempt']} try {plan['try']}: {len(slots)} unclaimed slots, "
+                f"{plan.get('max_parallel', 14)} at a time; no fallback.")
           PY
       - uses: docker/setup-buildx-action@v3
       - uses: docker/build-push-action@v6
@@ -183,11 +195,12 @@ jobs:
     needs: prepare
     permissions:
       contents: write # Delegated only for the reusable generation job's durable claim.
+    if: needs.prepare.outputs.slots != '0'
     strategy:
       fail-fast: false
-      # Slots are listed problem by problem, so about one slot per model is in
-      # flight at a time; Go quotas are per model.
-      max-parallel: 14
+      # OpenCode Go's 5-hour usage limit is shared by the whole account, so
+      # the plan sets how many slots may spend at once.
+      max-parallel: ${{ fromJSON(needs.prepare.outputs.parallel) }}
       matrix: ${{ fromJSON(needs.prepare.outputs.matrix) }}
     uses: ./.github/workflows/go-agent-slot.yml
     with:
