@@ -82,7 +82,7 @@ So a plan paces itself with these fields:
 |---|---|
 | `max_parallel` | How many slots may spend at once (1–14). |
 | `release_on_quota` | A slot that ends `quota_exhausted` keeps its evidence in the Actions artifacts, then releases its claim tag, so a later wave runs it fresh. It also sets a pause tag, so the rest of that run skips instead of each sending rejected requests. |
-| `schedule: hourly` | [OpenCode Go agent schedule](../.github/workflows/go-agent-schedule.yml) checks every hour at :23. It dispatches the next wave only when the plan is enabled and inside its window, no agent run is active, and a slot is unclaimed. Committing the plan is the authorization, including the confirmation that Go "Use balance" is off. |
+| `schedule: hourly` | [OpenCode Go agent schedule](../.github/workflows/go-agent-schedule.yml) checks every half hour (:07 and :37). It dispatches the next wave only when the plan is enabled and inside its window, no agent run is active, and a slot is unclaimed. Committing the plan is the authorization, including the confirmation that Go "Use balance" is off. |
 
 [`go-agent-v2-r1-t2.json`](go-agent-v2-r1-t2.json) reruns round 1's 43
 `quota_exhausted` slots this way, 3 at a time, from 2026-09-27 00:20 UTC. At
