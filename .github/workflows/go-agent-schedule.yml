@@ -6,7 +6,7 @@ run-name: "OpenCode Go · ${{ github.event_name == 'pull_request' && 'schedule c
 # request, exactly as a manual dispatch does.
 on:
   schedule:
-    - cron: "23 * * * *"
+    - cron: "7,37 * * * *"
   workflow_dispatch:
   pull_request:
     paths:
