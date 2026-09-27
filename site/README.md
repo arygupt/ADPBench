@@ -60,9 +60,9 @@ files and checks that the website shows the same outcomes.
 The repository's Actions PR-creation setting must be enabled. Default token
 permissions stay read-only; only the publisher job has contents/PR write access.
 It **never approves or merges PRs**. GitHub may require a maintainer to approve
-CI execution on bot-created PRs; review the data diff first. A human merge
-triggers Site validation and builds the updated downloadable site bundle.
-Publication does not deploy the site or change repository visibility.
+CI execution on bot-created PRs; review the data diff first. Merging into `main`
+triggers Site validation and Vercel production deployment. Publication only
+opens the results PR; it does not merge it or change repository visibility.
 
 Backfill an already-completed run without any model calls:
 
@@ -106,11 +106,15 @@ Preview locally:
 python3 -m http.server 8000 --directory site
 ```
 
-Deployment: the site is a static Vercel project (`adpbench`) served at
-[adpbench.vercel.app](https://adpbench.vercel.app); deploy with
-`vercel deploy --prod` from `site/`. `.vercelignore` keeps this README out of
-the deployment. `.github/workflows/deploy-site.yml` validates site changes on
-pull requests and pushes to `main` and uploads the site as a workflow artifact.
+Deployment: Vercel project `adpbench` is connected to `arygupt/ADPBench`.
+Pushes and merges to `main` automatically update
+[adpbench.vercel.app](https://adpbench.vercel.app); other branches get preview
+deployments. Vercel uses `site/` as its Root Directory, `.` as its Output
+Directory, and empty Build and Install commands for this static site.
+For a manual production deployment, run `vercel deploy --prod --project adpbench
+--scope aryang20s-projects` from the repository root. The
+`.github/workflows/deploy-site.yml` workflow separately validates site changes
+on pull requests and pushes to `main` and uploads a downloadable site bundle.
 
 The interface uses compact leaderboard rows with horizontal performance bars,
 aligned metric columns, and a shared percentage axis. A slim top navigation leads into the rankings, with the operator matrix directly
