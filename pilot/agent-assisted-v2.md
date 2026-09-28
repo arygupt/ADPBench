@@ -85,10 +85,12 @@ So a plan paces itself with these fields:
 | `schedule: hourly` | [OpenCode Go agent schedule](../.github/workflows/go-agent-schedule.yml) checks every half hour (:07 and :37). It dispatches the next wave only when the plan is enabled and inside its window, no agent run is active, and a slot is unclaimed. Committing the plan is the authorization, including the confirmation that Go "Use balance" is off. |
 
 [`go-agent-v2-r1-t2.json`](go-agent-v2-r1-t2.json) reruns round 1's 43
-`quota_exhausted` slots this way, 3 at a time, from 2026-09-27 00:20 UTC. At
-about $0.30 per slot that needs about three 5-hour windows, if Go's weekly
-limit allows. A weekly cutoff looks the same to the scheduler: slots release
-and wait. Only the plan's two-day window ends the schedule.
+`quota_exhausted` slots this way, 3 at a time. At about $0.30 per slot that needs about three 5-hour windows,
+if Go's weekly and monthly limits allow. A weekly or monthly cutoff looks the
+same to the scheduler: slots release and wait. Only the plan's two-day window
+ends the schedule. The first window (2026-09-27 00:20 UTC) finished 2 slots
+before the monthly limit ran out; the window reopened at 2026-09-28 23:15 UTC
+once it refilled.
 
 ### Free models
 

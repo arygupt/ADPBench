@@ -44,7 +44,7 @@ concurrency:
   cancel-in-progress: false
 
 env:
-  PLAN: pilot/go-agent-v2-r1-free.json
+  PLAN: pilot/go-agent-v2-r1-t2.json
   CANARY: pilot/go-canary-v2-free.json
 
 jobs:

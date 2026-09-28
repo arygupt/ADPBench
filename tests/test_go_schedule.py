@@ -8,7 +8,7 @@ from scripts.go_schedule import AGENT_WORKFLOW, decide, selected_plan
 
 ROOT = Path(__file__).resolve().parent.parent
 RERUN = ROOT / "pilot/go-agent-v2-r1-t2.json"
-INSIDE = datetime(2026, 9, 27, 3, tzinfo=timezone.utc)
+INSIDE = datetime(2026, 9, 29, 3, tzinfo=timezone.utc)
 
 
 class ScheduleTest(unittest.TestCase):
@@ -17,7 +17,7 @@ class ScheduleTest(unittest.TestCase):
         self.claims = {claim_name(self.plan, *slot) for slot in plan_slots(self.plan)}
 
     def test_agent_workflow_selects_one_plan(self):
-        self.assertEqual(selected_plan((ROOT / AGENT_WORKFLOW).read_text()), "pilot/go-agent-v2-r1-free.json")
+        self.assertEqual(selected_plan((ROOT / AGENT_WORKFLOW).read_text()), "pilot/go-agent-v2-r1-t2.json")
         for text in ("env:\n", "  PLAN: pilot/a.json\n  PLAN: pilot/b.json\n"):
             with self.assertRaises(ValueError):
                 selected_plan(text)
@@ -37,8 +37,8 @@ class ScheduleTest(unittest.TestCase):
         waits = [
             ({**self.plan, "schedule": None}, set(), 0, INSIDE),
             ({**self.plan, "generation_enabled": False}, set(), 0, INSIDE),
-            (self.plan, set(), 0, datetime(2026, 9, 27, 0, 10, tzinfo=timezone.utc)),
-            (self.plan, set(), 0, datetime(2026, 9, 29, 1, tzinfo=timezone.utc)),
+            (self.plan, set(), 0, datetime(2026, 9, 28, 23, 10, tzinfo=timezone.utc)),
+            (self.plan, set(), 0, datetime(2026, 10, 1, 0, tzinfo=timezone.utc)),
             (self.plan, set(), 1, INSIDE),
             (self.plan, self.claims, 0, INSIDE),
         ]
