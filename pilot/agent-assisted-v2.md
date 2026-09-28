@@ -90,6 +90,17 @@ about $0.30 per slot that needs about three 5-hour windows, if Go's weekly
 limit allows. A weekly cutoff looks the same to the scheduler: slots release
 and wait. Only the plan's two-day window ends the schedule.
 
+### Free models
+
+[`go-agent-v2-r1-free.json`](go-agent-v2-r1-free.json) runs round 1 for two
+free Go models, Space Bunny (`space-bunny-free`, effort `high`) and LongCat 2.5
+Preview (`longcat-2.5-preview-free`, thinking on), under the same protocol and
+limits. Free models did not count against the Go monthly limit on 2026-09-28,
+when every paid model returned `"limitName": "monthly"`. Its canary is
+[`go-canary-v2-free.json`](go-canary-v2-free.json). While it is the selected
+plan, the hourly scheduler leaves the `-t2` rerun alone; select the rerun again
+once the monthly limit resets.
+
 ## Reasoning
 
 Every model requests "high" where it offers it, or the nearest setting
