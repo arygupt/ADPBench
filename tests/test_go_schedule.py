@@ -22,6 +22,13 @@ class ScheduleTest(unittest.TestCase):
             with self.assertRaises(ValueError):
                 selected_plan(text)
 
+    def test_slot_workflow_runs_the_selected_plan(self):
+        # A second literal here once ran every free slot against the -t2 plan.
+        slot = (ROOT / ".github/workflows/go-agent-slot.yml").read_text()
+        self.assertIn("  PLAN: ${{ inputs.plan }}\n", slot)
+        self.assertNotRegex(slot, r"PLAN: pilot/")
+        self.assertIn("plan: ${{ needs.prepare.outputs.plan }}", (ROOT / AGENT_WORKFLOW).read_text())
+
     def test_rerun_plan_is_paced_and_lists_only_round_one_slots(self):
         self.assertEqual((self.plan["try"], self.plan["schedule"], self.plan["max_parallel"]), (2, "hourly", 3))
         self.assertTrue(self.plan["release_on_quota"])

@@ -3,6 +3,10 @@ name: OpenCode Go agent slot
 on:
   workflow_call:
     inputs:
+      plan:
+        description: "The plan go-agent.yml selects; checked against that literal before claiming"
+        required: true
+        type: string
       model:
         required: true
         type: string
@@ -20,7 +24,7 @@ permissions:
   contents: read
 
 env:
-  PLAN: pilot/go-agent-v2-r1-t2.json
+  PLAN: ${{ inputs.plan }}
   MODEL: ${{ inputs.model }}
   PROBLEM: ${{ inputs.problem }}
 
@@ -51,6 +55,8 @@ jobs:
           from pathlib import Path
           from scripts.go_pilot import read_plan, select_model, due, now_utc
           from scripts.go_pilot import plan_slots
+          from scripts.go_schedule import AGENT_WORKFLOW, selected_plan
+          assert os.environ['PLAN'] == selected_plan(AGENT_WORKFLOW.read_text()), 'Plan is not the one go-agent.yml selects'
           plan = read_plan(Path(os.environ['PLAN']))
           model = select_model(plan, os.environ['MODEL'])
           assert (model['id'], os.environ['PROBLEM']) in plan_slots(plan), 'Unreviewed slot'

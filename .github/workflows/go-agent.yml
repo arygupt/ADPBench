@@ -129,6 +129,7 @@ jobs:
       matrix: ${{ steps.round.outputs.matrix }}
       slots: ${{ steps.round.outputs.slots }}
       parallel: ${{ steps.round.outputs.parallel }}
+      plan: ${{ steps.round.outputs.plan }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -161,6 +162,7 @@ jobs:
               out.write('matrix=' + json.dumps({'include': slots}) + '\n')
               out.write(f"slots={len(slots)}\n")
               out.write(f"parallel={plan.get('max_parallel', 14)}\n")
+              out.write(f"plan={os.environ['PLAN']}\n")
           print(f"Round {plan['attempt']} try {plan['try']}: {len(slots)} unclaimed slots, "
                 f"{plan.get('max_parallel', 14)} at a time; no fallback.")
           PY
@@ -204,6 +206,7 @@ jobs:
       matrix: ${{ fromJSON(needs.prepare.outputs.matrix) }}
     uses: ./.github/workflows/go-agent-slot.yml
     with:
+      plan: ${{ needs.prepare.outputs.plan }}
       model: ${{ matrix.model }}
       problem: ${{ matrix.problem }}
       subscription_only: ${{ inputs.subscription_only }}

@@ -112,6 +112,12 @@ plan and its canary were selected again with new windows from 2026-10-03
 23:15 UTC. The rerun's remaining 22 slots (8 matmul, 14 conv1d) wait for the
 weekly limit to reset.
 
+Its first dispatch ([run 37161748425](https://github.com/arygupt/ADPBench/actions/runs/37161748425))
+stopped every slot at validation, before any claim or model call, because
+`go-agent-slot.yml` named the `-t2` plan in its own `PLAN` line. The slot
+workflow now takes the plan from `go-agent.yml` and checks it against that
+file's literal.
+
 ## Reasoning
 
 Every model requests "high" where it offers it, or the nearest setting
