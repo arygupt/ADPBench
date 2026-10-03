@@ -103,6 +103,15 @@ when every paid model returned `"limitName": "monthly"`. Its canary is
 plan, the hourly scheduler leaves the `-t2` rerun alone; select the rerun again
 once the monthly limit resets.
 
+The free plan was selected on 2026-09-28 but replaced by the reopened rerun
+before its canary ran, so none of its slots started. The rerun's second window
+(to 2026-09-30 23:15 UTC) finished 21 of 43 slots before every wave from
+2026-09-29 onward returned `"limitName": "weekly"`. The weekly limit still
+blocked paid models on 2026-10-03 while both free models answered, so the free
+plan and its canary were selected again with new windows from 2026-10-03
+23:15 UTC. The rerun's remaining 22 slots (8 matmul, 14 conv1d) wait for the
+weekly limit to reset.
+
 ## Reasoning
 
 Every model requests "high" where it offers it, or the nearest setting

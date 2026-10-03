@@ -17,7 +17,7 @@ class ScheduleTest(unittest.TestCase):
         self.claims = {claim_name(self.plan, *slot) for slot in plan_slots(self.plan)}
 
     def test_agent_workflow_selects_one_plan(self):
-        self.assertEqual(selected_plan((ROOT / AGENT_WORKFLOW).read_text()), "pilot/go-agent-v2-r1-t2.json")
+        self.assertEqual(selected_plan((ROOT / AGENT_WORKFLOW).read_text()), "pilot/go-agent-v2-r1-free.json")
         for text in ("env:\n", "  PLAN: pilot/a.json\n  PLAN: pilot/b.json\n"):
             with self.assertRaises(ValueError):
                 selected_plan(text)
