@@ -4,10 +4,10 @@
   "attempt": 1,
   "try": 1,
   "generation_enabled": true,
-  "expires_at": "2026-09-30T12:45:00+00:00",
+  "expires_at": "2026-10-05T23:15:00+00:00",
   "output_budget": "provider_max",
   "output_limit_source": "https://models.dev/api.json#opencode-go",
-  "output_limits_checked_at": "2026-09-28",
+  "output_limits_checked_at": "2026-10-03",
   "max_output_tokens": {
     "space-bunny-free": 524288,
     "longcat-2.5-preview-free": 131072
@@ -33,7 +33,7 @@
       "id": "space-bunny-free",
       "api": "chat/completions",
       "reasoning_effort": "high",
-      "not_before": "2026-09-28T12:45:00+00:00"
+      "not_before": "2026-10-03T23:15:00+00:00"
     },
     {
       "id": "longcat-2.5-preview-free",
@@ -41,10 +41,10 @@
       "thinking": {
         "type": "enabled"
       },
-      "not_before": "2026-09-28T12:45:00+00:00"
+      "not_before": "2026-10-03T23:15:00+00:00"
     }
   ],
   "reasoning_policy": "high-or-nearest",
   "reasoning_source": "https://models.dev/api.json#opencode-go",
-  "reasoning_checked_at": "2026-09-28"
+  "reasoning_checked_at": "2026-10-03"
 }
