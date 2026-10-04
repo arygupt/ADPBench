@@ -191,3 +191,9 @@ with its run ID. A wave with no finished slot publishes nothing. Merge each
 wave's results PR before dispatching the next, since every wave rebuilds the
 same leaderboard. For round 1 the waves with finished slots are 36328258003,
 36496973482 and 36562354781.
+
+Round 1 is published with those three waves (PRs #37, #47–#49), but the site
+keeps showing the v1 leaderboard until its last 22 slots finish: the site
+shows the first agent-assisted entry in `site/data/evaluations.json`, and
+unfinished slots would count as infrastructure failures in every rate. Move
+`go-agent-v2-r1` back to the top of that list once the round is complete.
