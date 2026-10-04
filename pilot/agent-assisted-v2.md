@@ -169,6 +169,25 @@ must select `main` and confirm `subscription_only`. Keep Go **Use balance** off.
 3. **Publish.** A finished round triggers the publisher, which opens a
    review-only results PR for that round's dataset.
 
-Not implemented yet: publishing a rerun into an already published round,
-and a leaderboard that combines rounds. Until then, each round publishes as
-its own dataset.
+Not implemented yet: a leaderboard that combines rounds. Each round publishes
+as its own dataset.
+
+### Publishing a rerun
+
+A rerun wave publishes into its round once the round's first try is merged.
+Each finished slot goes next to the try it replaces, as `rep1-t2/` (and
+`rep1-t2_frozen/dut.v`), and scoring counts it instead of `rep1`. The voided
+try and every other published file stay unchanged; only the round's
+leaderboard, `report.json` and `REPORT.md` are rebuilt, and the leaderboard's
+`meta.reruns` lists each wave. The publisher refuses a slot whose first try is
+not a published infrastructure failure (`quota_exhausted`, `provider_error`,
+`transport_interrupted` or `harness_error`), skips slots a wave released after
+the usage limit, and treats a republished wave as a no-op.
+
+The scheduler dispatches waves with the workflow token, which never triggers
+the publisher, so publish each wave by dispatching
+[Publish OpenCode Go results](https://github.com/arygupt/ADPBench/actions/workflows/publish-results.yml)
+with its run ID. A wave with no finished slot publishes nothing. Merge each
+wave's results PR before dispatching the next, since every wave rebuilds the
+same leaderboard. For round 1 the waves with finished slots are 36328258003,
+36496973482 and 36562354781.

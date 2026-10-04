@@ -18,7 +18,7 @@ from pathlib import Path
 from .agent import git_commit
 from .evaluate import evaluate_multi
 from .problem import Problem, discover_problems, load_problem
-from .report import load_runs, summarize
+from .report import load_runs, summarize, superseded
 from .seeds import DEV_SEEDS, EVAL_SEEDS
 
 AGENT_PROTOCOLS = ("agent-assisted-v1", "agent-assisted-v2")
@@ -76,7 +76,9 @@ def export_site(
         problem_entries.append(entry)
 
     records = [
-        json.loads(path.read_text()) for path in sorted(pilot_dir.glob("*/**/rep*/record.json"))
+        json.loads(path.read_text())
+        for path in sorted(pilot_dir.glob("*/**/rep*/record.json"))
+        if not superseded(path)
     ]
     runs = [_run_entry(record) for record in records]
 

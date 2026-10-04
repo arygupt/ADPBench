@@ -9,8 +9,10 @@ from __future__ import annotations
 
 import json
 import re
+import shutil
 from pathlib import Path
 
+from adpbench.durable import atomic_json
 from adpbench.hashing import sha256_bytes
 from scripts.go_pilot import (
     AGENT_PROTOCOLS,
@@ -32,6 +34,12 @@ from scripts.publish_go import (
 )
 
 WORKFLOW = ".github/workflows/go-agent.yml"
+AGENT_GENERATION_STEP = "Run standardized agent"
+GITHUB_TIMESTAMP = re.compile(r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z")
+
+# First-try outcomes a rerun may replace: failures that say nothing about the
+# model (pilot/agent-assisted-v2.md, "Rounds and reruns").
+RERUNNABLE = {"quota_exhausted", "provider_error", "transport_interrupted", "harness_error"}
 
 # Every outcome a generation receipt may record.
 OUTCOMES = {
@@ -69,6 +77,29 @@ def slots(plan: dict, run_id: int):
         yield models[model_id], problem, f"go-agent-records-{identity}", f"go-agent-generation-{identity}"
 
 
+def rerun_dir(out: Path, model_id: str, problem: str, plan: dict) -> Path:
+    """Where a rerun is published: next to the try it replaces, e.g. `rep1-t2`."""
+    first = slot_dir(out, model_id, problem, plan_attempt(plan))
+    return first.with_name(f"{first.name}-t{plan['try']}")
+
+
+def step_ran(job: dict, step_name: str) -> bool:
+    """Whether the named step actually started (so a model may have been called).
+
+    A step that succeeded or failed ran. A cancelled or timed-out step only
+    counts if it has a start time; otherwise it never began.
+    """
+    for step in job.get("steps", []):
+        if step.get("name") != step_name:
+            continue
+        if step.get("conclusion") in {"success", "failure"}:
+            return True
+        started = GITHUB_TIMESTAMP.fullmatch(step.get("started_at") or "")
+        if step.get("conclusion") in {"cancelled", "timed_out"} and started:
+            return True
+    return False
+
+
 def job_name(stage: str, model: str, problem: str, protocol: str) -> str:
     return f"{stage} {model} · {problem} · {protocol}"
 
@@ -76,7 +107,11 @@ def job_name(stage: str, model: str, problem: str, protocol: str) -> str:
 def matches_job(job: dict, stage: str, model: str, problem: str, protocol: str) -> bool:
     expected = job_name(stage, model, problem, protocol)
     # Reusable-workflow jobs are prefixed with their caller's display name.
-    return job.get("name") in {expected, f"{model} · {problem} / {expected}"}
+    names = {expected, f"{model} · {problem} / {expected}"}
+    if job.get("conclusion") == "skipped":
+        # GitHub never expands a skipped reusable job's own name; only the caller prefix names the slot.
+        names.add(f"{model} · {problem} / {job_name(stage, '${{ inputs.model }}', '${{ inputs.problem }}', protocol)}")
+    return job.get("name") in names
 
 
 def validate_generation(generation: dict, model: dict, problem: str, plan: dict) -> None:
@@ -154,7 +189,7 @@ def publish_agent(
     if run.get("path") != WORKFLOW or plan.get("protocol") not in AGENT_PROTOCOLS:
         raise ValueError("agent publication requires its own workflow and protocol")
     if plan.get("try", 1) > 1:
-        raise ValueError("publishing a rerun into an existing round is not supported yet")
+        raise ValueError("a rerun is published into its round with rerun_slots")
     if output.exists() or site_output.exists():
         raise FileExistsError("never overwrite published results")
 
@@ -187,6 +222,61 @@ def publish_agent(
     )
     save_leaderboard(output, site_output, board, run, jobs)
     return board
+
+
+def rerun_slots(artifacts: Path, plan: dict, run: dict, jobs: list[dict], round_dir: Path) -> list[dict]:
+    """The finished slots one rerun wave adds to its published round.
+
+    A wave runs only the slots it claimed. A slot the usage limit cut off
+    released its claim and runs again in a later wave, so it is skipped; its
+    evidence stays in the Actions artifacts. Every published slot must replace
+    a first try in `round_dir` that failed for infrastructure reasons.
+    """
+    if run.get("path") != WORKFLOW or plan.get("protocol") not in AGENT_PROTOCOLS or plan.get("try", 1) < 2:
+        raise ValueError("not an agent rerun")
+    prepared = []
+    for model, problem, records_artifact, _ in slots(plan, run["id"]):
+        artifact = artifacts / records_artifact
+        generate = [job for job in jobs if matches_job(job, "Generate", model["id"], problem, plan["protocol"])]
+        # Evidence is uploaded only by the run that claimed the slot; a re-run
+        # attempt of that run scores it without generating again.
+        if not artifact.exists() and not any(step_ran(job, AGENT_GENERATION_STEP) for job in generate):
+            continue  # not in this wave, or paused before any model call
+        receipt = slot_dir(artifact, model["id"], problem, plan_attempt(plan)) / "generation.json"
+        if (
+            plan.get("release_on_quota")
+            and receipt.is_file()
+            and json.loads(receipt.read_text()).get("outcome") == "quota_exhausted"
+        ):
+            continue
+
+        first = slot_dir(round_dir, model["id"], problem, plan_attempt(plan)) / "record.json"
+        if not first.is_file():
+            raise ValueError("a rerun needs its round's published first try")
+        voided = json.loads(first.read_text())
+        if voided.get("outcome") not in RERUNNABLE or voided.get("execution_health") != "failed":
+            raise ValueError("a rerun may only replace an infrastructure failure")
+
+        job = _scoring_job(jobs, model["id"], problem, plan["protocol"])
+        slot = _prepare_slot(artifact, plan, run, job, model, problem)
+        slot["record"]["execution"] = execution_evidence(run, job)
+        slot["record"]["try"] = plan["try"]
+        prepared.append(slot)
+    return prepared
+
+
+def write_rerun_records(round_dir: Path, plan: dict, prepared: list[dict]) -> None:
+    """Add each rerun slot next to the try it replaces. Never touches existing files."""
+    for slot in prepared:
+        dest = rerun_dir(round_dir, slot["model_id"], slot["problem"], plan)
+        dest.mkdir(parents=True)
+        atomic_json(dest / "generation.json", slot["generation"])
+        atomic_json(dest / "record.json", slot["record"])
+        atomic_json(dest / "manifest.json", slot["record"]["manifest"])
+        if slot["source"] is not None:
+            frozen = frozen_path(dest)
+            frozen.parent.mkdir(parents=True)
+            shutil.copyfile(slot["source"], frozen)
 
 
 def _scoring_job(jobs: list[dict], model_id: str, problem: str, protocol: str) -> dict:
@@ -270,10 +360,13 @@ def _prepare_slot(artifact: Path, plan: dict, run: dict, job: dict, model: dict,
 
 
 def _check_provenance(github_context: dict, run: dict) -> None:
+    # A slot claims once per run, so a re-run attempt scores the earlier
+    # attempt's generation instead of generating again.
+    attempts = {str(attempt) for attempt in range(1, run["run_attempt"] + 1)}
     if (
         github_context.get("GITHUB_REPOSITORY") != REPOSITORY
         or str(github_context.get("GITHUB_RUN_ID")) != str(run["id"])
-        or str(github_context.get("GITHUB_RUN_ATTEMPT")) != str(run["run_attempt"])
+        or str(github_context.get("GITHUB_RUN_ATTEMPT")) not in attempts
         or github_context.get("GITHUB_SHA") != run["head_sha"]
     ):
         raise ValueError("agent generation provenance mismatch")

@@ -15,11 +15,14 @@ from __future__ import annotations
 
 import json
 import math
+import re
 from collections import Counter
 from dataclasses import dataclass
 from pathlib import Path
 
 INFRASTRUCTURE_STAGES = {"no result", "no_result"}
+# `rep1` is a round's first try; `rep1-t2` is its rerun after an infrastructure failure.
+TRY_DIR = re.compile(r"rep(\d+)(?:-t(\d+))?")
 
 
 @dataclass
@@ -77,7 +80,7 @@ def load_runs(root: str | Path) -> list[RunSummary]:
     runs = [
         _summary_from_record(path)
         for path in root.glob("**/record.json")
-        if _is_canonical(path, root)
+        if _is_canonical(path, root) and not superseded(path)
     ]
     runs.sort(key=lambda run: (run.label, run.problem, run.attempt))
     return runs
@@ -105,6 +108,23 @@ def _is_canonical(path: Path, root: Path) -> bool:
         return True
     if len(parts) == 5 and parts[0].startswith("pilot_") and parts[3].startswith("rep"):
         return True
+    return False
+
+
+def superseded(path: Path) -> bool:
+    """Whether a later try of the same repetition replaces this record in scoring.
+
+    A rerun is published next to the voided try (`rep1` and `rep1-t2`), which
+    stays in the records but no longer counts.
+    """
+    match = TRY_DIR.fullmatch(path.parent.name)
+    if not match:
+        return False
+    rep, current = match[1], int(match[2] or 1)
+    for sibling in path.parent.parent.glob(f"rep{rep}-t*/record.json"):
+        later = TRY_DIR.fullmatch(sibling.parent.name)
+        if later and later[1] == rep and int(later[2] or 1) > current:
+            return True
     return False
 
 
