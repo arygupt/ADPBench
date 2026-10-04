@@ -1,0 +1,255 @@
+{
+  "problem": "001_dot_product",
+  "agent_cmd": "adpbench Go agent-assisted-v2 (read/write/check/submit)",
+  "label": "opencode-go/longcat-2.5-preview-free [agent-assisted-v2]",
+  "attempt": 1,
+  "group": "go-agent-v2-r1-free",
+  "sandbox": "docker",
+  "started": "2026-10-03T23:46:45.292684+00:00",
+  "duration_s": 4658.93,
+  "exit_code": -1,
+  "timed_out": false,
+  "audit": {
+    "ok": true,
+    "violations": [],
+    "warnings": []
+  },
+  "result": {
+    "problem": "001_dot_product",
+    "source": "go-agent-assisted-v2",
+    "compiled": true,
+    "synthesizable": true,
+    "correct": false,
+    "cells": 18470,
+    "cycles": 18,
+    "adp": -1.0,
+    "ratio": -1.0,
+    "metadata": {
+      "cases": [
+        1000,
+        1001,
+        1002,
+        "zeros",
+        "min_values",
+        "extreme_signs"
+      ],
+      "job": "418cc2fa",
+      "per_case": [
+        {
+          "case": 1000,
+          "synthesizable": true,
+          "correct": false,
+          "cells": 18470,
+          "cycles": -1,
+          "stage": "incorrect",
+          "correctness": "first mismatch at index 0: expected -134097, got -1903569",
+          "netlist_sha256": "e57f2d76254f9b5b37145877482514bcb18e8a854d65adc3c4435a5da35f7182"
+        },
+        {
+          "case": 1001,
+          "synthesizable": true,
+          "correct": false,
+          "cells": 18470,
+          "cycles": -1,
+          "stage": "incorrect",
+          "correctness": "first mismatch at index 0: expected -74594, got -1712994",
+          "netlist_sha256": "e57f2d76254f9b5b37145877482514bcb18e8a854d65adc3c4435a5da35f7182"
+        },
+        {
+          "case": 1002,
+          "synthesizable": true,
+          "correct": false,
+          "cells": 18470,
+          "cycles": -1,
+          "stage": "incorrect",
+          "correctness": "first mismatch at index 0: expected 37439, got 3707455",
+          "netlist_sha256": "e57f2d76254f9b5b37145877482514bcb18e8a854d65adc3c4435a5da35f7182"
+        },
+        {
+          "case": "zeros",
+          "synthesizable": true,
+          "correct": true,
+          "cells": 18470,
+          "cycles": 18,
+          "stage": "ok",
+          "correctness": "exact match under score and backpressure runs",
+          "netlist_sha256": "e57f2d76254f9b5b37145877482514bcb18e8a854d65adc3c4435a5da35f7182"
+        },
+        {
+          "case": "min_values",
+          "synthesizable": true,
+          "correct": true,
+          "cells": 18470,
+          "cycles": 18,
+          "stage": "ok",
+          "correctness": "exact match under score and backpressure runs",
+          "netlist_sha256": "e57f2d76254f9b5b37145877482514bcb18e8a854d65adc3c4435a5da35f7182"
+        },
+        {
+          "case": "extreme_signs",
+          "synthesizable": true,
+          "correct": true,
+          "cells": 18470,
+          "cycles": 18,
+          "stage": "ok",
+          "correctness": "exact match under score and backpressure runs",
+          "netlist_sha256": "e57f2d76254f9b5b37145877482514bcb18e8a854d65adc3c4435a5da35f7182"
+        }
+      ],
+      "stage": "incorrect",
+      "correctness": "first mismatch at index 0: expected -134097, got -1903569",
+      "case_failed": 1000
+    }
+  },
+  "error": "",
+  "frozen": "/output/opencode-go-longcat-2.5-preview-free/001_dot_product/rep1_frozen/dut.v",
+  "manifest": {
+    "adpbench_version": "unknown",
+    "git_commit": "",
+    "problem": "001_dot_product",
+    "problem_sha256": {
+      "dut.py": "91fd0433d225e3f9dd67022edc55b1809f6f642019e415e6b921d67086530a45",
+      "baseline.v": "44111a2a04a8b1ef5517f87f9076861c696422ecb301c1e9e551d828a321d3e7",
+      "baseline.json": "06f89f858ee67fdd51e191965e7f3370ea08827ebf2a1bed935a1c74cf09e63e"
+    },
+    "cases": {
+      "seeds": [
+        1000,
+        1001,
+        1002
+      ],
+      "directed": [
+        "zeros",
+        "min_values",
+        "extreme_signs"
+      ],
+      "transactions": 2,
+      "input_lens": {
+        "in_a_flat": 256,
+        "in_b_flat": 256
+      }
+    },
+    "tools": {
+      "yosys": "Yosys 0.69+ (git sha1 143eb14f9, Release, GNU /usr/bin/c++ 12.2.0)",
+      "iverilog": "Icarus Verilog version 13.0 (stable) (v13_0)"
+    },
+    "submission_sha256": "1d2ebed8f4db8be7cb1deb859f295f6003d1e85842e92012be8fc0ac2bc54309",
+    "netlist_sha256": "e57f2d76254f9b5b37145877482514bcb18e8a854d65adc3c4435a5da35f7182",
+    "agent_cmd": "adpbench Go agent-assisted-v2 (read/write/check/submit)",
+    "budget_s": 7200,
+    "sandbox": {
+      "mode": "docker",
+      "image": "adpbench-go:ci",
+      "network": "none"
+    },
+    "result": {
+      "correct": false,
+      "ratio": -1.0,
+      "cells": 18470,
+      "cycles": 18,
+      "stage": "incorrect"
+    },
+    "error": "",
+    "timed_out": false,
+    "duration_s": 4658.93,
+    "generation": {
+      "model": "longcat-2.5-preview-free",
+      "problem": "001_dot_product",
+      "protocol": "agent-assisted-v2",
+      "started": "2026-10-03T23:46:45.292684+00:00",
+      "generation_state": "completed",
+      "outcome": "submitted",
+      "error": "",
+      "turns": 14,
+      "checks": 3,
+      "max_turns": 20,
+      "max_checks": 3,
+      "max_output_tokens": 131072,
+      "usage": {
+        "prompt_tokens": 1534668,
+        "completion_tokens": 212929,
+        "total_tokens": 1747597
+      },
+      "incomplete_usage": true,
+      "generation_settings": {
+        "thinking": {
+          "type": "enabled"
+        }
+      },
+      "reasoning_measured": {
+        "turns": 14,
+        "turns_with_reasoning": 14,
+        "reasoning_chars": 661669,
+        "answer_chars": 34639,
+        "reasoning_tokens": 203592
+      },
+      "github": {
+        "GITHUB_REPOSITORY": "arygupt/ADPBench",
+        "GITHUB_RUN_ID": "37162530197",
+        "GITHUB_RUN_ATTEMPT": "1",
+        "GITHUB_SHA": "2e8fe051b1b91ccb4e75b56e7879971f496a8908"
+      },
+      "attempt": 1,
+      "try": 1,
+      "transport_retries": [
+        {
+          "turn": 3,
+          "retry": 1,
+          "reason": "stream_disconnected_before_terminal_event",
+          "usage_known": false
+        },
+        {
+          "turn": 5,
+          "retry": 1,
+          "reason": "stream_disconnected_before_terminal_event",
+          "usage_known": false
+        }
+      ],
+      "finish_reason": "tool_calls",
+      "writes": 6,
+      "development_checks": [
+        {
+          "index": 1,
+          "submission_sha256": "0959cf69ab6fba99018f977539dab58a5762b5a08bdcb8cf176124adaf3c49f2",
+          "completed": true,
+          "correct": false,
+          "reason": "",
+          "audit_ok": true
+        },
+        {
+          "index": 2,
+          "submission_sha256": "378de7b5dbd9d29bf2a7e939d4b34b4f812a1d675fd778754f399f5df1a59148",
+          "completed": true,
+          "correct": true,
+          "reason": "",
+          "audit_ok": true
+        },
+        {
+          "index": 3,
+          "submission_sha256": "a8e555357954e7024036111cbb20c63b15b367e281061036060cd4cb1fd6d2a3",
+          "completed": true,
+          "correct": false,
+          "reason": "",
+          "audit_ok": true
+        }
+      ],
+      "submission_sha256": "1d2ebed8f4db8be7cb1deb859f295f6003d1e85842e92012be8fc0ac2bc54309",
+      "final_revision_checked": false,
+      "duration_s": 4658.93,
+      "execution_health": "completed"
+    }
+  },
+  "history": [],
+  "outcome": "incorrect",
+  "execution_health": "completed",
+  "execution": {
+    "kind": "model-evaluation",
+    "repository": "arygupt/ADPBench",
+    "run_id": 37162530197,
+    "run_attempt": 1,
+    "job_id": 111331575000,
+    "commit": "2e8fe051b1b91ccb4e75b56e7879971f496a8908",
+    "completed_at": "2026-10-04T01:05:42Z",
+    "job_conclusion": "success"
+  }
+}

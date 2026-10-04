@@ -1,0 +1,86 @@
+{
+  "model": "longcat-2.5-preview-free",
+  "problem": "004_conv1d",
+  "protocol": "agent-assisted-v2",
+  "started": "2026-10-03T23:46:45.715043+00:00",
+  "generation_state": "completed",
+  "outcome": "submitted",
+  "error": "",
+  "turns": 15,
+  "checks": 3,
+  "max_turns": 20,
+  "max_checks": 3,
+  "max_output_tokens": 131072,
+  "usage": {
+    "prompt_tokens": 2357155,
+    "completion_tokens": 263253,
+    "total_tokens": 2620408
+  },
+  "incomplete_usage": true,
+  "generation_settings": {
+    "thinking": {
+      "type": "enabled"
+    }
+  },
+  "reasoning_measured": {
+    "turns": 15,
+    "turns_with_reasoning": 15,
+    "reasoning_chars": 686095,
+    "answer_chars": 37853,
+    "reasoning_tokens": 250959
+  },
+  "github": {
+    "GITHUB_REPOSITORY": "arygupt/ADPBench",
+    "GITHUB_RUN_ID": "37162530197",
+    "GITHUB_RUN_ATTEMPT": "1",
+    "GITHUB_SHA": "2e8fe051b1b91ccb4e75b56e7879971f496a8908"
+  },
+  "attempt": 1,
+  "try": 1,
+  "transport_retries": [
+    {
+      "turn": 5,
+      "retry": 1,
+      "reason": "stream_disconnected_before_terminal_event",
+      "usage_known": false
+    },
+    {
+      "turn": 8,
+      "retry": 1,
+      "reason": "stream_disconnected_before_terminal_event",
+      "usage_known": false
+    }
+  ],
+  "finish_reason": "tool_calls",
+  "writes": 6,
+  "development_checks": [
+    {
+      "index": 1,
+      "submission_sha256": "2a302623caba1d17b8ea7077d05b9483b81609e6c23b5db41f96ffea90120476",
+      "completed": true,
+      "correct": false,
+      "reason": "",
+      "audit_ok": true
+    },
+    {
+      "index": 2,
+      "submission_sha256": "b2680ed8b8e513be2a95b873fc4f0d3217f8fbded5d25ac17fa9c5ac70621746",
+      "completed": true,
+      "correct": false,
+      "reason": "",
+      "audit_ok": true
+    },
+    {
+      "index": 3,
+      "submission_sha256": "f97065ea4a73d8852cb688fbfb58d7d94cc4668481bb3517b43e487598fbff8c",
+      "completed": true,
+      "correct": false,
+      "reason": "",
+      "audit_ok": true
+    }
+  ],
+  "submission_sha256": "e3f13c59ad35a70795936cf3a01e6ddd06ec07d68afae800a62bf8786a609ee7",
+  "final_revision_checked": false,
+  "duration_s": 5791.03,
+  "execution_health": "completed"
+}

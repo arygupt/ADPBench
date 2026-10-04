@@ -1,0 +1,86 @@
+{
+  "schema_version": 1,
+  "kind": "validated-model-results-publication",
+  "source_run_id": 37162530197,
+  "source_attempt": 1,
+  "source_commit": "2e8fe051b1b91ccb4e75b56e7879971f496a8908",
+  "source_workflow": ".github/workflows/go-agent.yml",
+  "dataset": "go-agent-v2-r1-free",
+  "confirmed_correct": 3,
+  "result_slots": 8,
+  "artifacts": [
+    {
+      "id": 11288611678,
+      "name": "go-agent-records-space-bunny-free-001_dot_product-37162530197",
+      "digest": "sha256:ec6908b3a2259ab5702f0f4bbac8b750c4afd3f536b49e45129252fae15ab10c"
+    },
+    {
+      "id": 11289910500,
+      "name": "go-agent-records-longcat-2.5-preview-free-001_dot_product-37162530197",
+      "digest": "sha256:789ba8e4360e61b3cf5e37cc433ac3d035daad53167947cc6c80250fa2e6b7c2"
+    },
+    {
+      "id": 11288766905,
+      "name": "go-agent-records-space-bunny-free-002_gemv-37162530197",
+      "digest": "sha256:6f6b31fe962f4649d7023df8a6593cbc3e3efb592cb6e36f3c3a47f7f0c3e2e8"
+    },
+    {
+      "id": 11290846080,
+      "name": "go-agent-records-longcat-2.5-preview-free-002_gemv-37162530197",
+      "digest": "sha256:450a4821cebad7c5c907d72ed0b2245dfa70764fbc5c22b6b555b4f748643467"
+    },
+    {
+      "id": 11289261158,
+      "name": "go-agent-records-space-bunny-free-003_matmul-37162530197",
+      "digest": "sha256:df159b988887663534fdabea7719b775b5841ec4c5474c062943967cc11caef2"
+    },
+    {
+      "id": 11290813061,
+      "name": "go-agent-records-longcat-2.5-preview-free-003_matmul-37162530197",
+      "digest": "sha256:813b0cc9498b5d95351dc212a408a311ae41d86230046c9b96a8721804cd224b"
+    },
+    {
+      "id": 11288434625,
+      "name": "go-agent-records-space-bunny-free-004_conv1d-37162530197",
+      "digest": "sha256:b79bd66fb216434458d16d553244d4d9c355ebd492574303b5abcd0a5a83f1a8"
+    },
+    {
+      "id": 11290656426,
+      "name": "go-agent-records-longcat-2.5-preview-free-004_conv1d-37162530197",
+      "digest": "sha256:566c2d6668c64fe61183c59b6f8e9d96992cae4b49a853449cc33040f5612d16"
+    }
+  ],
+  "record_file_sha256": {
+    "opencode-go-longcat-2.5-preview-free/001_dot_product/rep1/generation.json": "2ac899d4326c3ed4a6cd433074ba84dde59c8483f738cdcc834c163dc946820e",
+    "opencode-go-longcat-2.5-preview-free/001_dot_product/rep1/manifest.json": "9592914b84ece74bfb8498c2b792bb3dce43487d3fe80d3015bf17ef0ddc2bfc",
+    "opencode-go-longcat-2.5-preview-free/001_dot_product/rep1/record.json": "20f2ec2823149ddbb411adcf1a348c37efdbe757d195904bda290b95697dd99c",
+    "opencode-go-longcat-2.5-preview-free/001_dot_product/rep1_frozen/dut.v": "1d2ebed8f4db8be7cb1deb859f295f6003d1e85842e92012be8fc0ac2bc54309",
+    "opencode-go-longcat-2.5-preview-free/002_gemv/rep1/generation.json": "06a8a53163e708b137689653f24ed158b8a43faa48e1dc42396561b1c3bf0bc7",
+    "opencode-go-longcat-2.5-preview-free/002_gemv/rep1/manifest.json": "63625a6e774cffd12e1d4c95eff5a6145cc68dd36f30e7b8f4af134532d990d8",
+    "opencode-go-longcat-2.5-preview-free/002_gemv/rep1/record.json": "6f19501ba0f589719dd93719c118209b28c0969ce8de031c4ead63e63b5e9c97",
+    "opencode-go-longcat-2.5-preview-free/002_gemv/rep1_frozen/dut.v": "c043a7d167aa148f3e278d021a8f63d3e962520cf42891b73579427e9aec9854",
+    "opencode-go-longcat-2.5-preview-free/003_matmul/rep1/generation.json": "b4cfb1bdf05e1a823738065de4777e95bbba19e90c5f326b22b08949351e22f8",
+    "opencode-go-longcat-2.5-preview-free/003_matmul/rep1/manifest.json": "62cd0783cc81e236469290670064f62e0e9a870150455081d57016ecb72be759",
+    "opencode-go-longcat-2.5-preview-free/003_matmul/rep1/record.json": "3071b44c775e6948879a50fc18dc2aef5b4b8f052007e8ce1e9b5223132d5d7a",
+    "opencode-go-longcat-2.5-preview-free/004_conv1d/rep1/generation.json": "dbc7227fd69de94c9c208e2abc2f4b2fdab42c15d75e5b3b73556890137c1e10",
+    "opencode-go-longcat-2.5-preview-free/004_conv1d/rep1/manifest.json": "b6fac831c5139f847c3350fc0d616eafcda610470690297a01a341485ad83b5e",
+    "opencode-go-longcat-2.5-preview-free/004_conv1d/rep1/record.json": "ac697eb0c969aeb851e5f83ba70f8eb5abbdbb7f20400e18a5d3ef79b8c26c60",
+    "opencode-go-longcat-2.5-preview-free/004_conv1d/rep1_frozen/dut.v": "e3f13c59ad35a70795936cf3a01e6ddd06ec07d68afae800a62bf8786a609ee7",
+    "opencode-go-space-bunny-free/001_dot_product/rep1/generation.json": "24b9dc6b4405001888c3eff1019cacb12477df3bb571ad735408ae7c925a0e16",
+    "opencode-go-space-bunny-free/001_dot_product/rep1/manifest.json": "4cd9c9ed7138c17e8af81cd9e85090ae68274651720314a1e2c01f06b42b8a6e",
+    "opencode-go-space-bunny-free/001_dot_product/rep1/record.json": "25374c0eafb7bcb126b663d6e05e2fbf7c7f8049169f956dff9ca94d56dba68c",
+    "opencode-go-space-bunny-free/001_dot_product/rep1_frozen/dut.v": "8bbc17bee4c55b86c28581a7f7aee91b9abd068cd827d0e959ad76d5287ba02a",
+    "opencode-go-space-bunny-free/002_gemv/rep1/generation.json": "191d0dc3d2b2864b23461c3f1ab0437da9f0bf2a060523dbf1bf12056bf90c93",
+    "opencode-go-space-bunny-free/002_gemv/rep1/manifest.json": "588ccbb05379ed9d965e12687bcde23f07cdcdc8c747288941db668fd49ae734",
+    "opencode-go-space-bunny-free/002_gemv/rep1/record.json": "5626e357e6f4e41eb9d018ad45b7a54623d81db6774b9906782f996f2f0c35dc",
+    "opencode-go-space-bunny-free/002_gemv/rep1_frozen/dut.v": "6f1665943c6949f5bc9510aeb0e3171b0e710ee602d4335d403d0de943d30337",
+    "opencode-go-space-bunny-free/003_matmul/rep1/generation.json": "02e32e32845b8a7d6ccdcc891d2478dcab3736c49ed702c59a7501b66dd6479f",
+    "opencode-go-space-bunny-free/003_matmul/rep1/manifest.json": "4d805270d4abd093fbf059f3fea70a4caa2612556b7a2c154d02409b23eddf29",
+    "opencode-go-space-bunny-free/003_matmul/rep1/record.json": "c471aeee09eeeb3e02bd4eeec9c552f20391e30b65a20bb6f943154f87aebd43",
+    "opencode-go-space-bunny-free/003_matmul/rep1_frozen/dut.v": "53f8055d6ed142beef55ed2067775a5e58cd6149a9c8531251561b065119284e",
+    "opencode-go-space-bunny-free/004_conv1d/rep1/generation.json": "36d4d9cde110dd1a06b4ba735724145696a3104a7b95c38e21ca2c1e2cb8a971",
+    "opencode-go-space-bunny-free/004_conv1d/rep1/manifest.json": "37f007fcdefe5021c89ffa665271307c7fb2d7f08659f6649c7279000a683a2c",
+    "opencode-go-space-bunny-free/004_conv1d/rep1/record.json": "105b267f559229f1367f6228e40b4e48c994c3ecc5b13612678305826217e66f",
+    "plan.json": "bfd1846e818d03e9f59de86cf7d148f7b38804982bf6590963d194e077e6390e"
+  }
+}

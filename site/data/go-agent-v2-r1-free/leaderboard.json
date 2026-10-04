@@ -1,0 +1,830 @@
+{
+  "meta": {
+    "generated": "2026-10-04T02:49:11",
+    "git_commit": "2e8fe051b1b91ccb4e75b56e7879971f496a8908",
+    "pilot": "go-agent-v2-r1-free",
+    "problems_planned": [
+      "001_dot_product",
+      "002_gemv",
+      "003_matmul",
+      "004_conv1d"
+    ],
+    "sandbox": {
+      "mode": "docker \u00b7 network disabled"
+    },
+    "budget_s": null,
+    "repetitions": 1,
+    "jobs": null,
+    "cases": {
+      "seeds": [
+        1000,
+        1001,
+        1002
+      ],
+      "dev_seeds": [
+        0,
+        1
+      ],
+      "transactions": 2
+    },
+    "tools": {
+      "yosys": "Yosys 0.69+ (git sha1 143eb14f9, Release, GNU /usr/bin/c++ 12.2.0)",
+      "iverilog": "Icarus Verilog version 13.0 (stable) (v13_0)"
+    },
+    "adpbench_version": "unknown",
+    "protocol": "agent-assisted-v2",
+    "max_turns": 20,
+    "max_output_tokens": {
+      "space-bunny-free": 524288,
+      "longcat-2.5-preview-free": 131072
+    },
+    "output_budget": "provider_max",
+    "workflow_url": "https://github.com/arygupt/ADPBench/actions/runs/37162530197",
+    "generation_requests": 98,
+    "incomplete_usage": true,
+    "incomplete_evidence": false,
+    "output_tokens": 1359602
+  },
+  "problems": [
+    {
+      "name": "001_dot_product",
+      "title": "Dot product",
+      "level": 1,
+      "params": {
+        "LEN": 256,
+        "LANES": 32,
+        "DATA_W": 8,
+        "ACC_W": 32
+      },
+      "input_lens": {
+        "in_a_flat": 256,
+        "in_b_flat": 256
+      },
+      "out_len": 1,
+      "transactions": 2,
+      "directed": [
+        "zeros",
+        "min_values",
+        "extreme_signs"
+      ],
+      "quant": {
+        "in_a_flat": "int8 two's complement",
+        "in_b_flat": "int8 two's complement",
+        "out_c": "int32 two's complement, exact",
+        "accumulator": "int32, no saturation, no rounding",
+        "tolerance": "none - bit exact"
+      },
+      "baseline": {
+        "cells": 2142,
+        "cycles": 546,
+        "adp": 1169532.0
+      },
+      "sanity": {
+        "correct": true,
+        "cells": 20200,
+        "cycles": 20,
+        "adp": 404000.0,
+        "ratio": 2.894881188118812
+      }
+    },
+    {
+      "name": "002_gemv",
+      "title": "Matrix-vector (GEMV)",
+      "level": 1,
+      "params": {
+        "ROWS": 16,
+        "COLS": 64,
+        "LANES": 16,
+        "DATA_W": 8,
+        "ACC_W": 32
+      },
+      "input_lens": {
+        "in_a_flat": 1024,
+        "in_x_flat": 64
+      },
+      "out_len": 16,
+      "transactions": 2,
+      "directed": [
+        "zeros",
+        "min_values",
+        "extreme_signs"
+      ],
+      "quant": {
+        "in_a_flat": "int8 two's complement, row-major A",
+        "in_x_flat": "int8 two's complement",
+        "out_c": "int32 two's complement, exact, one word per row",
+        "accumulator": "int32, no saturation, no rounding",
+        "tolerance": "none - bit exact"
+      },
+      "baseline": {
+        "cells": 3295,
+        "cycles": 2216,
+        "adp": 7301720.0
+      },
+      "sanity": {
+        "correct": true,
+        "cells": 11657,
+        "cycles": 298,
+        "adp": 3473786.0,
+        "ratio": 2.101948709563571
+      }
+    },
+    {
+      "name": "003_matmul",
+      "title": "Matrix multiply",
+      "level": 1,
+      "params": {
+        "M": 8,
+        "N": 8,
+        "K": 16,
+        "LANES": 16,
+        "DATA_W": 8,
+        "ACC_W": 32
+      },
+      "input_lens": {
+        "in_a_flat": 128,
+        "in_b_flat": 128
+      },
+      "out_len": 64,
+      "transactions": 2,
+      "directed": [
+        "zeros",
+        "min_values",
+        "extreme_signs"
+      ],
+      "quant": {
+        "in_a_flat": "int8 two's complement, row-major A (M x K)",
+        "in_b_flat": "int8 two's complement, row-major B (K x N)",
+        "out_c": "int32 two's complement, exact, row-major C (M x N)",
+        "accumulator": "int32, no saturation, no rounding",
+        "tolerance": "none - bit exact"
+      },
+      "baseline": {
+        "cells": 6253,
+        "cycles": 2194,
+        "adp": 13719082.0
+      },
+      "sanity": {
+        "correct": true,
+        "cells": 15501,
+        "cycles": 146,
+        "adp": 2263146.0,
+        "ratio": 6.061951813979301
+      }
+    },
+    {
+      "name": "004_conv1d",
+      "title": "1-D convolution",
+      "level": 1,
+      "params": {
+        "IN_LEN": 128,
+        "F": 4,
+        "K": 4,
+        "LANES": 16,
+        "DATA_W": 8,
+        "ACC_W": 32
+      },
+      "input_lens": {
+        "in_x_flat": 128,
+        "in_w_flat": 16
+      },
+      "out_len": 500,
+      "transactions": 2,
+      "directed": [
+        "zeros",
+        "zero_weights",
+        "extreme_signs"
+      ],
+      "quant": {
+        "in_x_flat": "int8 two's complement",
+        "in_w_flat": "int8 two's complement, row-major filters (F x K)",
+        "out_c": "int32 two's complement, exact, row-major y (F x OUT_POS)",
+        "accumulator": "int32, no saturation, no rounding",
+        "tolerance": "none - bit exact"
+      },
+      "baseline": {
+        "cells": 4565,
+        "cycles": 5018,
+        "adp": 22907170.0
+      },
+      "sanity": {
+        "correct": true,
+        "cells": 7988,
+        "cycles": 1018,
+        "adp": 8131784.0,
+        "ratio": 2.8169919417436566
+      }
+    }
+  ],
+  "models": [
+    {
+      "label": "opencode-go/longcat-2.5-preview-free [agent-assisted-v2]",
+      "attempts": 4,
+      "correct": 1,
+      "beating": 1,
+      "correctness_rate": 0.25,
+      "beat_rate": 0.25,
+      "geomean": 5.2244,
+      "wrong_rtl": 2,
+      "infra": 1,
+      "score_ci": "\u00b133%",
+      "correctness_ci": "\u00b133%",
+      "runs": [
+        {
+          "label": "opencode-go/longcat-2.5-preview-free [agent-assisted-v2]",
+          "problem": "001_dot_product",
+          "attempt": 1,
+          "correct": false,
+          "ratio": -1.0,
+          "cells": 18470,
+          "cycles": 18,
+          "adp": -1.0,
+          "stage": "incorrect",
+          "correctness": "first mismatch at index 0: expected -134097, got -1903569",
+          "duration_s": 4658.93,
+          "timed_out": false,
+          "error": "",
+          "audit_ok": true,
+          "submission_sha256": "1d2ebed8f4db8be7cb1deb859f295f6003d1e85842e92012be8fc0ac2bc54309",
+          "netlist_sha256": "e57f2d76254f9b5b37145877482514bcb18e8a854d65adc3c4435a5da35f7182",
+          "history": 0,
+          "execution": {
+            "kind": "model-evaluation",
+            "repository": "arygupt/ADPBench",
+            "run_id": 37162530197,
+            "run_attempt": 1,
+            "job_id": 111331575000,
+            "commit": "2e8fe051b1b91ccb4e75b56e7879971f496a8908",
+            "completed_at": "2026-10-04T01:05:42Z",
+            "job_conclusion": "success"
+          },
+          "record_origin": "scorer",
+          "generation": {
+            "model": "longcat-2.5-preview-free",
+            "finish_reason": "tool_calls",
+            "usage": {
+              "prompt_tokens": 1534668,
+              "completion_tokens": 212929,
+              "total_tokens": 1747597
+            },
+            "generation_settings": {
+              "thinking": {
+                "type": "enabled"
+              }
+            },
+            "response_diagnostics": null,
+            "error": "",
+            "invalid_rtl": null,
+            "evidence_unavailable": null,
+            "protocol": "agent-assisted-v2",
+            "outcome": "submitted",
+            "turns": 14,
+            "max_turns": 20,
+            "incomplete_usage": true,
+            "reasoning_measured": {
+              "turns": 14,
+              "turns_with_reasoning": 14,
+              "reasoning_chars": 661669,
+              "answer_chars": 34639,
+              "reasoning_tokens": 203592
+            },
+            "try": 1,
+            "transport_retries": [
+              {
+                "turn": 3,
+                "retry": 1,
+                "reason": "stream_disconnected_before_terminal_event",
+                "usage_known": false
+              },
+              {
+                "turn": 5,
+                "retry": 1,
+                "reason": "stream_disconnected_before_terminal_event",
+                "usage_known": false
+              }
+            ],
+            "dev_checks": 3
+          },
+          "outcome": "incorrect",
+          "execution_health": "completed"
+        },
+        {
+          "label": "opencode-go/longcat-2.5-preview-free [agent-assisted-v2]",
+          "problem": "002_gemv",
+          "attempt": 1,
+          "correct": true,
+          "ratio": 5.2244107108104085,
+          "cells": 10588,
+          "cycles": 132,
+          "adp": 1397616.0,
+          "stage": "ok",
+          "correctness": "exact match on 6 cases",
+          "duration_s": 5958.45,
+          "timed_out": false,
+          "error": "",
+          "audit_ok": true,
+          "submission_sha256": "c043a7d167aa148f3e278d021a8f63d3e962520cf42891b73579427e9aec9854",
+          "netlist_sha256": "a560c20340cfe8efd2242413ce97a4a44074542556b09bd593dffde45f4d5014",
+          "history": 0,
+          "execution": {
+            "kind": "model-evaluation",
+            "repository": "arygupt/ADPBench",
+            "run_id": 37162530197,
+            "run_attempt": 1,
+            "job_id": 111334944672,
+            "commit": "2e8fe051b1b91ccb4e75b56e7879971f496a8908",
+            "completed_at": "2026-10-04T01:27:44Z",
+            "job_conclusion": "success"
+          },
+          "record_origin": "scorer",
+          "generation": {
+            "model": "longcat-2.5-preview-free",
+            "finish_reason": "tool_calls",
+            "usage": {
+              "prompt_tokens": 3044015,
+              "completion_tokens": 348499,
+              "total_tokens": 3392514
+            },
+            "generation_settings": {
+              "thinking": {
+                "type": "enabled"
+              }
+            },
+            "response_diagnostics": null,
+            "error": "",
+            "invalid_rtl": null,
+            "evidence_unavailable": null,
+            "protocol": "agent-assisted-v2",
+            "outcome": "submitted",
+            "turns": 17,
+            "max_turns": 20,
+            "incomplete_usage": false,
+            "reasoning_measured": {
+              "turns": 17,
+              "turns_with_reasoning": 17,
+              "reasoning_chars": 1105967,
+              "answer_chars": 35521,
+              "reasoning_tokens": 337399
+            },
+            "try": 1,
+            "transport_retries": [
+              {
+                "turn": 11,
+                "retry": 1,
+                "reason": "http_500",
+                "usage_known": true
+              }
+            ],
+            "dev_checks": 3
+          },
+          "outcome": "correct",
+          "execution_health": "completed"
+        },
+        {
+          "label": "opencode-go/longcat-2.5-preview-free [agent-assisted-v2]",
+          "problem": "003_matmul",
+          "attempt": 1,
+          "correct": null,
+          "ratio": -1.0,
+          "cells": -1,
+          "cycles": -1,
+          "adp": -1.0,
+          "stage": "",
+          "correctness": "",
+          "duration_s": 7198.72,
+          "timed_out": false,
+          "error": "incomplete provider stream: stream_wall_timeout; resends are listed in transport_retries; no fallback",
+          "audit_ok": false,
+          "submission_sha256": "",
+          "netlist_sha256": "",
+          "history": 0,
+          "execution": {
+            "kind": "model-evaluation",
+            "repository": "arygupt/ADPBench",
+            "run_id": 37162530197,
+            "run_attempt": 1,
+            "job_id": 111338053426,
+            "commit": "2e8fe051b1b91ccb4e75b56e7879971f496a8908",
+            "completed_at": "2026-10-04T01:48:12Z",
+            "job_conclusion": "failure"
+          },
+          "record_origin": "scorer",
+          "generation": {
+            "model": "longcat-2.5-preview-free",
+            "finish_reason": "tool_calls",
+            "usage": {
+              "prompt_tokens": 112490,
+              "completion_tokens": 98491,
+              "total_tokens": 210981
+            },
+            "generation_settings": {
+              "thinking": {
+                "type": "enabled"
+              }
+            },
+            "response_diagnostics": null,
+            "error": "incomplete provider stream: stream_wall_timeout; resends are listed in transport_retries; no fallback",
+            "invalid_rtl": null,
+            "evidence_unavailable": null,
+            "protocol": "agent-assisted-v2",
+            "outcome": "transport_interrupted",
+            "turns": 5,
+            "max_turns": 20,
+            "incomplete_usage": true,
+            "reasoning_measured": {
+              "turns": 4,
+              "turns_with_reasoning": 4,
+              "reasoning_chars": 283408,
+              "answer_chars": 357,
+              "reasoning_tokens": 98305
+            },
+            "try": 1,
+            "transport_retries": [
+              {
+                "turn": 5,
+                "retry": 1,
+                "reason": "stream_disconnected_before_terminal_event",
+                "usage_known": false
+              },
+              {
+                "turn": 5,
+                "retry": 2,
+                "reason": "provider_stream_error",
+                "usage_known": false
+              }
+            ],
+            "dev_checks": 0
+          },
+          "outcome": "transport_interrupted",
+          "execution_health": "failed"
+        },
+        {
+          "label": "opencode-go/longcat-2.5-preview-free [agent-assisted-v2]",
+          "problem": "004_conv1d",
+          "attempt": 1,
+          "correct": false,
+          "ratio": -1.0,
+          "cells": 3992,
+          "cycles": 1042,
+          "adp": -1.0,
+          "stage": "incorrect",
+          "correctness": "first mismatch at index 13: expected 11701, got 4985",
+          "duration_s": 5791.03,
+          "timed_out": false,
+          "error": "",
+          "audit_ok": true,
+          "submission_sha256": "e3f13c59ad35a70795936cf3a01e6ddd06ec07d68afae800a62bf8786a609ee7",
+          "netlist_sha256": "bf439d9f455f763e80602f99449489ae9880cc834e23c8887cce03f7c6f9c21c",
+          "history": 0,
+          "execution": {
+            "kind": "model-evaluation",
+            "repository": "arygupt/ADPBench",
+            "run_id": 37162530197,
+            "run_attempt": 1,
+            "job_id": 111334509733,
+            "commit": "2e8fe051b1b91ccb4e75b56e7879971f496a8908",
+            "completed_at": "2026-10-04T01:24:04Z",
+            "job_conclusion": "success"
+          },
+          "record_origin": "scorer",
+          "generation": {
+            "model": "longcat-2.5-preview-free",
+            "finish_reason": "tool_calls",
+            "usage": {
+              "prompt_tokens": 2357155,
+              "completion_tokens": 263253,
+              "total_tokens": 2620408
+            },
+            "generation_settings": {
+              "thinking": {
+                "type": "enabled"
+              }
+            },
+            "response_diagnostics": null,
+            "error": "",
+            "invalid_rtl": null,
+            "evidence_unavailable": null,
+            "protocol": "agent-assisted-v2",
+            "outcome": "submitted",
+            "turns": 15,
+            "max_turns": 20,
+            "incomplete_usage": true,
+            "reasoning_measured": {
+              "turns": 15,
+              "turns_with_reasoning": 15,
+              "reasoning_chars": 686095,
+              "answer_chars": 37853,
+              "reasoning_tokens": 250959
+            },
+            "try": 1,
+            "transport_retries": [
+              {
+                "turn": 5,
+                "retry": 1,
+                "reason": "stream_disconnected_before_terminal_event",
+                "usage_known": false
+              },
+              {
+                "turn": 8,
+                "retry": 1,
+                "reason": "stream_disconnected_before_terminal_event",
+                "usage_known": false
+              }
+            ],
+            "dev_checks": 3
+          },
+          "outcome": "incorrect",
+          "execution_health": "completed"
+        }
+      ],
+      "outcomes": {
+        "incorrect": 2,
+        "correct": 1,
+        "transport_interrupted": 1
+      },
+      "scored": 3,
+      "unscored": 1
+    },
+    {
+      "label": "opencode-go/space-bunny-free [agent-assisted-v2]",
+      "attempts": 4,
+      "correct": 2,
+      "beating": 2,
+      "correctness_rate": 0.5,
+      "beat_rate": 0.5,
+      "geomean": 4.367,
+      "wrong_rtl": 1,
+      "infra": 0,
+      "score_ci": "\u00b135%",
+      "correctness_ci": "\u00b135%",
+      "runs": [
+        {
+          "label": "opencode-go/space-bunny-free [agent-assisted-v2]",
+          "problem": "001_dot_product",
+          "attempt": 1,
+          "correct": false,
+          "ratio": -1.0,
+          "cells": 30847,
+          "cycles": -1,
+          "adp": -1.0,
+          "stage": "protocol_malformed",
+          "correctness": "malformed simulator output under backpressure: /checkpoints/space-bunny-free/001_dot_product/case-0/out_protocol.hex: non-hex output word 'xxxxxxxx' (unknown bits in result?)",
+          "duration_s": 836.62,
+          "timed_out": false,
+          "error": "",
+          "audit_ok": true,
+          "submission_sha256": "8bbc17bee4c55b86c28581a7f7aee91b9abd068cd827d0e959ad76d5287ba02a",
+          "netlist_sha256": "adaf3c43cfa9bddeecab0418b94a22022628662dc96b2b1374fa3721f988d966",
+          "history": 0,
+          "execution": {
+            "kind": "model-evaluation",
+            "repository": "arygupt/ADPBench",
+            "run_id": 37162530197,
+            "run_attempt": 1,
+            "job_id": 111321835900,
+            "commit": "2e8fe051b1b91ccb4e75b56e7879971f496a8908",
+            "completed_at": "2026-10-04T00:03:06Z",
+            "job_conclusion": "success"
+          },
+          "record_origin": "scorer",
+          "generation": {
+            "model": "space-bunny-free",
+            "finish_reason": "tool_calls",
+            "usage": {
+              "prompt_tokens": 334103,
+              "completion_tokens": 45239,
+              "total_tokens": 379342
+            },
+            "generation_settings": {
+              "reasoning_effort": "high"
+            },
+            "response_diagnostics": null,
+            "error": "",
+            "invalid_rtl": null,
+            "evidence_unavailable": null,
+            "protocol": "agent-assisted-v2",
+            "outcome": "submitted",
+            "turns": 12,
+            "max_turns": 20,
+            "incomplete_usage": false,
+            "reasoning_measured": {
+              "turns": 12,
+              "turns_with_reasoning": 8,
+              "reasoning_chars": 118666,
+              "answer_chars": 44573,
+              "reasoning_tokens": 31667
+            },
+            "try": 1,
+            "transport_retries": [],
+            "dev_checks": 3
+          },
+          "outcome": "incorrect",
+          "execution_health": "completed"
+        },
+        {
+          "label": "opencode-go/space-bunny-free [agent-assisted-v2]",
+          "problem": "002_gemv",
+          "attempt": 1,
+          "correct": true,
+          "ratio": 4.21519931464304,
+          "cells": 13123,
+          "cycles": 132,
+          "adp": 1732236.0,
+          "stage": "ok",
+          "correctness": "exact match on 6 cases",
+          "duration_s": 1530.08,
+          "timed_out": false,
+          "error": "",
+          "audit_ok": true,
+          "submission_sha256": "6f1665943c6949f5bc9510aeb0e3171b0e710ee602d4335d403d0de943d30337",
+          "netlist_sha256": "20b55e68a421b45d06fba9f8894f3be54722d991f3bfe73ab5590f6da1bf977a",
+          "history": 0,
+          "execution": {
+            "kind": "model-evaluation",
+            "repository": "arygupt/ADPBench",
+            "run_id": 37162530197,
+            "run_attempt": 1,
+            "job_id": 111323748393,
+            "commit": "2e8fe051b1b91ccb4e75b56e7879971f496a8908",
+            "completed_at": "2026-10-04T00:13:37Z",
+            "job_conclusion": "success"
+          },
+          "record_origin": "scorer",
+          "generation": {
+            "model": "space-bunny-free",
+            "finish_reason": "tool_calls",
+            "usage": {
+              "prompt_tokens": 480562,
+              "completion_tokens": 119913,
+              "total_tokens": 600475
+            },
+            "generation_settings": {
+              "reasoning_effort": "high"
+            },
+            "response_diagnostics": null,
+            "error": "",
+            "invalid_rtl": null,
+            "evidence_unavailable": null,
+            "protocol": "agent-assisted-v2",
+            "outcome": "submitted",
+            "turns": 9,
+            "max_turns": 20,
+            "incomplete_usage": false,
+            "reasoning_measured": {
+              "turns": 9,
+              "turns_with_reasoning": 6,
+              "reasoning_chars": 326956,
+              "answer_chars": 28783,
+              "reasoning_tokens": 110688
+            },
+            "try": 1,
+            "transport_retries": [],
+            "dev_checks": 3
+          },
+          "outcome": "correct",
+          "execution_health": "completed"
+        },
+        {
+          "label": "opencode-go/space-bunny-free [agent-assisted-v2]",
+          "problem": "003_matmul",
+          "attempt": 1,
+          "correct": true,
+          "ratio": 4.524228999346383,
+          "cells": 11067,
+          "cycles": 274,
+          "adp": 3032358.0,
+          "stage": "ok",
+          "correctness": "exact match on 6 cases",
+          "duration_s": 1870.47,
+          "timed_out": false,
+          "error": "",
+          "audit_ok": true,
+          "submission_sha256": "53f8055d6ed142beef55ed2067775a5e58cd6149a9c8531251561b065119284e",
+          "netlist_sha256": "82fa531fba2c82ff0aba965b231ddfe03f3d9b546fc8c9cdf56552bcdef21577",
+          "history": 0,
+          "execution": {
+            "kind": "model-evaluation",
+            "repository": "arygupt/ADPBench",
+            "run_id": 37162530197,
+            "run_attempt": 1,
+            "job_id": 111324606458,
+            "commit": "2e8fe051b1b91ccb4e75b56e7879971f496a8908",
+            "completed_at": "2026-10-04T00:19:15Z",
+            "job_conclusion": "success"
+          },
+          "record_origin": "scorer",
+          "generation": {
+            "model": "space-bunny-free",
+            "finish_reason": "tool_calls",
+            "usage": {
+              "prompt_tokens": 1229144,
+              "completion_tokens": 132879,
+              "total_tokens": 1362023
+            },
+            "generation_settings": {
+              "reasoning_effort": "high"
+            },
+            "response_diagnostics": null,
+            "error": "",
+            "invalid_rtl": null,
+            "evidence_unavailable": null,
+            "protocol": "agent-assisted-v2",
+            "outcome": "submitted",
+            "turns": 16,
+            "max_turns": 20,
+            "incomplete_usage": true,
+            "reasoning_measured": {
+              "turns": 16,
+              "turns_with_reasoning": 11,
+              "reasoning_chars": 343722,
+              "answer_chars": 76046,
+              "reasoning_tokens": 109834
+            },
+            "try": 1,
+            "transport_retries": [
+              {
+                "turn": 8,
+                "retry": 1,
+                "reason": "stream_disconnected_before_terminal_event",
+                "usage_known": false
+              }
+            ],
+            "dev_checks": 3
+          },
+          "outcome": "correct",
+          "execution_health": "completed"
+        },
+        {
+          "label": "opencode-go/space-bunny-free [agent-assisted-v2]",
+          "problem": "004_conv1d",
+          "attempt": 1,
+          "correct": null,
+          "ratio": -1.0,
+          "cells": -1,
+          "cycles": -1,
+          "adp": -1.0,
+          "stage": "",
+          "correctness": "",
+          "duration_s": 1694.67,
+          "timed_out": false,
+          "error": "agent slot deadline reached",
+          "audit_ok": false,
+          "submission_sha256": "",
+          "netlist_sha256": "",
+          "history": 0,
+          "execution": {
+            "kind": "model-evaluation",
+            "repository": "arygupt/ADPBench",
+            "run_id": 37162530197,
+            "run_attempt": 1,
+            "job_id": 111324129527,
+            "commit": "2e8fe051b1b91ccb4e75b56e7879971f496a8908",
+            "completed_at": "2026-10-04T00:15:27Z",
+            "job_conclusion": "success"
+          },
+          "record_origin": "scorer",
+          "generation": {
+            "model": "space-bunny-free",
+            "finish_reason": "tool_calls",
+            "usage": {
+              "prompt_tokens": 746423,
+              "completion_tokens": 138399,
+              "total_tokens": 884822
+            },
+            "generation_settings": {
+              "reasoning_effort": "high"
+            },
+            "response_diagnostics": null,
+            "error": "agent slot deadline reached",
+            "invalid_rtl": null,
+            "evidence_unavailable": null,
+            "protocol": "agent-assisted-v2",
+            "outcome": "wall_timeout",
+            "turns": 10,
+            "max_turns": 20,
+            "incomplete_usage": true,
+            "reasoning_measured": {
+              "turns": 9,
+              "turns_with_reasoning": 6,
+              "reasoning_chars": 434194,
+              "answer_chars": 33819,
+              "reasoning_tokens": 128550
+            },
+            "try": 1,
+            "transport_retries": [],
+            "dev_checks": 3
+          },
+          "outcome": "wall_timeout",
+          "execution_health": "completed"
+        }
+      ],
+      "outcomes": {
+        "incorrect": 1,
+        "correct": 2,
+        "wall_timeout": 1
+      },
+      "scored": 3,
+      "unscored": 1
+    }
+  ]
+}
