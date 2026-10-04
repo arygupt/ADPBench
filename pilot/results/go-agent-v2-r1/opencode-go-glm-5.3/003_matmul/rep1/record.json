@@ -1,0 +1,141 @@
+{
+  "problem": "003_matmul",
+  "agent_cmd": "adpbench Go agent-assisted-v2 (read/write/check/submit)",
+  "label": "opencode-go/glm-5.3 [agent-assisted-v2]",
+  "attempt": 1,
+  "group": "go-agent-v2-r1",
+  "sandbox": "docker",
+  "started": "2026-09-26T19:47:27.531602+00:00",
+  "duration_s": 150.55,
+  "exit_code": -1,
+  "timed_out": false,
+  "audit": {
+    "ok": false,
+    "violations": [
+      {
+        "line": 0,
+        "match": "",
+        "reason": "no RTL produced"
+      }
+    ],
+    "warnings": []
+  },
+  "result": null,
+  "error": "provider HTTP 429; resends are listed in transport_retries; no fallback",
+  "frozen": "",
+  "manifest": {
+    "adpbench_version": "unknown",
+    "git_commit": "",
+    "problem": "003_matmul",
+    "problem_sha256": {
+      "dut.py": "ff069541361df5ec350d24ee4bbb0ad07a39e12b3e89740bcd74e4c327dc91f1",
+      "baseline.v": "426e61e6831e3538417475b5816b52975983852aad201b3c203b29fedbd5e017",
+      "baseline.json": "7bd4db0436d35fa79284c42850eead9885346fe0d86d70fea0d89b234a2a56a6"
+    },
+    "cases": {
+      "seeds": [
+        1000,
+        1001,
+        1002
+      ],
+      "directed": [
+        "zeros",
+        "min_values",
+        "extreme_signs"
+      ],
+      "transactions": 2,
+      "input_lens": {
+        "in_a_flat": 128,
+        "in_b_flat": 128
+      }
+    },
+    "tools": {
+      "yosys": "Yosys 0.69+ (git sha1 143eb14f9, Release, GNU /usr/bin/c++ 12.2.0)",
+      "iverilog": "Icarus Verilog version 13.0 (stable) (v13_0)"
+    },
+    "submission_sha256": "",
+    "netlist_sha256": "",
+    "agent_cmd": "adpbench Go agent-assisted-v2 (read/write/check/submit)",
+    "budget_s": 7200,
+    "sandbox": {
+      "mode": "docker",
+      "image": "adpbench-go:ci",
+      "network": "none"
+    },
+    "result": {
+      "correct": false,
+      "ratio": -1.0,
+      "cells": -1,
+      "cycles": -1,
+      "stage": "error"
+    },
+    "error": "provider HTTP 429; resends are listed in transport_retries; no fallback",
+    "timed_out": false,
+    "duration_s": 150.55,
+    "generation": {
+      "model": "glm-5.3",
+      "problem": "003_matmul",
+      "protocol": "agent-assisted-v2",
+      "started": "2026-09-26T19:47:27.531602+00:00",
+      "generation_state": "failed",
+      "outcome": "quota_exhausted",
+      "error": "provider HTTP 429; resends are listed in transport_retries; no fallback",
+      "turns": 1,
+      "checks": 0,
+      "max_turns": 20,
+      "max_checks": 3,
+      "max_output_tokens": 131072,
+      "usage": {},
+      "incomplete_usage": true,
+      "generation_settings": {
+        "reasoning_effort": "high"
+      },
+      "reasoning_measured": {
+        "turns": 0,
+        "turns_with_reasoning": 0,
+        "reasoning_chars": 0,
+        "answer_chars": 0,
+        "reasoning_tokens": null
+      },
+      "github": {
+        "GITHUB_REPOSITORY": "arygupt/ADPBench",
+        "GITHUB_RUN_ID": "36265411322",
+        "GITHUB_RUN_ATTEMPT": "1",
+        "GITHUB_SHA": "a218a152859ade906e34f719960a2f36b198e183"
+      },
+      "attempt": 1,
+      "try": 1,
+      "transport_retries": [
+        {
+          "turn": 1,
+          "retry": 1,
+          "reason": "http_429",
+          "usage_known": true
+        },
+        {
+          "turn": 1,
+          "retry": 2,
+          "reason": "http_429",
+          "usage_known": true
+        }
+      ],
+      "writes": 0,
+      "development_checks": [],
+      "duration_s": 150.55,
+      "execution_health": "failed"
+    }
+  },
+  "history": [],
+  "outcome": "quota_exhausted",
+  "execution_health": "failed",
+  "execution": {
+    "kind": "model-evaluation",
+    "repository": "arygupt/ADPBench",
+    "run_id": 36265411322,
+    "run_attempt": 1,
+    "job_id": 108474613922,
+    "commit": "a218a152859ade906e34f719960a2f36b198e183",
+    "completed_at": "2026-09-26T19:50:57Z",
+    "job_conclusion": "failure"
+  }
+}

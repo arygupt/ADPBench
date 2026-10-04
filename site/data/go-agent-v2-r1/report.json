@@ -1,0 +1,1252 @@
+{
+  "labels": {
+    "opencode-go/deepseek-v4-pro [agent-assisted-v2]": {
+      "attempts": 4,
+      "correct": 2,
+      "correctness_rate": 0.5,
+      "beating_baseline": 2,
+      "beat_baseline_rate": 0.5,
+      "geomean_ratio_successful": 3.1554,
+      "failures": {
+        "wrong_rtl": 0,
+        "infrastructure": 2,
+        "submission_failure": 0
+      },
+      "repetitions": 1,
+      "outcomes": {
+        "correct": 2,
+        "quota_exhausted": 2
+      },
+      "per_problem": {
+        "001_dot_product": {
+          "attempts": 1,
+          "correct": 1,
+          "correctness_rate": 1.0,
+          "beating_baseline": 1,
+          "beat_baseline_rate": 1.0,
+          "geomean_ratio_successful": 1.9725,
+          "failures": {
+            "wrong_rtl": 0,
+            "infrastructure": 0,
+            "submission_failure": 0
+          },
+          "repetitions": 1,
+          "outcomes": {
+            "correct": 1
+          }
+        },
+        "002_gemv": {
+          "attempts": 1,
+          "correct": 1,
+          "correctness_rate": 1.0,
+          "beating_baseline": 1,
+          "beat_baseline_rate": 1.0,
+          "geomean_ratio_successful": 5.0478,
+          "failures": {
+            "wrong_rtl": 0,
+            "infrastructure": 0,
+            "submission_failure": 0
+          },
+          "repetitions": 1,
+          "outcomes": {
+            "correct": 1
+          }
+        },
+        "003_matmul": {
+          "attempts": 1,
+          "correct": 0,
+          "correctness_rate": 0.0,
+          "beating_baseline": 0,
+          "beat_baseline_rate": 0.0,
+          "geomean_ratio_successful": -1.0,
+          "failures": {
+            "wrong_rtl": 0,
+            "infrastructure": 1,
+            "submission_failure": 0
+          },
+          "repetitions": 1,
+          "outcomes": {
+            "quota_exhausted": 1
+          }
+        },
+        "004_conv1d": {
+          "attempts": 1,
+          "correct": 0,
+          "correctness_rate": 0.0,
+          "beating_baseline": 0,
+          "beat_baseline_rate": 0.0,
+          "geomean_ratio_successful": -1.0,
+          "failures": {
+            "wrong_rtl": 0,
+            "infrastructure": 1,
+            "submission_failure": 0
+          },
+          "repetitions": 1,
+          "outcomes": {
+            "quota_exhausted": 1
+          }
+        }
+      }
+    },
+    "opencode-go/deepseek-v4.1-flash [agent-assisted-v2]": {
+      "attempts": 4,
+      "correct": 1,
+      "correctness_rate": 0.25,
+      "beating_baseline": 1,
+      "beat_baseline_rate": 0.25,
+      "geomean_ratio_successful": 3.4176,
+      "failures": {
+        "wrong_rtl": 0,
+        "infrastructure": 3,
+        "submission_failure": 0
+      },
+      "repetitions": 1,
+      "outcomes": {
+        "correct": 1,
+        "quota_exhausted": 3
+      },
+      "per_problem": {
+        "001_dot_product": {
+          "attempts": 1,
+          "correct": 1,
+          "correctness_rate": 1.0,
+          "beating_baseline": 1,
+          "beat_baseline_rate": 1.0,
+          "geomean_ratio_successful": 3.4176,
+          "failures": {
+            "wrong_rtl": 0,
+            "infrastructure": 0,
+            "submission_failure": 0
+          },
+          "repetitions": 1,
+          "outcomes": {
+            "correct": 1
+          }
+        },
+        "002_gemv": {
+          "attempts": 1,
+          "correct": 0,
+          "correctness_rate": 0.0,
+          "beating_baseline": 0,
+          "beat_baseline_rate": 0.0,
+          "geomean_ratio_successful": -1.0,
+          "failures": {
+            "wrong_rtl": 0,
+            "infrastructure": 1,
+            "submission_failure": 0
+          },
+          "repetitions": 1,
+          "outcomes": {
+            "quota_exhausted": 1
+          }
+        },
+        "003_matmul": {
+          "attempts": 1,
+          "correct": 0,
+          "correctness_rate": 0.0,
+          "beating_baseline": 0,
+          "beat_baseline_rate": 0.0,
+          "geomean_ratio_successful": -1.0,
+          "failures": {
+            "wrong_rtl": 0,
+            "infrastructure": 1,
+            "submission_failure": 0
+          },
+          "repetitions": 1,
+          "outcomes": {
+            "quota_exhausted": 1
+          }
+        },
+        "004_conv1d": {
+          "attempts": 1,
+          "correct": 0,
+          "correctness_rate": 0.0,
+          "beating_baseline": 0,
+          "beat_baseline_rate": 0.0,
+          "geomean_ratio_successful": -1.0,
+          "failures": {
+            "wrong_rtl": 0,
+            "infrastructure": 1,
+            "submission_failure": 0
+          },
+          "repetitions": 1,
+          "outcomes": {
+            "quota_exhausted": 1
+          }
+        }
+      }
+    },
+    "opencode-go/glm-5.3 [agent-assisted-v2]": {
+      "attempts": 4,
+      "correct": 0,
+      "correctness_rate": 0.0,
+      "beating_baseline": 0,
+      "beat_baseline_rate": 0.0,
+      "geomean_ratio_successful": -1.0,
+      "failures": {
+        "wrong_rtl": 0,
+        "infrastructure": 4,
+        "submission_failure": 0
+      },
+      "repetitions": 1,
+      "outcomes": {
+        "quota_exhausted": 4
+      },
+      "per_problem": {
+        "001_dot_product": {
+          "attempts": 1,
+          "correct": 0,
+          "correctness_rate": 0.0,
+          "beating_baseline": 0,
+          "beat_baseline_rate": 0.0,
+          "geomean_ratio_successful": -1.0,
+          "failures": {
+            "wrong_rtl": 0,
+            "infrastructure": 1,
+            "submission_failure": 0
+          },
+          "repetitions": 1,
+          "outcomes": {
+            "quota_exhausted": 1
+          }
+        },
+        "002_gemv": {
+          "attempts": 1,
+          "correct": 0,
+          "correctness_rate": 0.0,
+          "beating_baseline": 0,
+          "beat_baseline_rate": 0.0,
+          "geomean_ratio_successful": -1.0,
+          "failures": {
+            "wrong_rtl": 0,
+            "infrastructure": 1,
+            "submission_failure": 0
+          },
+          "repetitions": 1,
+          "outcomes": {
+            "quota_exhausted": 1
+          }
+        },
+        "003_matmul": {
+          "attempts": 1,
+          "correct": 0,
+          "correctness_rate": 0.0,
+          "beating_baseline": 0,
+          "beat_baseline_rate": 0.0,
+          "geomean_ratio_successful": -1.0,
+          "failures": {
+            "wrong_rtl": 0,
+            "infrastructure": 1,
+            "submission_failure": 0
+          },
+          "repetitions": 1,
+          "outcomes": {
+            "quota_exhausted": 1
+          }
+        },
+        "004_conv1d": {
+          "attempts": 1,
+          "correct": 0,
+          "correctness_rate": 0.0,
+          "beating_baseline": 0,
+          "beat_baseline_rate": 0.0,
+          "geomean_ratio_successful": -1.0,
+          "failures": {
+            "wrong_rtl": 0,
+            "infrastructure": 1,
+            "submission_failure": 0
+          },
+          "repetitions": 1,
+          "outcomes": {
+            "quota_exhausted": 1
+          }
+        }
+      }
+    },
+    "opencode-go/glm-5.3-flash [agent-assisted-v2]": {
+      "attempts": 4,
+      "correct": 1,
+      "correctness_rate": 0.25,
+      "beating_baseline": 1,
+      "beat_baseline_rate": 0.25,
+      "geomean_ratio_successful": 3.2072,
+      "failures": {
+        "wrong_rtl": 0,
+        "infrastructure": 3,
+        "submission_failure": 0
+      },
+      "repetitions": 1,
+      "outcomes": {
+        "correct": 1,
+        "quota_exhausted": 3
+      },
+      "per_problem": {
+        "001_dot_product": {
+          "attempts": 1,
+          "correct": 1,
+          "correctness_rate": 1.0,
+          "beating_baseline": 1,
+          "beat_baseline_rate": 1.0,
+          "geomean_ratio_successful": 3.2072,
+          "failures": {
+            "wrong_rtl": 0,
+            "infrastructure": 0,
+            "submission_failure": 0
+          },
+          "repetitions": 1,
+          "outcomes": {
+            "correct": 1
+          }
+        },
+        "002_gemv": {
+          "attempts": 1,
+          "correct": 0,
+          "correctness_rate": 0.0,
+          "beating_baseline": 0,
+          "beat_baseline_rate": 0.0,
+          "geomean_ratio_successful": -1.0,
+          "failures": {
+            "wrong_rtl": 0,
+            "infrastructure": 1,
+            "submission_failure": 0
+          },
+          "repetitions": 1,
+          "outcomes": {
+            "quota_exhausted": 1
+          }
+        },
+        "003_matmul": {
+          "attempts": 1,
+          "correct": 0,
+          "correctness_rate": 0.0,
+          "beating_baseline": 0,
+          "beat_baseline_rate": 0.0,
+          "geomean_ratio_successful": -1.0,
+          "failures": {
+            "wrong_rtl": 0,
+            "infrastructure": 1,
+            "submission_failure": 0
+          },
+          "repetitions": 1,
+          "outcomes": {
+            "quota_exhausted": 1
+          }
+        },
+        "004_conv1d": {
+          "attempts": 1,
+          "correct": 0,
+          "correctness_rate": 0.0,
+          "beating_baseline": 0,
+          "beat_baseline_rate": 0.0,
+          "geomean_ratio_successful": -1.0,
+          "failures": {
+            "wrong_rtl": 0,
+            "infrastructure": 1,
+            "submission_failure": 0
+          },
+          "repetitions": 1,
+          "outcomes": {
+            "quota_exhausted": 1
+          }
+        }
+      }
+    },
+    "opencode-go/gpt-6-luna [agent-assisted-v2]": {
+      "attempts": 4,
+      "correct": 2,
+      "correctness_rate": 0.5,
+      "beating_baseline": 2,
+      "beat_baseline_rate": 0.5,
+      "geomean_ratio_successful": 3.017,
+      "failures": {
+        "wrong_rtl": 0,
+        "infrastructure": 2,
+        "submission_failure": 0
+      },
+      "repetitions": 1,
+      "outcomes": {
+        "correct": 2,
+        "quota_exhausted": 2
+      },
+      "per_problem": {
+        "001_dot_product": {
+          "attempts": 1,
+          "correct": 1,
+          "correctness_rate": 1.0,
+          "beating_baseline": 1,
+          "beat_baseline_rate": 1.0,
+          "geomean_ratio_successful": 2.9632,
+          "failures": {
+            "wrong_rtl": 0,
+            "infrastructure": 0,
+            "submission_failure": 0
+          },
+          "repetitions": 1,
+          "outcomes": {
+            "correct": 1
+          }
+        },
+        "002_gemv": {
+          "attempts": 1,
+          "correct": 1,
+          "correctness_rate": 1.0,
+          "beating_baseline": 1,
+          "beat_baseline_rate": 1.0,
+          "geomean_ratio_successful": 3.0718,
+          "failures": {
+            "wrong_rtl": 0,
+            "infrastructure": 0,
+            "submission_failure": 0
+          },
+          "repetitions": 1,
+          "outcomes": {
+            "correct": 1
+          }
+        },
+        "003_matmul": {
+          "attempts": 1,
+          "correct": 0,
+          "correctness_rate": 0.0,
+          "beating_baseline": 0,
+          "beat_baseline_rate": 0.0,
+          "geomean_ratio_successful": -1.0,
+          "failures": {
+            "wrong_rtl": 0,
+            "infrastructure": 1,
+            "submission_failure": 0
+          },
+          "repetitions": 1,
+          "outcomes": {
+            "quota_exhausted": 1
+          }
+        },
+        "004_conv1d": {
+          "attempts": 1,
+          "correct": 0,
+          "correctness_rate": 0.0,
+          "beating_baseline": 0,
+          "beat_baseline_rate": 0.0,
+          "geomean_ratio_successful": -1.0,
+          "failures": {
+            "wrong_rtl": 0,
+            "infrastructure": 1,
+            "submission_failure": 0
+          },
+          "repetitions": 1,
+          "outcomes": {
+            "quota_exhausted": 1
+          }
+        }
+      }
+    },
+    "opencode-go/grok-4.7 [agent-assisted-v2]": {
+      "attempts": 4,
+      "correct": 1,
+      "correctness_rate": 0.25,
+      "beating_baseline": 1,
+      "beat_baseline_rate": 0.25,
+      "geomean_ratio_successful": 3.7836,
+      "failures": {
+        "wrong_rtl": 0,
+        "infrastructure": 3,
+        "submission_failure": 0
+      },
+      "repetitions": 1,
+      "outcomes": {
+        "correct": 1,
+        "quota_exhausted": 3
+      },
+      "per_problem": {
+        "001_dot_product": {
+          "attempts": 1,
+          "correct": 1,
+          "correctness_rate": 1.0,
+          "beating_baseline": 1,
+          "beat_baseline_rate": 1.0,
+          "geomean_ratio_successful": 3.7836,
+          "failures": {
+            "wrong_rtl": 0,
+            "infrastructure": 0,
+            "submission_failure": 0
+          },
+          "repetitions": 1,
+          "outcomes": {
+            "correct": 1
+          }
+        },
+        "002_gemv": {
+          "attempts": 1,
+          "correct": 0,
+          "correctness_rate": 0.0,
+          "beating_baseline": 0,
+          "beat_baseline_rate": 0.0,
+          "geomean_ratio_successful": -1.0,
+          "failures": {
+            "wrong_rtl": 0,
+            "infrastructure": 1,
+            "submission_failure": 0
+          },
+          "repetitions": 1,
+          "outcomes": {
+            "quota_exhausted": 1
+          }
+        },
+        "003_matmul": {
+          "attempts": 1,
+          "correct": 0,
+          "correctness_rate": 0.0,
+          "beating_baseline": 0,
+          "beat_baseline_rate": 0.0,
+          "geomean_ratio_successful": -1.0,
+          "failures": {
+            "wrong_rtl": 0,
+            "infrastructure": 1,
+            "submission_failure": 0
+          },
+          "repetitions": 1,
+          "outcomes": {
+            "quota_exhausted": 1
+          }
+        },
+        "004_conv1d": {
+          "attempts": 1,
+          "correct": 0,
+          "correctness_rate": 0.0,
+          "beating_baseline": 0,
+          "beat_baseline_rate": 0.0,
+          "geomean_ratio_successful": -1.0,
+          "failures": {
+            "wrong_rtl": 0,
+            "infrastructure": 1,
+            "submission_failure": 0
+          },
+          "repetitions": 1,
+          "outcomes": {
+            "quota_exhausted": 1
+          }
+        }
+      }
+    },
+    "opencode-go/kimi-k2.6 [agent-assisted-v2]": {
+      "attempts": 4,
+      "correct": 1,
+      "correctness_rate": 0.25,
+      "beating_baseline": 0,
+      "beat_baseline_rate": 0.0,
+      "geomean_ratio_successful": 0.9894,
+      "failures": {
+        "wrong_rtl": 0,
+        "infrastructure": 3,
+        "submission_failure": 0
+      },
+      "repetitions": 1,
+      "outcomes": {
+        "correct": 1,
+        "quota_exhausted": 3
+      },
+      "per_problem": {
+        "001_dot_product": {
+          "attempts": 1,
+          "correct": 1,
+          "correctness_rate": 1.0,
+          "beating_baseline": 0,
+          "beat_baseline_rate": 0.0,
+          "geomean_ratio_successful": 0.9894,
+          "failures": {
+            "wrong_rtl": 0,
+            "infrastructure": 0,
+            "submission_failure": 0
+          },
+          "repetitions": 1,
+          "outcomes": {
+            "correct": 1
+          }
+        },
+        "002_gemv": {
+          "attempts": 1,
+          "correct": 0,
+          "correctness_rate": 0.0,
+          "beating_baseline": 0,
+          "beat_baseline_rate": 0.0,
+          "geomean_ratio_successful": -1.0,
+          "failures": {
+            "wrong_rtl": 0,
+            "infrastructure": 1,
+            "submission_failure": 0
+          },
+          "repetitions": 1,
+          "outcomes": {
+            "quota_exhausted": 1
+          }
+        },
+        "003_matmul": {
+          "attempts": 1,
+          "correct": 0,
+          "correctness_rate": 0.0,
+          "beating_baseline": 0,
+          "beat_baseline_rate": 0.0,
+          "geomean_ratio_successful": -1.0,
+          "failures": {
+            "wrong_rtl": 0,
+            "infrastructure": 1,
+            "submission_failure": 0
+          },
+          "repetitions": 1,
+          "outcomes": {
+            "quota_exhausted": 1
+          }
+        },
+        "004_conv1d": {
+          "attempts": 1,
+          "correct": 0,
+          "correctness_rate": 0.0,
+          "beating_baseline": 0,
+          "beat_baseline_rate": 0.0,
+          "geomean_ratio_successful": -1.0,
+          "failures": {
+            "wrong_rtl": 0,
+            "infrastructure": 1,
+            "submission_failure": 0
+          },
+          "repetitions": 1,
+          "outcomes": {
+            "quota_exhausted": 1
+          }
+        }
+      }
+    },
+    "opencode-go/kimi-k3 [agent-assisted-v2]": {
+      "attempts": 4,
+      "correct": 1,
+      "correctness_rate": 0.25,
+      "beating_baseline": 1,
+      "beat_baseline_rate": 0.25,
+      "geomean_ratio_successful": 3.7954,
+      "failures": {
+        "wrong_rtl": 0,
+        "infrastructure": 3,
+        "submission_failure": 0
+      },
+      "repetitions": 1,
+      "outcomes": {
+        "correct": 1,
+        "quota_exhausted": 3
+      },
+      "per_problem": {
+        "001_dot_product": {
+          "attempts": 1,
+          "correct": 1,
+          "correctness_rate": 1.0,
+          "beating_baseline": 1,
+          "beat_baseline_rate": 1.0,
+          "geomean_ratio_successful": 3.7954,
+          "failures": {
+            "wrong_rtl": 0,
+            "infrastructure": 0,
+            "submission_failure": 0
+          },
+          "repetitions": 1,
+          "outcomes": {
+            "correct": 1
+          }
+        },
+        "002_gemv": {
+          "attempts": 1,
+          "correct": 0,
+          "correctness_rate": 0.0,
+          "beating_baseline": 0,
+          "beat_baseline_rate": 0.0,
+          "geomean_ratio_successful": -1.0,
+          "failures": {
+            "wrong_rtl": 0,
+            "infrastructure": 1,
+            "submission_failure": 0
+          },
+          "repetitions": 1,
+          "outcomes": {
+            "quota_exhausted": 1
+          }
+        },
+        "003_matmul": {
+          "attempts": 1,
+          "correct": 0,
+          "correctness_rate": 0.0,
+          "beating_baseline": 0,
+          "beat_baseline_rate": 0.0,
+          "geomean_ratio_successful": -1.0,
+          "failures": {
+            "wrong_rtl": 0,
+            "infrastructure": 1,
+            "submission_failure": 0
+          },
+          "repetitions": 1,
+          "outcomes": {
+            "quota_exhausted": 1
+          }
+        },
+        "004_conv1d": {
+          "attempts": 1,
+          "correct": 0,
+          "correctness_rate": 0.0,
+          "beating_baseline": 0,
+          "beat_baseline_rate": 0.0,
+          "geomean_ratio_successful": -1.0,
+          "failures": {
+            "wrong_rtl": 0,
+            "infrastructure": 1,
+            "submission_failure": 0
+          },
+          "repetitions": 1,
+          "outcomes": {
+            "quota_exhausted": 1
+          }
+        }
+      }
+    },
+    "opencode-go/mimo-v2.5 [agent-assisted-v2]": {
+      "attempts": 4,
+      "correct": 1,
+      "correctness_rate": 0.25,
+      "beating_baseline": 1,
+      "beat_baseline_rate": 0.25,
+      "geomean_ratio_successful": 1.7448,
+      "failures": {
+        "wrong_rtl": 0,
+        "infrastructure": 3,
+        "submission_failure": 0
+      },
+      "repetitions": 1,
+      "outcomes": {
+        "correct": 1,
+        "quota_exhausted": 3
+      },
+      "per_problem": {
+        "001_dot_product": {
+          "attempts": 1,
+          "correct": 1,
+          "correctness_rate": 1.0,
+          "beating_baseline": 1,
+          "beat_baseline_rate": 1.0,
+          "geomean_ratio_successful": 1.7448,
+          "failures": {
+            "wrong_rtl": 0,
+            "infrastructure": 0,
+            "submission_failure": 0
+          },
+          "repetitions": 1,
+          "outcomes": {
+            "correct": 1
+          }
+        },
+        "002_gemv": {
+          "attempts": 1,
+          "correct": 0,
+          "correctness_rate": 0.0,
+          "beating_baseline": 0,
+          "beat_baseline_rate": 0.0,
+          "geomean_ratio_successful": -1.0,
+          "failures": {
+            "wrong_rtl": 0,
+            "infrastructure": 1,
+            "submission_failure": 0
+          },
+          "repetitions": 1,
+          "outcomes": {
+            "quota_exhausted": 1
+          }
+        },
+        "003_matmul": {
+          "attempts": 1,
+          "correct": 0,
+          "correctness_rate": 0.0,
+          "beating_baseline": 0,
+          "beat_baseline_rate": 0.0,
+          "geomean_ratio_successful": -1.0,
+          "failures": {
+            "wrong_rtl": 0,
+            "infrastructure": 1,
+            "submission_failure": 0
+          },
+          "repetitions": 1,
+          "outcomes": {
+            "quota_exhausted": 1
+          }
+        },
+        "004_conv1d": {
+          "attempts": 1,
+          "correct": 0,
+          "correctness_rate": 0.0,
+          "beating_baseline": 0,
+          "beat_baseline_rate": 0.0,
+          "geomean_ratio_successful": -1.0,
+          "failures": {
+            "wrong_rtl": 0,
+            "infrastructure": 1,
+            "submission_failure": 0
+          },
+          "repetitions": 1,
+          "outcomes": {
+            "quota_exhausted": 1
+          }
+        }
+      }
+    },
+    "opencode-go/mimo-v2.6-pro [agent-assisted-v2]": {
+      "attempts": 4,
+      "correct": 0,
+      "correctness_rate": 0.0,
+      "beating_baseline": 0,
+      "beat_baseline_rate": 0.0,
+      "geomean_ratio_successful": -1.0,
+      "failures": {
+        "wrong_rtl": 0,
+        "infrastructure": 4,
+        "submission_failure": 0
+      },
+      "repetitions": 1,
+      "outcomes": {
+        "quota_exhausted": 4
+      },
+      "per_problem": {
+        "001_dot_product": {
+          "attempts": 1,
+          "correct": 0,
+          "correctness_rate": 0.0,
+          "beating_baseline": 0,
+          "beat_baseline_rate": 0.0,
+          "geomean_ratio_successful": -1.0,
+          "failures": {
+            "wrong_rtl": 0,
+            "infrastructure": 1,
+            "submission_failure": 0
+          },
+          "repetitions": 1,
+          "outcomes": {
+            "quota_exhausted": 1
+          }
+        },
+        "002_gemv": {
+          "attempts": 1,
+          "correct": 0,
+          "correctness_rate": 0.0,
+          "beating_baseline": 0,
+          "beat_baseline_rate": 0.0,
+          "geomean_ratio_successful": -1.0,
+          "failures": {
+            "wrong_rtl": 0,
+            "infrastructure": 1,
+            "submission_failure": 0
+          },
+          "repetitions": 1,
+          "outcomes": {
+            "quota_exhausted": 1
+          }
+        },
+        "003_matmul": {
+          "attempts": 1,
+          "correct": 0,
+          "correctness_rate": 0.0,
+          "beating_baseline": 0,
+          "beat_baseline_rate": 0.0,
+          "geomean_ratio_successful": -1.0,
+          "failures": {
+            "wrong_rtl": 0,
+            "infrastructure": 1,
+            "submission_failure": 0
+          },
+          "repetitions": 1,
+          "outcomes": {
+            "quota_exhausted": 1
+          }
+        },
+        "004_conv1d": {
+          "attempts": 1,
+          "correct": 0,
+          "correctness_rate": 0.0,
+          "beating_baseline": 0,
+          "beat_baseline_rate": 0.0,
+          "geomean_ratio_successful": -1.0,
+          "failures": {
+            "wrong_rtl": 0,
+            "infrastructure": 1,
+            "submission_failure": 0
+          },
+          "repetitions": 1,
+          "outcomes": {
+            "quota_exhausted": 1
+          }
+        }
+      }
+    },
+    "opencode-go/minimax-m2.7 [agent-assisted-v2]": {
+      "attempts": 4,
+      "correct": 0,
+      "correctness_rate": 0.0,
+      "beating_baseline": 0,
+      "beat_baseline_rate": 0.0,
+      "geomean_ratio_successful": -1.0,
+      "failures": {
+        "wrong_rtl": 1,
+        "infrastructure": 3,
+        "submission_failure": 0
+      },
+      "repetitions": 1,
+      "outcomes": {
+        "incorrect": 1,
+        "quota_exhausted": 3
+      },
+      "per_problem": {
+        "001_dot_product": {
+          "attempts": 1,
+          "correct": 0,
+          "correctness_rate": 0.0,
+          "beating_baseline": 0,
+          "beat_baseline_rate": 0.0,
+          "geomean_ratio_successful": -1.0,
+          "failures": {
+            "wrong_rtl": 1,
+            "infrastructure": 0,
+            "submission_failure": 0
+          },
+          "repetitions": 1,
+          "outcomes": {
+            "incorrect": 1
+          }
+        },
+        "002_gemv": {
+          "attempts": 1,
+          "correct": 0,
+          "correctness_rate": 0.0,
+          "beating_baseline": 0,
+          "beat_baseline_rate": 0.0,
+          "geomean_ratio_successful": -1.0,
+          "failures": {
+            "wrong_rtl": 0,
+            "infrastructure": 1,
+            "submission_failure": 0
+          },
+          "repetitions": 1,
+          "outcomes": {
+            "quota_exhausted": 1
+          }
+        },
+        "003_matmul": {
+          "attempts": 1,
+          "correct": 0,
+          "correctness_rate": 0.0,
+          "beating_baseline": 0,
+          "beat_baseline_rate": 0.0,
+          "geomean_ratio_successful": -1.0,
+          "failures": {
+            "wrong_rtl": 0,
+            "infrastructure": 1,
+            "submission_failure": 0
+          },
+          "repetitions": 1,
+          "outcomes": {
+            "quota_exhausted": 1
+          }
+        },
+        "004_conv1d": {
+          "attempts": 1,
+          "correct": 0,
+          "correctness_rate": 0.0,
+          "beating_baseline": 0,
+          "beat_baseline_rate": 0.0,
+          "geomean_ratio_successful": -1.0,
+          "failures": {
+            "wrong_rtl": 0,
+            "infrastructure": 1,
+            "submission_failure": 0
+          },
+          "repetitions": 1,
+          "outcomes": {
+            "quota_exhausted": 1
+          }
+        }
+      }
+    },
+    "opencode-go/minimax-m3 [agent-assisted-v2]": {
+      "attempts": 4,
+      "correct": 1,
+      "correctness_rate": 0.25,
+      "beating_baseline": 1,
+      "beat_baseline_rate": 0.25,
+      "geomean_ratio_successful": 2.2751,
+      "failures": {
+        "wrong_rtl": 0,
+        "infrastructure": 3,
+        "submission_failure": 0
+      },
+      "repetitions": 1,
+      "outcomes": {
+        "correct": 1,
+        "quota_exhausted": 3
+      },
+      "per_problem": {
+        "001_dot_product": {
+          "attempts": 1,
+          "correct": 1,
+          "correctness_rate": 1.0,
+          "beating_baseline": 1,
+          "beat_baseline_rate": 1.0,
+          "geomean_ratio_successful": 2.2751,
+          "failures": {
+            "wrong_rtl": 0,
+            "infrastructure": 0,
+            "submission_failure": 0
+          },
+          "repetitions": 1,
+          "outcomes": {
+            "correct": 1
+          }
+        },
+        "002_gemv": {
+          "attempts": 1,
+          "correct": 0,
+          "correctness_rate": 0.0,
+          "beating_baseline": 0,
+          "beat_baseline_rate": 0.0,
+          "geomean_ratio_successful": -1.0,
+          "failures": {
+            "wrong_rtl": 0,
+            "infrastructure": 1,
+            "submission_failure": 0
+          },
+          "repetitions": 1,
+          "outcomes": {
+            "quota_exhausted": 1
+          }
+        },
+        "003_matmul": {
+          "attempts": 1,
+          "correct": 0,
+          "correctness_rate": 0.0,
+          "beating_baseline": 0,
+          "beat_baseline_rate": 0.0,
+          "geomean_ratio_successful": -1.0,
+          "failures": {
+            "wrong_rtl": 0,
+            "infrastructure": 1,
+            "submission_failure": 0
+          },
+          "repetitions": 1,
+          "outcomes": {
+            "quota_exhausted": 1
+          }
+        },
+        "004_conv1d": {
+          "attempts": 1,
+          "correct": 0,
+          "correctness_rate": 0.0,
+          "beating_baseline": 0,
+          "beat_baseline_rate": 0.0,
+          "geomean_ratio_successful": -1.0,
+          "failures": {
+            "wrong_rtl": 0,
+            "infrastructure": 1,
+            "submission_failure": 0
+          },
+          "repetitions": 1,
+          "outcomes": {
+            "quota_exhausted": 1
+          }
+        }
+      }
+    },
+    "opencode-go/qwen3.8-flash [agent-assisted-v2]": {
+      "attempts": 4,
+      "correct": 1,
+      "correctness_rate": 0.25,
+      "beating_baseline": 1,
+      "beat_baseline_rate": 0.25,
+      "geomean_ratio_successful": 3.7678,
+      "failures": {
+        "wrong_rtl": 0,
+        "infrastructure": 3,
+        "submission_failure": 0
+      },
+      "repetitions": 1,
+      "outcomes": {
+        "correct": 1,
+        "quota_exhausted": 3
+      },
+      "per_problem": {
+        "001_dot_product": {
+          "attempts": 1,
+          "correct": 1,
+          "correctness_rate": 1.0,
+          "beating_baseline": 1,
+          "beat_baseline_rate": 1.0,
+          "geomean_ratio_successful": 3.7678,
+          "failures": {
+            "wrong_rtl": 0,
+            "infrastructure": 0,
+            "submission_failure": 0
+          },
+          "repetitions": 1,
+          "outcomes": {
+            "correct": 1
+          }
+        },
+        "002_gemv": {
+          "attempts": 1,
+          "correct": 0,
+          "correctness_rate": 0.0,
+          "beating_baseline": 0,
+          "beat_baseline_rate": 0.0,
+          "geomean_ratio_successful": -1.0,
+          "failures": {
+            "wrong_rtl": 0,
+            "infrastructure": 1,
+            "submission_failure": 0
+          },
+          "repetitions": 1,
+          "outcomes": {
+            "quota_exhausted": 1
+          }
+        },
+        "003_matmul": {
+          "attempts": 1,
+          "correct": 0,
+          "correctness_rate": 0.0,
+          "beating_baseline": 0,
+          "beat_baseline_rate": 0.0,
+          "geomean_ratio_successful": -1.0,
+          "failures": {
+            "wrong_rtl": 0,
+            "infrastructure": 1,
+            "submission_failure": 0
+          },
+          "repetitions": 1,
+          "outcomes": {
+            "quota_exhausted": 1
+          }
+        },
+        "004_conv1d": {
+          "attempts": 1,
+          "correct": 0,
+          "correctness_rate": 0.0,
+          "beating_baseline": 0,
+          "beat_baseline_rate": 0.0,
+          "geomean_ratio_successful": -1.0,
+          "failures": {
+            "wrong_rtl": 0,
+            "infrastructure": 1,
+            "submission_failure": 0
+          },
+          "repetitions": 1,
+          "outcomes": {
+            "quota_exhausted": 1
+          }
+        }
+      }
+    },
+    "opencode-go/qwen3.8-max [agent-assisted-v2]": {
+      "attempts": 4,
+      "correct": 0,
+      "correctness_rate": 0.0,
+      "beating_baseline": 0,
+      "beat_baseline_rate": 0.0,
+      "geomean_ratio_successful": -1.0,
+      "failures": {
+        "wrong_rtl": 0,
+        "infrastructure": 4,
+        "submission_failure": 0
+      },
+      "repetitions": 1,
+      "outcomes": {
+        "quota_exhausted": 4
+      },
+      "per_problem": {
+        "001_dot_product": {
+          "attempts": 1,
+          "correct": 0,
+          "correctness_rate": 0.0,
+          "beating_baseline": 0,
+          "beat_baseline_rate": 0.0,
+          "geomean_ratio_successful": -1.0,
+          "failures": {
+            "wrong_rtl": 0,
+            "infrastructure": 1,
+            "submission_failure": 0
+          },
+          "repetitions": 1,
+          "outcomes": {
+            "quota_exhausted": 1
+          }
+        },
+        "002_gemv": {
+          "attempts": 1,
+          "correct": 0,
+          "correctness_rate": 0.0,
+          "beating_baseline": 0,
+          "beat_baseline_rate": 0.0,
+          "geomean_ratio_successful": -1.0,
+          "failures": {
+            "wrong_rtl": 0,
+            "infrastructure": 1,
+            "submission_failure": 0
+          },
+          "repetitions": 1,
+          "outcomes": {
+            "quota_exhausted": 1
+          }
+        },
+        "003_matmul": {
+          "attempts": 1,
+          "correct": 0,
+          "correctness_rate": 0.0,
+          "beating_baseline": 0,
+          "beat_baseline_rate": 0.0,
+          "geomean_ratio_successful": -1.0,
+          "failures": {
+            "wrong_rtl": 0,
+            "infrastructure": 1,
+            "submission_failure": 0
+          },
+          "repetitions": 1,
+          "outcomes": {
+            "quota_exhausted": 1
+          }
+        },
+        "004_conv1d": {
+          "attempts": 1,
+          "correct": 0,
+          "correctness_rate": 0.0,
+          "beating_baseline": 0,
+          "beat_baseline_rate": 0.0,
+          "geomean_ratio_successful": -1.0,
+          "failures": {
+            "wrong_rtl": 0,
+            "infrastructure": 1,
+            "submission_failure": 0
+          },
+          "repetitions": 1,
+          "outcomes": {
+            "quota_exhausted": 1
+          }
+        }
+      }
+    }
+  },
+  "totals": {
+    "attempts": 56,
+    "correct": 12,
+    "correctness_rate": 0.2143,
+    "beating_baseline": 11,
+    "beat_baseline_rate": 0.1964,
+    "geomean_ratio_successful": 2.7778,
+    "failures": {
+      "wrong_rtl": 1,
+      "infrastructure": 43,
+      "submission_failure": 0
+    },
+    "repetitions": 1,
+    "outcomes": {
+      "correct": 12,
+      "quota_exhausted": 43,
+      "incorrect": 1
+    }
+  }
+}

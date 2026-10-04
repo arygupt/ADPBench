@@ -1,0 +1,74 @@
+{
+  "model": "deepseek-v4.1-flash",
+  "problem": "001_dot_product",
+  "protocol": "agent-assisted-v2",
+  "started": "2026-09-26T19:21:43.250380+00:00",
+  "generation_state": "completed",
+  "outcome": "submitted",
+  "error": "",
+  "turns": 9,
+  "checks": 3,
+  "max_turns": 20,
+  "max_checks": 3,
+  "max_output_tokens": 384000,
+  "usage": {
+    "prompt_tokens": 674718,
+    "completion_tokens": 114308,
+    "total_tokens": 789026
+  },
+  "incomplete_usage": false,
+  "generation_settings": {
+    "thinking": {
+      "type": "enabled"
+    },
+    "reasoning_effort": "high"
+  },
+  "reasoning_measured": {
+    "turns": 9,
+    "turns_with_reasoning": 6,
+    "reasoning_chars": 353861,
+    "answer_chars": 20752,
+    "reasoning_tokens": 108542
+  },
+  "github": {
+    "GITHUB_REPOSITORY": "arygupt/ADPBench",
+    "GITHUB_RUN_ID": "36265411322",
+    "GITHUB_RUN_ATTEMPT": "1",
+    "GITHUB_SHA": "a218a152859ade906e34f719960a2f36b198e183"
+  },
+  "attempt": 1,
+  "try": 1,
+  "transport_retries": [],
+  "finish_reason": "tool_calls",
+  "writes": 3,
+  "development_checks": [
+    {
+      "index": 1,
+      "submission_sha256": "e02188f03637fa38a4e9c742e271d3be7e2cace3f28f12811c749b9ba8ca39a2",
+      "completed": true,
+      "correct": true,
+      "reason": "",
+      "audit_ok": true
+    },
+    {
+      "index": 2,
+      "submission_sha256": "1938795e8d0ddb1e46d4d1068d9c01389135dfed041938f516cc38a990d27b1c",
+      "completed": true,
+      "correct": true,
+      "reason": "",
+      "audit_ok": true
+    },
+    {
+      "index": 3,
+      "submission_sha256": "99cf31fefb7b2af7653c75e3f67d7d3688c7302562b420dfcb887fec2f1000b0",
+      "completed": true,
+      "correct": true,
+      "reason": "",
+      "audit_ok": true
+    }
+  ],
+  "submission_sha256": "99cf31fefb7b2af7653c75e3f67d7d3688c7302562b420dfcb887fec2f1000b0",
+  "final_revision_checked": true,
+  "duration_s": 910.94,
+  "execution_health": "completed"
+}
