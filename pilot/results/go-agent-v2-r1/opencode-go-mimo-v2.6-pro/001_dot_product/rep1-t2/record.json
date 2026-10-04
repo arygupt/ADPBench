@@ -1,0 +1,137 @@
+{
+  "problem": "001_dot_product",
+  "agent_cmd": "adpbench Go agent-assisted-v2 (read/write/check/submit)",
+  "label": "opencode-go/mimo-v2.6-pro [agent-assisted-v2]",
+  "attempt": 1,
+  "group": "go-agent-v2-r1",
+  "sandbox": "docker",
+  "started": "2026-09-28T23:19:21.403154+00:00",
+  "duration_s": 210.65,
+  "exit_code": -1,
+  "timed_out": false,
+  "audit": {
+    "ok": false,
+    "violations": [
+      {
+        "line": 0,
+        "match": "",
+        "reason": "no RTL produced"
+      }
+    ],
+    "warnings": []
+  },
+  "result": null,
+  "error": "incomplete provider stream: invalid_stream_end; resends are listed in transport_retries; no fallback",
+  "frozen": "",
+  "manifest": {
+    "adpbench_version": "unknown",
+    "git_commit": "",
+    "problem": "001_dot_product",
+    "problem_sha256": {
+      "dut.py": "91fd0433d225e3f9dd67022edc55b1809f6f642019e415e6b921d67086530a45",
+      "baseline.v": "44111a2a04a8b1ef5517f87f9076861c696422ecb301c1e9e551d828a321d3e7",
+      "baseline.json": "06f89f858ee67fdd51e191965e7f3370ea08827ebf2a1bed935a1c74cf09e63e"
+    },
+    "cases": {
+      "seeds": [
+        1000,
+        1001,
+        1002
+      ],
+      "directed": [
+        "zeros",
+        "min_values",
+        "extreme_signs"
+      ],
+      "transactions": 2,
+      "input_lens": {
+        "in_a_flat": 256,
+        "in_b_flat": 256
+      }
+    },
+    "tools": {
+      "yosys": "Yosys 0.69+ (git sha1 143eb14f9, Release, GNU /usr/bin/c++ 12.2.0)",
+      "iverilog": "Icarus Verilog version 13.0 (stable) (v13_0)"
+    },
+    "submission_sha256": "",
+    "netlist_sha256": "",
+    "agent_cmd": "adpbench Go agent-assisted-v2 (read/write/check/submit)",
+    "budget_s": 7200,
+    "sandbox": {
+      "mode": "docker",
+      "image": "adpbench-go:ci",
+      "network": "none"
+    },
+    "result": {
+      "correct": false,
+      "ratio": -1.0,
+      "cells": -1,
+      "cycles": -1,
+      "stage": "error"
+    },
+    "error": "incomplete provider stream: invalid_stream_end; resends are listed in transport_retries; no fallback",
+    "timed_out": false,
+    "duration_s": 210.65,
+    "generation": {
+      "model": "mimo-v2.6-pro",
+      "problem": "001_dot_product",
+      "protocol": "agent-assisted-v2",
+      "started": "2026-09-28T23:19:21.403154+00:00",
+      "generation_state": "failed",
+      "outcome": "transport_interrupted",
+      "error": "incomplete provider stream: invalid_stream_end; resends are listed in transport_retries; no fallback",
+      "turns": 2,
+      "checks": 0,
+      "max_turns": 20,
+      "max_checks": 3,
+      "max_output_tokens": 131072,
+      "usage": {
+        "prompt_tokens": 561,
+        "completion_tokens": 44,
+        "total_tokens": 605
+      },
+      "incomplete_usage": true,
+      "generation_settings": {
+        "reasoning": {
+          "enabled": true
+        },
+        "token_limit_key": "max_completion_tokens"
+      },
+      "reasoning_measured": {
+        "turns": 1,
+        "turns_with_reasoning": 1,
+        "reasoning_chars": 22,
+        "answer_chars": 40,
+        "reasoning_tokens": 7
+      },
+      "github": {
+        "GITHUB_REPOSITORY": "arygupt/ADPBench",
+        "GITHUB_RUN_ID": "36496973482",
+        "GITHUB_RUN_ATTEMPT": "1",
+        "GITHUB_SHA": "32983e2aa732ca52b4f198fa2b6f802a61e9d64c"
+      },
+      "attempt": 1,
+      "try": 2,
+      "transport_retries": [],
+      "finish_reason": "tool_calls",
+      "writes": 0,
+      "development_checks": [],
+      "duration_s": 210.65,
+      "execution_health": "failed"
+    }
+  },
+  "history": [],
+  "outcome": "transport_interrupted",
+  "execution_health": "failed",
+  "execution": {
+    "kind": "model-evaluation",
+    "repository": "arygupt/ADPBench",
+    "run_id": 36496973482,
+    "run_attempt": 2,
+    "job_id": 109180998768,
+    "commit": "32983e2aa732ca52b4f198fa2b6f802a61e9d64c",
+    "completed_at": "2026-09-28T23:23:31Z",
+    "job_conclusion": "failure"
+  },
+  "try": 2
+}
