@@ -1,0 +1,41 @@
+{
+  "model": "kimi-k2.6",
+  "problem": "002_gemv",
+  "protocol": "agent-assisted-v2",
+  "started": "2026-09-29T04:19:40.178735+00:00",
+  "generation_state": "failed",
+  "outcome": "provider_error",
+  "error": "provider HTTP 410; resends are listed in transport_retries; no fallback",
+  "turns": 1,
+  "checks": 0,
+  "max_turns": 20,
+  "max_checks": 3,
+  "max_output_tokens": 65536,
+  "usage": {},
+  "incomplete_usage": true,
+  "generation_settings": {
+    "thinking": {
+      "type": "enabled"
+    }
+  },
+  "reasoning_measured": {
+    "turns": 0,
+    "turns_with_reasoning": 0,
+    "reasoning_chars": 0,
+    "answer_chars": 0,
+    "reasoning_tokens": null
+  },
+  "github": {
+    "GITHUB_REPOSITORY": "arygupt/ADPBench",
+    "GITHUB_RUN_ID": "36496973482",
+    "GITHUB_RUN_ATTEMPT": "2",
+    "GITHUB_SHA": "32983e2aa732ca52b4f198fa2b6f802a61e9d64c"
+  },
+  "attempt": 1,
+  "try": 2,
+  "transport_retries": [],
+  "writes": 0,
+  "development_checks": [],
+  "duration_s": 0.19,
+  "execution_health": "failed"
+}

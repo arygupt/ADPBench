@@ -1,0 +1,47 @@
+{
+  "model": "mimo-v2.6-pro",
+  "problem": "001_dot_product",
+  "protocol": "agent-assisted-v2",
+  "started": "2026-09-28T23:19:21.403154+00:00",
+  "generation_state": "failed",
+  "outcome": "transport_interrupted",
+  "error": "incomplete provider stream: invalid_stream_end; resends are listed in transport_retries; no fallback",
+  "turns": 2,
+  "checks": 0,
+  "max_turns": 20,
+  "max_checks": 3,
+  "max_output_tokens": 131072,
+  "usage": {
+    "prompt_tokens": 561,
+    "completion_tokens": 44,
+    "total_tokens": 605
+  },
+  "incomplete_usage": true,
+  "generation_settings": {
+    "reasoning": {
+      "enabled": true
+    },
+    "token_limit_key": "max_completion_tokens"
+  },
+  "reasoning_measured": {
+    "turns": 1,
+    "turns_with_reasoning": 1,
+    "reasoning_chars": 22,
+    "answer_chars": 40,
+    "reasoning_tokens": 7
+  },
+  "github": {
+    "GITHUB_REPOSITORY": "arygupt/ADPBench",
+    "GITHUB_RUN_ID": "36496973482",
+    "GITHUB_RUN_ATTEMPT": "1",
+    "GITHUB_SHA": "32983e2aa732ca52b4f198fa2b6f802a61e9d64c"
+  },
+  "attempt": 1,
+  "try": 2,
+  "transport_retries": [],
+  "finish_reason": "tool_calls",
+  "writes": 0,
+  "development_checks": [],
+  "duration_s": 210.65,
+  "execution_health": "failed"
+}

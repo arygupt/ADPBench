@@ -1,0 +1,74 @@
+{
+  "model": "gpt-6-luna",
+  "problem": "003_matmul",
+  "protocol": "agent-assisted-v2",
+  "started": "2026-09-29T04:38:08.214924+00:00",
+  "generation_state": "completed",
+  "outcome": "submitted",
+  "error": "",
+  "turns": 10,
+  "checks": 3,
+  "max_turns": 20,
+  "max_checks": 3,
+  "max_output_tokens": 128000,
+  "usage": {
+    "input_tokens": 70917,
+    "output_tokens": 11071,
+    "total_tokens": 81988
+  },
+  "incomplete_usage": false,
+  "generation_settings": {
+    "reasoning": {
+      "effort": "high"
+    },
+    "token_limit_key": "max_output_tokens"
+  },
+  "reasoning_measured": {
+    "turns": 10,
+    "turns_with_reasoning": 0,
+    "reasoning_chars": 0,
+    "answer_chars": 14164,
+    "reasoning_tokens": 6586
+  },
+  "github": {
+    "GITHUB_REPOSITORY": "arygupt/ADPBench",
+    "GITHUB_RUN_ID": "36496973482",
+    "GITHUB_RUN_ATTEMPT": "2",
+    "GITHUB_SHA": "32983e2aa732ca52b4f198fa2b6f802a61e9d64c"
+  },
+  "attempt": 1,
+  "try": 2,
+  "transport_retries": [],
+  "finish_reason": "tool_calls",
+  "writes": 4,
+  "development_checks": [
+    {
+      "index": 1,
+      "submission_sha256": "a817f1141ff31708fb6976546885ebe4fb2ef3d9e01d165638c7adaaebde1212",
+      "completed": true,
+      "correct": true,
+      "reason": "",
+      "audit_ok": true
+    },
+    {
+      "index": 2,
+      "submission_sha256": "4a8f511da4b86ef42602284c95d03a8fc6b3875f1e54f26344e41a4471194a21",
+      "completed": true,
+      "correct": true,
+      "reason": "",
+      "audit_ok": true
+    },
+    {
+      "index": 3,
+      "submission_sha256": "c71b4865cd9db6c5dd42a68afe752855655de43ca3eb80e63d7cd9dd1a4b74d8",
+      "completed": true,
+      "correct": true,
+      "reason": "",
+      "audit_ok": true
+    }
+  ],
+  "submission_sha256": "87b7d95ba1b1a4ed2e7bd832a1ea03aeb0d877f8880fc29c63e459caa28139fa",
+  "final_revision_checked": false,
+  "duration_s": 444.12,
+  "execution_health": "completed"
+}

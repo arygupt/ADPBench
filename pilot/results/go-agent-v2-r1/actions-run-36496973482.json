@@ -1,0 +1,702 @@
+{
+  "run": {
+    "id": 36496973482,
+    "run_attempt": 2,
+    "head_sha": "32983e2aa732ca52b4f198fa2b6f802a61e9d64c",
+    "html_url": "https://github.com/arygupt/ADPBench/actions/runs/36496973482",
+    "status": "completed",
+    "conclusion": "failure",
+    "event": "workflow_dispatch",
+    "path": ".github/workflows/go-agent.yml"
+  },
+  "jobs": [
+    {
+      "id": 109246078853,
+      "name": "Offline agent protocol, provider adapters, and evidence checks",
+      "status": "completed",
+      "conclusion": "success",
+      "started_at": "2026-09-28T23:15:05Z",
+      "completed_at": "2026-09-28T23:15:17Z"
+    },
+    {
+      "id": 109246107257,
+      "name": "Pinned agent sandbox and held-out scorer checks (no model calls)",
+      "status": "completed",
+      "conclusion": "skipped",
+      "started_at": "2026-09-29T03:45:07Z",
+      "completed_at": "2026-09-28T23:15:03Z"
+    },
+    {
+      "id": 109246079817,
+      "name": "Prepare pinned toolchain and validate the baselines (no model calls)",
+      "status": "completed",
+      "conclusion": "success",
+      "started_at": "2026-09-28T23:15:19Z",
+      "completed_at": "2026-09-28T23:18:51Z"
+    },
+    {
+      "id": 109246080097,
+      "name": "Canary ${{ matrix.model }} \u00b7 one tool round trip, never scored",
+      "status": "completed",
+      "conclusion": "skipped",
+      "started_at": "2026-09-29T03:45:00Z",
+      "completed_at": "2026-09-28T23:15:17Z"
+    },
+    {
+      "id": 109246080344,
+      "name": "kimi-k3 \u00b7 002_gemv / Generate kimi-k3 \u00b7 002_gemv \u00b7 agent-assisted-v2",
+      "status": "completed",
+      "conclusion": "success",
+      "started_at": "2026-09-28T23:18:54Z",
+      "completed_at": "2026-09-28T23:45:11Z"
+    },
+    {
+      "id": 109246080555,
+      "name": "grok-4.7 \u00b7 002_gemv / Generate grok-4.7 \u00b7 002_gemv \u00b7 agent-assisted-v2",
+      "status": "completed",
+      "conclusion": "success",
+      "started_at": "2026-09-28T23:18:54Z",
+      "completed_at": "2026-09-28T23:42:14Z"
+    },
+    {
+      "id": 109179821903,
+      "name": "mimo-v2.6-pro \u00b7 001_dot_product / Generate mimo-v2.6-pro \u00b7 001_dot_product \u00b7 agent-assisted-v2",
+      "status": "completed",
+      "conclusion": "failure",
+      "started_at": "2026-09-28T23:18:53Z",
+      "completed_at": "2026-09-28T23:22:57Z"
+    },
+    {
+      "id": 109180998768,
+      "name": "mimo-v2.6-pro \u00b7 001_dot_product / Evaluate mimo-v2.6-pro \u00b7 001_dot_product \u00b7 agent-assisted-v2",
+      "status": "completed",
+      "conclusion": "failure",
+      "started_at": "2026-09-28T23:22:59Z",
+      "completed_at": "2026-09-28T23:23:31Z"
+    },
+    {
+      "id": 109246081222,
+      "name": "glm-5.3 \u00b7 002_gemv / Generate glm-5.3 \u00b7 002_gemv \u00b7 agent-assisted-v2",
+      "status": "completed",
+      "conclusion": "success",
+      "started_at": "2026-09-28T23:23:33Z",
+      "completed_at": "2026-09-28T23:55:04Z"
+    },
+    {
+      "id": 109246081157,
+      "name": "grok-4.7 \u00b7 002_gemv / Evaluate grok-4.7 \u00b7 002_gemv \u00b7 agent-assisted-v2",
+      "status": "completed",
+      "conclusion": "success",
+      "started_at": "2026-09-28T23:42:19Z",
+      "completed_at": "2026-09-28T23:43:39Z"
+    },
+    {
+      "id": 109246081231,
+      "name": "qwen3.8-max \u00b7 002_gemv / Generate qwen3.8-max \u00b7 002_gemv \u00b7 agent-assisted-v2",
+      "status": "completed",
+      "conclusion": "success",
+      "started_at": "2026-09-28T23:43:42Z",
+      "completed_at": "2026-09-28T23:58:34Z"
+    },
+    {
+      "id": 109246081187,
+      "name": "kimi-k3 \u00b7 002_gemv / Evaluate kimi-k3 \u00b7 002_gemv \u00b7 agent-assisted-v2",
+      "status": "completed",
+      "conclusion": "success",
+      "started_at": "2026-09-28T23:45:14Z",
+      "completed_at": "2026-09-28T23:46:49Z"
+    },
+    {
+      "id": 109246178957,
+      "name": "minimax-m3 \u00b7 002_gemv / Generate minimax-m3 \u00b7 002_gemv \u00b7 agent-assisted-v2",
+      "status": "completed",
+      "conclusion": "success",
+      "started_at": "2026-09-28T23:46:51Z",
+      "completed_at": "2026-09-29T00:02:30Z"
+    },
+    {
+      "id": 109246080871,
+      "name": "glm-5.3 \u00b7 002_gemv / Evaluate glm-5.3 \u00b7 002_gemv \u00b7 agent-assisted-v2",
+      "status": "completed",
+      "conclusion": "success",
+      "started_at": "2026-09-29T03:45:03Z",
+      "completed_at": "2026-09-29T03:46:05Z"
+    },
+    {
+      "id": 109246329161,
+      "name": "mimo-v2.6-pro \u00b7 002_gemv / Generate mimo-v2.6-pro \u00b7 002_gemv \u00b7 agent-assisted-v2",
+      "status": "completed",
+      "conclusion": "success",
+      "started_at": "2026-09-29T03:46:08Z",
+      "completed_at": "2026-09-29T04:36:16Z"
+    },
+    {
+      "id": 109246418707,
+      "name": "mimo-v2.5 \u00b7 002_gemv / Generate mimo-v2.5 \u00b7 002_gemv \u00b7 agent-assisted-v2",
+      "status": "completed",
+      "conclusion": "success",
+      "started_at": "2026-09-29T03:46:31Z",
+      "completed_at": "2026-09-29T04:16:57Z"
+    },
+    {
+      "id": 109257812639,
+      "name": "mimo-v2.6-pro \u00b7 002_gemv / Evaluate mimo-v2.6-pro \u00b7 002_gemv \u00b7 agent-assisted-v2",
+      "status": "completed",
+      "conclusion": "success",
+      "started_at": "2026-09-29T04:36:19Z",
+      "completed_at": "2026-09-29T04:37:41Z"
+    },
+    {
+      "id": 109246539939,
+      "name": "deepseek-v4.1-flash \u00b7 002_gemv / Generate deepseek-v4.1-flash \u00b7 002_gemv \u00b7 agent-assisted-v2",
+      "status": "completed",
+      "conclusion": "success",
+      "started_at": "2026-09-29T03:47:03Z",
+      "completed_at": "2026-09-29T04:04:42Z"
+    },
+    {
+      "id": 109253392921,
+      "name": "mimo-v2.5 \u00b7 002_gemv / Evaluate mimo-v2.5 \u00b7 002_gemv \u00b7 agent-assisted-v2",
+      "status": "completed",
+      "conclusion": "success",
+      "started_at": "2026-09-29T04:17:00Z",
+      "completed_at": "2026-09-29T04:19:07Z"
+    },
+    {
+      "id": 109250958748,
+      "name": "qwen3.8-flash \u00b7 002_gemv / Generate qwen3.8-flash \u00b7 002_gemv \u00b7 agent-assisted-v2",
+      "status": "completed",
+      "conclusion": "success",
+      "started_at": "2026-09-29T04:06:41Z",
+      "completed_at": "2026-09-29T04:16:40Z"
+    },
+    {
+      "id": 109250505521,
+      "name": "deepseek-v4.1-flash \u00b7 002_gemv / Evaluate deepseek-v4.1-flash \u00b7 002_gemv \u00b7 agent-assisted-v2",
+      "status": "completed",
+      "conclusion": "success",
+      "started_at": "2026-09-29T04:04:44Z",
+      "completed_at": "2026-09-29T04:06:39Z"
+    },
+    {
+      "id": 109253619139,
+      "name": "glm-5.3-flash \u00b7 002_gemv / Generate glm-5.3-flash \u00b7 002_gemv \u00b7 agent-assisted-v2",
+      "status": "completed",
+      "conclusion": "success",
+      "started_at": "2026-09-29T04:17:59Z",
+      "completed_at": "2026-09-29T05:13:53Z"
+    },
+    {
+      "id": 109253325781,
+      "name": "qwen3.8-flash \u00b7 002_gemv / Evaluate qwen3.8-flash \u00b7 002_gemv \u00b7 agent-assisted-v2",
+      "status": "completed",
+      "conclusion": "success",
+      "started_at": "2026-09-29T04:16:43Z",
+      "completed_at": "2026-09-29T04:17:57Z"
+    },
+    {
+      "id": 109253886708,
+      "name": "kimi-k2.6 \u00b7 002_gemv / Generate kimi-k2.6 \u00b7 002_gemv \u00b7 agent-assisted-v2",
+      "status": "completed",
+      "conclusion": "failure",
+      "started_at": "2026-09-29T04:19:10Z",
+      "completed_at": "2026-09-29T04:19:47Z"
+    },
+    {
+      "id": 109266572741,
+      "name": "glm-5.3-flash \u00b7 002_gemv / Evaluate glm-5.3-flash \u00b7 002_gemv \u00b7 agent-assisted-v2",
+      "status": "completed",
+      "conclusion": "success",
+      "started_at": "2026-09-29T05:13:56Z",
+      "completed_at": "2026-09-29T05:15:30Z"
+    },
+    {
+      "id": 109254177749,
+      "name": "minimax-m2.7 \u00b7 002_gemv / Generate minimax-m2.7 \u00b7 002_gemv \u00b7 agent-assisted-v2",
+      "status": "completed",
+      "conclusion": "success",
+      "started_at": "2026-09-29T04:20:27Z",
+      "completed_at": "2026-09-29T04:56:39Z"
+    },
+    {
+      "id": 109254034004,
+      "name": "kimi-k2.6 \u00b7 002_gemv / Evaluate kimi-k2.6 \u00b7 002_gemv \u00b7 agent-assisted-v2",
+      "status": "completed",
+      "conclusion": "failure",
+      "started_at": "2026-09-29T04:19:49Z",
+      "completed_at": "2026-09-29T04:20:23Z"
+    },
+    {
+      "id": 109258126521,
+      "name": "gpt-6-luna \u00b7 003_matmul / Generate gpt-6-luna \u00b7 003_matmul \u00b7 agent-assisted-v2",
+      "status": "completed",
+      "conclusion": "success",
+      "started_at": "2026-09-29T04:37:43Z",
+      "completed_at": "2026-09-29T04:45:44Z"
+    },
+    {
+      "id": 109262455749,
+      "name": "minimax-m2.7 \u00b7 002_gemv / Evaluate minimax-m2.7 \u00b7 002_gemv \u00b7 agent-assisted-v2",
+      "status": "completed",
+      "conclusion": "success",
+      "started_at": "2026-09-29T04:56:41Z",
+      "completed_at": "2026-09-29T05:17:10Z"
+    },
+    {
+      "id": 109260335642,
+      "name": "grok-4.7 \u00b7 003_matmul / Generate grok-4.7 \u00b7 003_matmul \u00b7 agent-assisted-v2",
+      "status": "completed",
+      "conclusion": "success",
+      "started_at": "2026-09-29T04:47:24Z",
+      "completed_at": "2026-09-29T05:12:31Z"
+    },
+    {
+      "id": 109259965339,
+      "name": "gpt-6-luna \u00b7 003_matmul / Evaluate gpt-6-luna \u00b7 003_matmul \u00b7 agent-assisted-v2",
+      "status": "completed",
+      "conclusion": "success",
+      "started_at": "2026-09-29T04:45:47Z",
+      "completed_at": "2026-09-29T04:47:21Z"
+    },
+    {
+      "id": 109266599560,
+      "name": "kimi-k3 \u00b7 003_matmul / Generate kimi-k3 \u00b7 003_matmul \u00b7 agent-assisted-v2",
+      "status": "completed",
+      "conclusion": "failure",
+      "started_at": "2026-09-29T05:14:03Z",
+      "completed_at": "2026-09-29T06:07:02Z"
+    },
+    {
+      "id": 109266245318,
+      "name": "grok-4.7 \u00b7 003_matmul / Evaluate grok-4.7 \u00b7 003_matmul \u00b7 agent-assisted-v2",
+      "status": "completed",
+      "conclusion": "success",
+      "started_at": "2026-09-29T05:12:33Z",
+      "completed_at": "2026-09-29T05:14:00Z"
+    },
+    {
+      "id": 109266965219,
+      "name": "deepseek-v4-pro \u00b7 003_matmul / Generate deepseek-v4-pro \u00b7 003_matmul \u00b7 agent-assisted-v2",
+      "status": "completed",
+      "conclusion": "success",
+      "started_at": "2026-09-29T05:15:33Z",
+      "completed_at": "2026-09-29T05:28:58Z"
+    },
+    {
+      "id": 109279550779,
+      "name": "kimi-k3 \u00b7 003_matmul / Evaluate ${{ inputs.model }} \u00b7 ${{ inputs.problem }} \u00b7 agent-assisted-v2",
+      "status": "completed",
+      "conclusion": "skipped",
+      "started_at": "2026-09-29T06:07:03Z",
+      "completed_at": "2026-09-29T06:07:02Z"
+    },
+    {
+      "id": 109267370127,
+      "name": "glm-5.3 \u00b7 003_matmul / Generate glm-5.3 \u00b7 003_matmul \u00b7 agent-assisted-v2",
+      "status": "completed",
+      "conclusion": "success",
+      "started_at": "2026-09-29T05:17:13Z",
+      "completed_at": "2026-09-29T05:47:15Z"
+    },
+    {
+      "id": 109270203352,
+      "name": "deepseek-v4-pro \u00b7 003_matmul / Evaluate deepseek-v4-pro \u00b7 003_matmul \u00b7 agent-assisted-v2",
+      "status": "completed",
+      "conclusion": "success",
+      "started_at": "2026-09-29T05:29:01Z",
+      "completed_at": "2026-09-29T05:30:39Z"
+    },
+    {
+      "id": 109270616106,
+      "name": "qwen3.8-max \u00b7 003_matmul / Generate qwen3.8-max \u00b7 003_matmul \u00b7 agent-assisted-v2",
+      "status": "completed",
+      "conclusion": "failure",
+      "started_at": "2026-09-29T05:30:41Z",
+      "completed_at": "2026-09-29T06:00:21Z"
+    },
+    {
+      "id": 109274614514,
+      "name": "glm-5.3 \u00b7 003_matmul / Evaluate glm-5.3 \u00b7 003_matmul \u00b7 agent-assisted-v2",
+      "status": "completed",
+      "conclusion": "success",
+      "started_at": "2026-09-29T05:47:18Z",
+      "completed_at": "2026-09-29T05:48:45Z"
+    },
+    {
+      "id": 109274973985,
+      "name": "minimax-m3 \u00b7 003_matmul / Generate minimax-m3 \u00b7 003_matmul \u00b7 agent-assisted-v2",
+      "status": "completed",
+      "conclusion": "failure",
+      "started_at": "2026-09-29T05:48:47Z",
+      "completed_at": "2026-09-29T06:04:51Z"
+    },
+    {
+      "id": 109277799494,
+      "name": "qwen3.8-max \u00b7 003_matmul / Evaluate ${{ inputs.model }} \u00b7 ${{ inputs.problem }} \u00b7 agent-assisted-v2",
+      "status": "completed",
+      "conclusion": "skipped",
+      "started_at": "2026-09-29T06:00:22Z",
+      "completed_at": "2026-09-29T06:00:21Z"
+    },
+    {
+      "id": 109277799357,
+      "name": "mimo-v2.6-pro \u00b7 003_matmul / Generate mimo-v2.6-pro \u00b7 003_matmul \u00b7 agent-assisted-v2",
+      "status": "completed",
+      "conclusion": "success",
+      "started_at": "2026-09-29T06:00:24Z",
+      "completed_at": "2026-09-29T06:00:54Z"
+    },
+    {
+      "id": 109278971707,
+      "name": "minimax-m3 \u00b7 003_matmul / Evaluate ${{ inputs.model }} \u00b7 ${{ inputs.problem }} \u00b7 agent-assisted-v2",
+      "status": "completed",
+      "conclusion": "skipped",
+      "started_at": "2026-09-29T06:04:51Z",
+      "completed_at": "2026-09-29T06:04:51Z"
+    },
+    {
+      "id": 109277949440,
+      "name": "mimo-v2.5 \u00b7 003_matmul / Generate mimo-v2.5 \u00b7 003_matmul \u00b7 agent-assisted-v2",
+      "status": "completed",
+      "conclusion": "success",
+      "started_at": "2026-09-29T06:00:57Z",
+      "completed_at": "2026-09-29T06:01:47Z"
+    },
+    {
+      "id": 109277950190,
+      "name": "mimo-v2.6-pro \u00b7 003_matmul / Evaluate ${{ inputs.model }} \u00b7 ${{ inputs.problem }} \u00b7 agent-assisted-v2",
+      "status": "completed",
+      "conclusion": "skipped",
+      "started_at": "2026-09-29T06:00:55Z",
+      "completed_at": "2026-09-29T06:00:54Z"
+    },
+    {
+      "id": 109278177683,
+      "name": "deepseek-v4.1-flash \u00b7 003_matmul / Generate deepseek-v4.1-flash \u00b7 003_matmul \u00b7 agent-assisted-v2",
+      "status": "completed",
+      "conclusion": "success",
+      "started_at": "2026-09-29T06:01:49Z",
+      "completed_at": "2026-09-29T06:02:15Z"
+    },
+    {
+      "id": 109278178482,
+      "name": "mimo-v2.5 \u00b7 003_matmul / Evaluate ${{ inputs.model }} \u00b7 ${{ inputs.problem }} \u00b7 agent-assisted-v2",
+      "status": "completed",
+      "conclusion": "skipped",
+      "started_at": "2026-09-29T06:01:47Z",
+      "completed_at": "2026-09-29T06:01:47Z"
+    },
+    {
+      "id": 109278304854,
+      "name": "qwen3.8-flash \u00b7 003_matmul / Generate qwen3.8-flash \u00b7 003_matmul \u00b7 agent-assisted-v2",
+      "status": "completed",
+      "conclusion": "success",
+      "started_at": "2026-09-29T06:02:18Z",
+      "completed_at": "2026-09-29T06:02:49Z"
+    },
+    {
+      "id": 109278305447,
+      "name": "deepseek-v4.1-flash \u00b7 003_matmul / Evaluate ${{ inputs.model }} \u00b7 ${{ inputs.problem }} \u00b7 agent-assisted-v2",
+      "status": "completed",
+      "conclusion": "skipped",
+      "started_at": "2026-09-29T06:02:16Z",
+      "completed_at": "2026-09-29T06:02:15Z"
+    },
+    {
+      "id": 109278453559,
+      "name": "glm-5.3-flash \u00b7 003_matmul / Generate glm-5.3-flash \u00b7 003_matmul \u00b7 agent-assisted-v2",
+      "status": "completed",
+      "conclusion": "success",
+      "started_at": "2026-09-29T06:02:52Z",
+      "completed_at": "2026-09-29T06:03:17Z"
+    },
+    {
+      "id": 109278454008,
+      "name": "qwen3.8-flash \u00b7 003_matmul / Evaluate ${{ inputs.model }} \u00b7 ${{ inputs.problem }} \u00b7 agent-assisted-v2",
+      "status": "completed",
+      "conclusion": "skipped",
+      "started_at": "2026-09-29T06:02:50Z",
+      "completed_at": "2026-09-29T06:02:50Z"
+    },
+    {
+      "id": 109278573879,
+      "name": "kimi-k2.6 \u00b7 003_matmul / Generate kimi-k2.6 \u00b7 003_matmul \u00b7 agent-assisted-v2",
+      "status": "completed",
+      "conclusion": "success",
+      "started_at": "2026-09-29T06:03:20Z",
+      "completed_at": "2026-09-29T06:03:54Z"
+    },
+    {
+      "id": 109278574721,
+      "name": "glm-5.3-flash \u00b7 003_matmul / Evaluate ${{ inputs.model }} \u00b7 ${{ inputs.problem }} \u00b7 agent-assisted-v2",
+      "status": "completed",
+      "conclusion": "skipped",
+      "started_at": "2026-09-29T06:03:18Z",
+      "completed_at": "2026-09-29T06:03:17Z"
+    },
+    {
+      "id": 109278728306,
+      "name": "minimax-m2.7 \u00b7 003_matmul / Generate minimax-m2.7 \u00b7 003_matmul \u00b7 agent-assisted-v2",
+      "status": "completed",
+      "conclusion": "success",
+      "started_at": "2026-09-29T06:03:57Z",
+      "completed_at": "2026-09-29T06:04:28Z"
+    },
+    {
+      "id": 109278728903,
+      "name": "kimi-k2.6 \u00b7 003_matmul / Evaluate ${{ inputs.model }} \u00b7 ${{ inputs.problem }} \u00b7 agent-assisted-v2",
+      "status": "completed",
+      "conclusion": "skipped",
+      "started_at": "2026-09-29T06:03:55Z",
+      "completed_at": "2026-09-29T06:03:54Z"
+    },
+    {
+      "id": 109278872986,
+      "name": "gpt-6-luna \u00b7 004_conv1d / Generate gpt-6-luna \u00b7 004_conv1d \u00b7 agent-assisted-v2",
+      "status": "completed",
+      "conclusion": "success",
+      "started_at": "2026-09-29T06:04:30Z",
+      "completed_at": "2026-09-29T06:04:59Z"
+    },
+    {
+      "id": 109278873694,
+      "name": "minimax-m2.7 \u00b7 003_matmul / Evaluate ${{ inputs.model }} \u00b7 ${{ inputs.problem }} \u00b7 agent-assisted-v2",
+      "status": "completed",
+      "conclusion": "skipped",
+      "started_at": "2026-09-29T06:04:28Z",
+      "completed_at": "2026-09-29T06:04:28Z"
+    },
+    {
+      "id": 109278970651,
+      "name": "grok-4.7 \u00b7 004_conv1d / Generate grok-4.7 \u00b7 004_conv1d \u00b7 agent-assisted-v2",
+      "status": "completed",
+      "conclusion": "success",
+      "started_at": "2026-09-29T06:04:53Z",
+      "completed_at": "2026-09-29T06:05:18Z"
+    },
+    {
+      "id": 109279004859,
+      "name": "gpt-6-luna \u00b7 004_conv1d / Evaluate ${{ inputs.model }} \u00b7 ${{ inputs.problem }} \u00b7 agent-assisted-v2",
+      "status": "completed",
+      "conclusion": "skipped",
+      "started_at": "2026-09-29T06:04:59Z",
+      "completed_at": "2026-09-29T06:04:59Z"
+    },
+    {
+      "id": 109279004619,
+      "name": "kimi-k3 \u00b7 004_conv1d / Generate kimi-k3 \u00b7 004_conv1d \u00b7 agent-assisted-v2",
+      "status": "completed",
+      "conclusion": "success",
+      "started_at": "2026-09-29T06:05:01Z",
+      "completed_at": "2026-09-29T06:05:32Z"
+    },
+    {
+      "id": 109279093098,
+      "name": "grok-4.7 \u00b7 004_conv1d / Evaluate ${{ inputs.model }} \u00b7 ${{ inputs.problem }} \u00b7 agent-assisted-v2",
+      "status": "completed",
+      "conclusion": "skipped",
+      "started_at": "2026-09-29T06:05:19Z",
+      "completed_at": "2026-09-29T06:05:19Z"
+    },
+    {
+      "id": 109279092650,
+      "name": "deepseek-v4-pro \u00b7 004_conv1d / Generate deepseek-v4-pro \u00b7 004_conv1d \u00b7 agent-assisted-v2",
+      "status": "completed",
+      "conclusion": "success",
+      "started_at": "2026-09-29T06:05:21Z",
+      "completed_at": "2026-09-29T06:05:52Z"
+    },
+    {
+      "id": 109279155708,
+      "name": "kimi-k3 \u00b7 004_conv1d / Evaluate ${{ inputs.model }} \u00b7 ${{ inputs.problem }} \u00b7 agent-assisted-v2",
+      "status": "completed",
+      "conclusion": "skipped",
+      "started_at": "2026-09-29T06:05:33Z",
+      "completed_at": "2026-09-29T06:05:33Z"
+    },
+    {
+      "id": 109279155313,
+      "name": "glm-5.3 \u00b7 004_conv1d / Generate glm-5.3 \u00b7 004_conv1d \u00b7 agent-assisted-v2",
+      "status": "completed",
+      "conclusion": "success",
+      "started_at": "2026-09-29T06:05:35Z",
+      "completed_at": "2026-09-29T06:06:38Z"
+    },
+    {
+      "id": 109279242103,
+      "name": "deepseek-v4-pro \u00b7 004_conv1d / Evaluate ${{ inputs.model }} \u00b7 ${{ inputs.problem }} \u00b7 agent-assisted-v2",
+      "status": "completed",
+      "conclusion": "skipped",
+      "started_at": "2026-09-29T06:05:53Z",
+      "completed_at": "2026-09-29T06:05:52Z"
+    },
+    {
+      "id": 109279241553,
+      "name": "qwen3.8-max \u00b7 004_conv1d / Generate qwen3.8-max \u00b7 004_conv1d \u00b7 agent-assisted-v2",
+      "status": "completed",
+      "conclusion": "success",
+      "started_at": "2026-09-29T06:05:55Z",
+      "completed_at": "2026-09-29T06:06:22Z"
+    },
+    {
+      "id": 109279442399,
+      "name": "glm-5.3 \u00b7 004_conv1d / Evaluate ${{ inputs.model }} \u00b7 ${{ inputs.problem }} \u00b7 agent-assisted-v2",
+      "status": "completed",
+      "conclusion": "skipped",
+      "started_at": "2026-09-29T06:06:39Z",
+      "completed_at": "2026-09-29T06:06:38Z"
+    },
+    {
+      "id": 109279367557,
+      "name": "minimax-m3 \u00b7 004_conv1d / Generate minimax-m3 \u00b7 004_conv1d \u00b7 agent-assisted-v2",
+      "status": "completed",
+      "conclusion": "success",
+      "started_at": "2026-09-29T06:06:24Z",
+      "completed_at": "2026-09-29T06:06:46Z"
+    },
+    {
+      "id": 109279367940,
+      "name": "qwen3.8-max \u00b7 004_conv1d / Evaluate ${{ inputs.model }} \u00b7 ${{ inputs.problem }} \u00b7 agent-assisted-v2",
+      "status": "completed",
+      "conclusion": "skipped",
+      "started_at": "2026-09-29T06:06:22Z",
+      "completed_at": "2026-09-29T06:06:22Z"
+    },
+    {
+      "id": 109279441832,
+      "name": "mimo-v2.6-pro \u00b7 004_conv1d / Generate mimo-v2.6-pro \u00b7 004_conv1d \u00b7 agent-assisted-v2",
+      "status": "completed",
+      "conclusion": "success",
+      "started_at": "2026-09-29T06:06:41Z",
+      "completed_at": "2026-09-29T06:07:16Z"
+    },
+    {
+      "id": 109279481368,
+      "name": "minimax-m3 \u00b7 004_conv1d / Evaluate ${{ inputs.model }} \u00b7 ${{ inputs.problem }} \u00b7 agent-assisted-v2",
+      "status": "completed",
+      "conclusion": "skipped",
+      "started_at": "2026-09-29T06:06:47Z",
+      "completed_at": "2026-09-29T06:06:47Z"
+    },
+    {
+      "id": 109279480129,
+      "name": "mimo-v2.5 \u00b7 004_conv1d / Generate mimo-v2.5 \u00b7 004_conv1d \u00b7 agent-assisted-v2",
+      "status": "completed",
+      "conclusion": "success",
+      "started_at": "2026-09-29T06:06:49Z",
+      "completed_at": "2026-09-29T06:07:18Z"
+    },
+    {
+      "id": 109279612443,
+      "name": "mimo-v2.6-pro \u00b7 004_conv1d / Evaluate ${{ inputs.model }} \u00b7 ${{ inputs.problem }} \u00b7 agent-assisted-v2",
+      "status": "completed",
+      "conclusion": "skipped",
+      "started_at": "2026-09-29T06:07:16Z",
+      "completed_at": "2026-09-29T06:07:16Z"
+    },
+    {
+      "id": 109279549549,
+      "name": "deepseek-v4.1-flash \u00b7 004_conv1d / Generate deepseek-v4.1-flash \u00b7 004_conv1d \u00b7 agent-assisted-v2",
+      "status": "completed",
+      "conclusion": "success",
+      "started_at": "2026-09-29T06:07:05Z",
+      "completed_at": "2026-09-29T06:07:43Z"
+    },
+    {
+      "id": 109279621775,
+      "name": "mimo-v2.5 \u00b7 004_conv1d / Evaluate ${{ inputs.model }} \u00b7 ${{ inputs.problem }} \u00b7 agent-assisted-v2",
+      "status": "completed",
+      "conclusion": "skipped",
+      "started_at": "2026-09-29T06:07:19Z",
+      "completed_at": "2026-09-29T06:07:18Z"
+    },
+    {
+      "id": 109279611941,
+      "name": "qwen3.8-flash \u00b7 004_conv1d / Generate qwen3.8-flash \u00b7 004_conv1d \u00b7 agent-assisted-v2",
+      "status": "completed",
+      "conclusion": "success",
+      "started_at": "2026-09-29T06:07:18Z",
+      "completed_at": "2026-09-29T06:07:54Z"
+    },
+    {
+      "id": 109279730510,
+      "name": "deepseek-v4.1-flash \u00b7 004_conv1d / Evaluate ${{ inputs.model }} \u00b7 ${{ inputs.problem }} \u00b7 agent-assisted-v2",
+      "status": "completed",
+      "conclusion": "skipped",
+      "started_at": "2026-09-29T06:07:44Z",
+      "completed_at": "2026-09-29T06:07:44Z"
+    },
+    {
+      "id": 109279621220,
+      "name": "glm-5.3-flash \u00b7 004_conv1d / Generate glm-5.3-flash \u00b7 004_conv1d \u00b7 agent-assisted-v2",
+      "status": "completed",
+      "conclusion": "success",
+      "started_at": "2026-09-29T06:07:20Z",
+      "completed_at": "2026-09-29T06:07:47Z"
+    },
+    {
+      "id": 109279774853,
+      "name": "qwen3.8-flash \u00b7 004_conv1d / Evaluate ${{ inputs.model }} \u00b7 ${{ inputs.problem }} \u00b7 agent-assisted-v2",
+      "status": "completed",
+      "conclusion": "skipped",
+      "started_at": "2026-09-29T06:07:55Z",
+      "completed_at": "2026-09-29T06:07:54Z"
+    },
+    {
+      "id": 109279729472,
+      "name": "kimi-k2.6 \u00b7 004_conv1d / Generate kimi-k2.6 \u00b7 004_conv1d \u00b7 agent-assisted-v2",
+      "status": "completed",
+      "conclusion": "success",
+      "started_at": "2026-09-29T06:07:46Z",
+      "completed_at": "2026-09-29T06:08:10Z"
+    },
+    {
+      "id": 109279747298,
+      "name": "glm-5.3-flash \u00b7 004_conv1d / Evaluate ${{ inputs.model }} \u00b7 ${{ inputs.problem }} \u00b7 agent-assisted-v2",
+      "status": "completed",
+      "conclusion": "skipped",
+      "started_at": "2026-09-29T06:07:48Z",
+      "completed_at": "2026-09-29T06:07:48Z"
+    },
+    {
+      "id": 109279746513,
+      "name": "minimax-m2.7 \u00b7 004_conv1d / Generate minimax-m2.7 \u00b7 004_conv1d \u00b7 agent-assisted-v2",
+      "status": "completed",
+      "conclusion": "success",
+      "started_at": "2026-09-29T06:07:49Z",
+      "completed_at": "2026-09-29T06:08:14Z"
+    },
+    {
+      "id": 109279844813,
+      "name": "kimi-k2.6 \u00b7 004_conv1d / Evaluate ${{ inputs.model }} \u00b7 ${{ inputs.problem }} \u00b7 agent-assisted-v2",
+      "status": "completed",
+      "conclusion": "skipped",
+      "started_at": "2026-09-29T06:08:11Z",
+      "completed_at": "2026-09-29T06:08:11Z"
+    },
+    {
+      "id": 109279862564,
+      "name": "minimax-m2.7 \u00b7 004_conv1d / Evaluate ${{ inputs.model }} \u00b7 ${{ inputs.problem }} \u00b7 agent-assisted-v2",
+      "status": "completed",
+      "conclusion": "skipped",
+      "started_at": "2026-09-29T06:08:15Z",
+      "completed_at": "2026-09-29T06:08:14Z"
+    },
+    {
+      "id": 109246080988,
+      "name": "qwen3.8-max \u00b7 002_gemv / Evaluate qwen3.8-max \u00b7 002_gemv \u00b7 agent-assisted-v2",
+      "status": "completed",
+      "conclusion": "success",
+      "started_at": "2026-09-29T03:45:02Z",
+      "completed_at": "2026-09-29T03:46:29Z"
+    },
+    {
+      "id": 109246177791,
+      "name": "minimax-m3 \u00b7 002_gemv / Evaluate minimax-m3 \u00b7 002_gemv \u00b7 agent-assisted-v2",
+      "status": "completed",
+      "conclusion": "success",
+      "started_at": "2026-09-29T03:45:27Z",
+      "completed_at": "2026-09-29T03:47:01Z"
+    }
+  ]
+}

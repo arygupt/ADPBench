@@ -1,0 +1,74 @@
+{
+  "model": "grok-4.7",
+  "problem": "002_gemv",
+  "protocol": "agent-assisted-v2",
+  "started": "2026-09-28T23:19:36.093955+00:00",
+  "generation_state": "completed",
+  "outcome": "submitted",
+  "error": "",
+  "turns": 9,
+  "checks": 3,
+  "max_turns": 20,
+  "max_checks": 3,
+  "max_output_tokens": 500000,
+  "usage": {
+    "input_tokens": 452386,
+    "output_tokens": 96568,
+    "total_tokens": 548954
+  },
+  "incomplete_usage": false,
+  "generation_settings": {
+    "reasoning": {
+      "effort": "high"
+    },
+    "token_limit_key": "max_output_tokens"
+  },
+  "reasoning_measured": {
+    "turns": 9,
+    "turns_with_reasoning": 9,
+    "reasoning_chars": 42119,
+    "answer_chars": 17065,
+    "reasoning_tokens": 90653
+  },
+  "github": {
+    "GITHUB_REPOSITORY": "arygupt/ADPBench",
+    "GITHUB_RUN_ID": "36496973482",
+    "GITHUB_RUN_ATTEMPT": "1",
+    "GITHUB_SHA": "32983e2aa732ca52b4f198fa2b6f802a61e9d64c"
+  },
+  "attempt": 1,
+  "try": 2,
+  "transport_retries": [],
+  "finish_reason": "tool_calls",
+  "writes": 3,
+  "development_checks": [
+    {
+      "index": 1,
+      "submission_sha256": "256816e67d2e568a23a48800032d76f0823d714d5ade90a8277e59d7906e8622",
+      "completed": true,
+      "correct": true,
+      "reason": "",
+      "audit_ok": true
+    },
+    {
+      "index": 2,
+      "submission_sha256": "b1495cfde101d0f8427c3b72a57bcea5c04294db42c30015da98b11cbea06185",
+      "completed": true,
+      "correct": true,
+      "reason": "",
+      "audit_ok": true
+    },
+    {
+      "index": 3,
+      "submission_sha256": "7c4a32fa13bf1de7b618fed92b5d390e064888e51e15c810c8d8e3c30bf9aa7b",
+      "completed": true,
+      "correct": true,
+      "reason": "",
+      "audit_ok": true
+    }
+  ],
+  "submission_sha256": "7c4a32fa13bf1de7b618fed92b5d390e064888e51e15c810c8d8e3c30bf9aa7b",
+  "final_revision_checked": true,
+  "duration_s": 1348.13,
+  "execution_health": "completed"
+}

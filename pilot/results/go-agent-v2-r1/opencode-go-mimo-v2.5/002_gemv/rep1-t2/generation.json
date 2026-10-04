@@ -1,0 +1,74 @@
+{
+  "model": "mimo-v2.5",
+  "problem": "002_gemv",
+  "protocol": "agent-assisted-v2",
+  "started": "2026-09-29T03:47:06.421693+00:00",
+  "generation_state": "completed",
+  "outcome": "submitted",
+  "error": "",
+  "turns": 8,
+  "checks": 3,
+  "max_turns": 20,
+  "max_checks": 3,
+  "max_output_tokens": 128000,
+  "usage": {
+    "prompt_tokens": 323926,
+    "completion_tokens": 70086,
+    "total_tokens": 394012
+  },
+  "incomplete_usage": false,
+  "generation_settings": {
+    "reasoning": {
+      "enabled": true
+    },
+    "token_limit_key": "max_completion_tokens"
+  },
+  "reasoning_measured": {
+    "turns": 8,
+    "turns_with_reasoning": 8,
+    "reasoning_chars": 221772,
+    "answer_chars": 17690,
+    "reasoning_tokens": 65341
+  },
+  "github": {
+    "GITHUB_REPOSITORY": "arygupt/ADPBench",
+    "GITHUB_RUN_ID": "36496973482",
+    "GITHUB_RUN_ATTEMPT": "2",
+    "GITHUB_SHA": "32983e2aa732ca52b4f198fa2b6f802a61e9d64c"
+  },
+  "attempt": 1,
+  "try": 2,
+  "transport_retries": [],
+  "finish_reason": "tool_calls",
+  "writes": 3,
+  "development_checks": [
+    {
+      "index": 1,
+      "submission_sha256": "317e17eb760ffcabb0c02caba3060a2f00c5d635fcd5d4aab5f53155414739b6",
+      "completed": true,
+      "correct": true,
+      "reason": "",
+      "audit_ok": true
+    },
+    {
+      "index": 2,
+      "submission_sha256": "530ce0c44808b7c150e3374a3d6774af2c3a5c5a25a14183dab94a1303987de0",
+      "completed": true,
+      "correct": true,
+      "reason": "",
+      "audit_ok": true
+    },
+    {
+      "index": 3,
+      "submission_sha256": "d1d500d398b254eb7423da746418b4ddf19f03a95dc609a212e68df548cf33d5",
+      "completed": true,
+      "correct": true,
+      "reason": "",
+      "audit_ok": true
+    }
+  ],
+  "submission_sha256": "d1d500d398b254eb7423da746418b4ddf19f03a95dc609a212e68df548cf33d5",
+  "final_revision_checked": true,
+  "duration_s": 1781.37,
+  "execution_health": "completed"
+}
