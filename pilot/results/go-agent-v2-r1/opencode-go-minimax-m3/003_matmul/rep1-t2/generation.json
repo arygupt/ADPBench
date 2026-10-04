@@ -1,0 +1,47 @@
+{
+  "model": "minimax-m3",
+  "problem": "003_matmul",
+  "protocol": "agent-assisted-v2",
+  "started": "2026-09-29T11:37:42.170330+00:00",
+  "generation_state": "failed",
+  "outcome": "truncated",
+  "error": "provider output maximum reached; partial actions not executed",
+  "turns": 2,
+  "checks": 0,
+  "max_turns": 20,
+  "max_checks": 3,
+  "max_output_tokens": 131072,
+  "usage": {
+    "input_tokens": 2664,
+    "output_tokens": 131146,
+    "cache_read_input_tokens": 961
+  },
+  "incomplete_usage": false,
+  "generation_settings": {
+    "thinking": {
+      "type": "enabled",
+      "budget_tokens": 16000
+    }
+  },
+  "reasoning_measured": {
+    "turns": 2,
+    "turns_with_reasoning": 2,
+    "reasoning_chars": 407382,
+    "answer_chars": 40,
+    "reasoning_tokens": null
+  },
+  "github": {
+    "GITHUB_REPOSITORY": "arygupt/ADPBench",
+    "GITHUB_RUN_ID": "36562354781",
+    "GITHUB_RUN_ATTEMPT": "1",
+    "GITHUB_SHA": "32983e2aa732ca52b4f198fa2b6f802a61e9d64c"
+  },
+  "attempt": 1,
+  "try": 2,
+  "transport_retries": [],
+  "finish_reason": "max_tokens",
+  "writes": 0,
+  "development_checks": [],
+  "duration_s": 1117.44,
+  "execution_health": "completed"
+}

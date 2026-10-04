@@ -1,0 +1,48 @@
+{
+  "schema_version": 1,
+  "kind": "validated-model-results-publication",
+  "source_run_id": 36562354781,
+  "source_attempt": 1,
+  "source_commit": "32983e2aa732ca52b4f198fa2b6f802a61e9d64c",
+  "source_workflow": ".github/workflows/go-agent.yml",
+  "dataset": "go-agent-v2-r1",
+  "try": 2,
+  "confirmed_correct": 1,
+  "result_slots": 2,
+  "artifacts": [
+    {
+      "id": 11031573252,
+      "name": "go-agent-records-kimi-k3-003_matmul-36562354781",
+      "digest": "sha256:4651f07650d06ee79b505d39069a58b3fed069fb39414e485f311ed0f1893be1"
+    },
+    {
+      "id": 11031519942,
+      "name": "go-agent-generation-qwen3.8-max-003_matmul-36562354781",
+      "digest": "sha256:67abdf3d03aa8e9838b207be2d5469a2f42d93fa466e3a8f3f5b2c1e27065a80"
+    },
+    {
+      "id": 11031557032,
+      "name": "go-agent-records-minimax-m3-003_matmul-36562354781",
+      "digest": "sha256:234cb0a62e7d9f00cdb61ffa99ae7746aacce78663c709e22022e1db4fe85c81"
+    },
+    {
+      "id": 11032431710,
+      "name": "go-agent-generation-mimo-v2.6-pro-003_matmul-36562354781",
+      "digest": "sha256:4c628d510a2fbbee0de99b6867a032500414c851b1056526f4164999a651f087"
+    },
+    {
+      "id": 11033055711,
+      "name": "go-agent-generation-mimo-v2.5-003_matmul-36562354781",
+      "digest": "sha256:f471acf9753d1c99d73f98b1a53040fc008738565e653a2151147324d097f388"
+    }
+  ],
+  "record_file_sha256": {
+    "opencode-go-kimi-k3/003_matmul/rep1-t2/generation.json": "b8fe8f98f866e74c76ae66432386f00b8d75e31cd8fdbfb7860666047449cf81",
+    "opencode-go-kimi-k3/003_matmul/rep1-t2/manifest.json": "e2c9b6fd413ff2ea67884e4ddf7b98f43f45cc9a05b33d95f133c60dbfb52cbc",
+    "opencode-go-kimi-k3/003_matmul/rep1-t2/record.json": "eba400b2661cdc5b8a6299e77f5e10a07662a41e618ab00ee0a2528793e1b3cc",
+    "opencode-go-kimi-k3/003_matmul/rep1-t2_frozen/dut.v": "9769643abff7d2790872a940031ff4e2f746391c25209e008ad386c9b2c3ccf2",
+    "opencode-go-minimax-m3/003_matmul/rep1-t2/generation.json": "b7035ff01d7484dbabf767cbe5daa77b542553a10f703ab946e3ad8c22dbcd71",
+    "opencode-go-minimax-m3/003_matmul/rep1-t2/manifest.json": "61fb97b899ffba68b37e3a114026fd45c03f873b0332bae7613f12a9e206d4f4",
+    "opencode-go-minimax-m3/003_matmul/rep1-t2/record.json": "bfc1b2cd0f43e2dd23ed67627751c8989dca7677eec6e54fa95e772146d59eb6"
+  }
+}
