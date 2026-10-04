@@ -43,11 +43,20 @@ from scripts.go_pilot import (
     slot_dir,
     validate_plan,
 )
+from scripts.publish_agent import AGENT_GENERATION_STEP, GITHUB_TIMESTAMP
 from scripts.publish_agent import OUTCOMES as AGENT_OUTCOMES
 from scripts.publish_agent import WORKFLOW as AGENT_WORKFLOW
-from scripts.publish_agent import matches_job, publish_agent, validate_generation
+from scripts.publish_agent import matches_job, publish_agent, rerun_slots, step_ran, validate_generation
 from scripts.publish_agent import slots as agent_slots
-from scripts.publish_go import REPOSITORY, publish
+from scripts.publish_agent import rerun_dir, write_rerun_records
+from scripts.publish_go import (
+    ACTIONS_JOB_FIELDS,
+    ACTIONS_RUN_FIELDS,
+    REPOSITORY,
+    export_leaderboard,
+    output_tokens,
+    publish,
+)
 
 MAX_ARCHIVE = 32 * 1024 * 1024
 MAX_EXPANDED = 128 * 1024 * 1024
@@ -56,12 +65,11 @@ MAX_FILES = 300
 MAX_API = 2 * 1024 * 1024
 MAX_LISTED = 1000  # jobs or artifacts in one source run; a 64-slot round has about 260 artifacts
 SAFE_ID = re.compile(r"[a-z0-9][a-z0-9-]{0,79}")
-GITHUB_TIMESTAMP = re.compile(r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z")
 COMMIT_SHA = re.compile(r"[0-9a-f]{40}")
 
 FINISHED_JOB_CONCLUSIONS = {"success", "failure", "cancelled", "timed_out"}
-AGENT_GENERATION_STEP = "Run standardized agent"
 SINGLE_SHOT_GENERATION_STEP = "Generate two single-shot submissions (no retries or fallback)"
+RERUN_PATH = re.compile(r"(?:^|/)rep\d+-t\d+(?:_frozen)?/")
 PUBLISHED_FILES = {"record.json", "generation.json", "manifest.json", "dut.v", "plan.json"}
 
 # Published records must never contain these fields.
@@ -201,18 +209,29 @@ def _validate_agent_jobs(run: dict, jobs: list[dict], plan: dict) -> None:
     if type(plan.get("max_turns")) is not int or not 1 <= plan["max_turns"] <= 100:
         raise ValueError("invalid agent turn budget")
 
+    # A round runs every slot in one dispatch; a rerun wave runs only the
+    # slots that were unclaimed when it started.
+    rerun = plan.get("try", 1) > 1
     selected = []
     for model, problem, _, _ in agent_slots(plan, run["id"]):
-        for stage in ("Generate", "Evaluate"):
-            matches = [job for job in jobs if matches_job(job, stage, model["id"], problem, plan["protocol"])]
-            if len(matches) != 1:
-                raise ValueError("missing or duplicate agent slot jobs")
-            selected.extend(matches)
+        pair = [
+            [job for job in jobs if matches_job(job, stage, model["id"], problem, plan["protocol"])]
+            for stage in ("Generate", "Evaluate")
+        ]
+        if rerun and pair == [[], []]:
+            continue
+        if any(len(matches) != 1 for matches in pair):
+            raise ValueError("missing or duplicate agent slot jobs")
+        generate, evaluate = pair[0][0], pair[1][0]
+        # A rerun slot released after the usage limit skips its scoring job.
+        if rerun and evaluate.get("conclusion") == "skipped":
+            evaluate = {**evaluate, "conclusion": "success"}
+        selected.extend((generate, evaluate))
 
     for job in selected:
         if not _job_belongs_to_run(job, run):
             raise ValueError("invalid agent slot job provenance")
-    if not any(_step_ran(job, AGENT_GENERATION_STEP) for job in selected):
+    if not any(step_ran(job, AGENT_GENERATION_STEP) for job in selected):
         raise ValueError("preparation-only or duplicate-claim agent run")
 
 
@@ -238,8 +257,30 @@ def _validate_single_shot_jobs(run: dict, jobs: list[dict], plan: dict) -> None:
     for job in all_jobs:
         if not _job_belongs_to_run(job, run):
             raise ValueError("invalid model job provenance")
-    if not any(_step_ran(job, SINGLE_SHOT_GENERATION_STEP) for job in all_jobs):
+    if not any(step_ran(job, SINGLE_SHOT_GENERATION_STEP) for job in all_jobs):
         raise ValueError("preparation-only or duplicate-claim run; no model generation occurred")
+
+
+def latest_jobs(jobs: list[dict]) -> list[dict]:
+    """Each job once: from the latest attempt that did its work, else the latest attempt.
+
+    A re-run attempt skips a slot it finds already claimed, so the earlier
+    attempt's jobs hold that slot's generation and score. A skipped reusable
+    job keeps its `${{ inputs.* }}` name, so jobs are matched by caller and stage.
+    """
+    def key(job: dict) -> tuple[str, str]:
+        caller, nested, inner = job.get("name", "").partition(" / ")
+        return (caller, inner.split(" ")[0]) if nested else (caller, "")
+
+    def rank(job: dict) -> tuple[bool, bool, int]:
+        return (job.get("conclusion") != "skipped", step_ran(job, AGENT_GENERATION_STEP), job.get("run_attempt", 1))
+
+    latest: dict[tuple[str, str], dict] = {}
+    for job in jobs:
+        current = latest.get(key(job))
+        if current is None or rank(job) > rank(current):
+            latest[key(job)] = job
+    return list(latest.values())
 
 
 def _job_belongs_to_run(job: dict, run: dict) -> bool:
@@ -250,23 +291,6 @@ def _job_belongs_to_run(job: dict, run: dict) -> bool:
         and job.get("conclusion") in FINISHED_JOB_CONCLUSIONS
         and bool(GITHUB_TIMESTAMP.fullmatch(job.get("completed_at", "")))
     )
-
-
-def _step_ran(job: dict, step_name: str) -> bool:
-    """Whether the named step actually started (so a model may have been called).
-
-    A step that succeeded or failed ran. A cancelled or timed-out step only
-    counts if it has a start time; otherwise it never began.
-    """
-    for step in job.get("steps", []):
-        if step.get("name") != step_name:
-            continue
-        if step.get("conclusion") in {"success", "failure"}:
-            return True
-        started = GITHUB_TIMESTAMP.fullmatch(step.get("started_at") or "")
-        if step.get("conclusion") in {"cancelled", "timed_out"} and started:
-            return True
-    return False
 
 
 # --------------------------------------------------------------------------
@@ -463,6 +487,8 @@ def stage_publication(
     site_dir = repo / "site/data" / name
     receipt_path = repo / "pilot/publications" / f"run-{run['id']}-attempt-{run['run_attempt']}.json"
     validate_records(artifacts, plan, run)
+    if plan.get("try", 1) > 1:
+        return _stage_rerun(repo, artifacts, plan, run, jobs, evidence)
 
     with tempfile.TemporaryDirectory(prefix="adpbench-publish-") as temp:
         draft = Path(temp)
@@ -470,10 +496,16 @@ def stage_publication(
         board = publisher(artifacts, plan, run, jobs, draft / "records", draft / "site")
         hashes = payload_files(draft / "records")
         if records_dir.exists() or site_dir.exists():
-            if not records_dir.is_dir() or not site_dir.is_dir() or payload_files(records_dir) != hashes:
+            # Reruns published since then add `rep<N>-t<K>` files and change the scores.
+            first_try = {
+                path: digest for path, digest in payload_files(records_dir).items()
+                if not RERUN_PATH.search(path)
+            } if records_dir.is_dir() else None
+            if not site_dir.is_dir() or first_try != hashes:
                 raise ValueError("existing immutable results differ from source artifacts")
             previous = strict_json((site_dir / "leaderboard.json").read_bytes())
-            if previous["models"] != board["models"] or previous["meta"]["git_commit"] != run["head_sha"]:
+            rescored = bool(previous["meta"].get("reruns"))
+            if (not rescored and previous["models"] != board["models"]) or previous["meta"]["git_commit"] != run["head_sha"]:
                 raise ValueError("existing website scores differ from source artifacts")
         else:
             shutil.copytree(draft / "records", records_dir)
@@ -499,6 +531,98 @@ def stage_publication(
     catalog_path = repo / "site/data/evaluations.json"
     atomic_json(catalog_path, register(strict_json(catalog_path.read_bytes()), plan))
     return [str(path.relative_to(repo)) for path in (records_dir, site_dir, receipt_path, catalog_path)]
+
+
+def _stage_rerun(
+    repo: Path, artifacts: Path, plan: dict, run: dict, jobs: list[dict], evidence: list[dict]
+) -> list[str]:
+    """Add one rerun wave's finished slots to its published round, then rebuild the round's site data.
+
+    The round's existing files never change. Republishing the same wave is a
+    no-op; different content for an already published slot is an error.
+    """
+    name = plan["name"]
+    records_dir = repo / "pilot/results" / name
+    site_dir = repo / "site/data" / name
+    receipt_path = repo / "pilot/publications" / f"run-{run['id']}-attempt-{run['run_attempt']}.json"
+    if not (records_dir / "plan.json").is_file() or not (site_dir / "leaderboard.json").is_file():
+        raise ValueError("a rerun publishes into an already published round")
+
+    with tempfile.TemporaryDirectory(prefix="adpbench-publish-") as temp:
+        draft = Path(temp) / "records"
+        shutil.copytree(records_dir, draft)
+        before = payload_files(draft)
+        prepared = rerun_slots(artifacts, plan, run, jobs, draft)
+        if not prepared:
+            print("No finished rerun slots in this run; nothing to publish.")
+            return []
+        added = [slot for slot in prepared if not rerun_dir(draft, slot["model_id"], slot["problem"], plan).exists()]
+        with tempfile.TemporaryDirectory(prefix="adpbench-rerun-") as fresh:
+            # Already published slots must match this wave exactly.
+            write_rerun_records(Path(fresh), plan, prepared)
+            ours = payload_files(Path(fresh))
+        write_rerun_records(draft, plan, added)
+        hashes = payload_files(draft)
+        if any(hashes.get(path) != digest for path, digest in {**before, **ours}.items()):
+            raise ValueError("rerun content differs from the published round")
+        if added:
+            board = _rebuild_round_site(draft, Path(temp) / "site", site_dir, plan, run)
+            shutil.rmtree(records_dir)
+            shutil.copytree(draft, records_dir)
+            atomic_json(records_dir / f"actions-run-{run['id']}.json", _actions(run, jobs))
+            atomic_json(site_dir / "leaderboard.json", board)
+            for extra in ("problems.json", "report.json"):
+                shutil.copyfile(Path(temp) / "site" / extra, site_dir / extra)
+
+    records = [slot["record"] for slot in prepared]
+    receipt = {
+        "schema_version": 1,
+        "kind": "validated-model-results-publication",
+        "source_run_id": run["id"],
+        "source_attempt": run["run_attempt"],
+        "source_commit": run["head_sha"],
+        "source_workflow": run["path"],
+        "dataset": name,
+        "try": plan["try"],
+        "confirmed_correct": sum(record.get("outcome") == "correct" for record in records),
+        "result_slots": len(records),
+        "artifacts": evidence,
+        "record_file_sha256": ours,
+    }
+    if receipt_path.exists() and strict_json(receipt_path.read_bytes()) != receipt:
+        raise ValueError("conflicting publication receipt")
+    atomic_json(receipt_path, receipt)
+    return [str(path.relative_to(repo)) for path in (records_dir, site_dir, receipt_path)]
+
+
+def _rebuild_round_site(records: Path, scratch: Path, site_dir: Path, plan: dict, run: dict) -> dict:
+    """The round's leaderboard over every counted try, keeping the first dispatch's provenance."""
+    previous = strict_json((site_dir / "leaderboard.json").read_bytes())
+    round_plan = strict_json((records / "plan.json").read_bytes())
+    board = export_leaderboard(records, scratch, round_plan)
+    generations = [strict_json(path.read_bytes()) for path in sorted(records.glob("*/*/rep*/generation.json"))]
+    meta = dict(previous["meta"])
+    meta.update(
+        {
+            # Spend counts every try, including voided ones.
+            "generation_requests": sum(g.get("turns", 0) for g in generations),
+            "incomplete_usage": any(g.get("incomplete_usage") for g in generations),
+            "output_tokens": sum(output_tokens(g, prefer="output_tokens") for g in generations),
+            "reruns": [
+                *[r for r in previous["meta"].get("reruns", []) if r["workflow_url"] != run["html_url"]],
+                {"try": plan["try"], "workflow_url": run["html_url"], "git_commit": run["head_sha"]},
+            ],
+        }
+    )
+    board["meta"] = meta
+    return board
+
+
+def _actions(run: dict, jobs: list[dict]) -> dict:
+    return {
+        "run": {field: run[field] for field in ACTIONS_RUN_FIELDS if field in run},
+        "jobs": [{field: job[field] for field in ACTIONS_JOB_FIELDS if field in job} for job in jobs],
+    }
 
 
 def open_results_pr(repo: Path, paths: list[str], run: dict) -> str | None:
@@ -596,7 +720,13 @@ def main() -> None:
     plan_path = source_plan_path(workflow, rule["plans"])
     plan = strict_json(command(["git", "show", f"{run['head_sha']}:{plan_path}"], repo))
 
-    jobs = api_list(f"actions/runs/{run['id']}/attempts/{positive_id(run['run_attempt'])}/jobs", "jobs")
+    jobs = latest_jobs(
+        [
+            job
+            for attempt in range(1, positive_id(run["run_attempt"]) + 1)
+            for job in api_list(f"actions/runs/{run['id']}/attempts/{attempt}/jobs", "jobs")
+        ]
+    )
     available = api_list(f"actions/runs/{run['id']}/artifacts", "artifacts")
 
     # 3. The jobs; 4. the artifacts; 5. validation and staging.
@@ -621,6 +751,9 @@ def main() -> None:
         paths = stage_publication(repo, downloads, plan, run, jobs, evidence)
 
     # 6. The PR.
+    if not paths:
+        print(json.dumps({"validated": True, "paths": [], "model_calls": 0}))
+        return
     if not args.open_pr:
         print(json.dumps({"validated": True, "paths": paths, "model_calls": 0}))
         return

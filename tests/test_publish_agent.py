@@ -1,6 +1,7 @@
 """Offline contract tests: agent publication never executes or publishes transcripts."""
 import hashlib
 import json
+import shutil
 import tempfile
 import unittest
 from pathlib import Path
@@ -9,7 +10,7 @@ from adpbench.durable import atomic_json
 from scripts.go_pilot import read_plan
 from scripts.publish_agent import WORKFLOW, job_name, publish_agent
 from scripts.publish_go import REPOSITORY
-from scripts.publish_results import validate_source, validate_records, stage_publication, strict_json
+from scripts.publish_results import latest_jobs, validate_source, validate_records, stage_publication, strict_json
 
 
 class AgentPublicationTest(unittest.TestCase):
@@ -208,10 +209,147 @@ class AgentV2PublicationTest(AgentPublicationTest):
         self.assertIsNone(run["correct"])
         self.assertEqual(run["outcome"], "quota_exhausted")
 
-    def test_reruns_are_not_published_over_a_round_yet(self):
+    def test_a_rerun_is_published_through_its_round(self):
         rerun = {**self.plan, "try": 2, "slots": [{"model": self.plan["models"][0]["id"], "problem": self.plan["problems"][0]}]}
-        with self.assertRaisesRegex(ValueError, "rerun"):
+        with self.assertRaisesRegex(ValueError, "rerun_slots"):
             publish_agent(self.root / "artifacts", rerun, self.run, self.jobs, self.root / "published", self.root / "site")
+
+
+class AgentRerunPublicationTest(unittest.TestCase):
+    """A try-2 wave adds finished slots next to the voided first try; nothing published changes."""
+
+    def setUp(self):
+        self.base = AgentV2PublicationTest("test_slot_artifacts_publish_separate_track_and_usage")
+        self.base.setUp()
+        self.addCleanup(self.base.doCleanups)
+        base = self.base
+        self.model = base.plan["models"][0]["id"]
+        self.cut, self.kept = base.plan["problems"][0], base.plan["problems"][1]
+        # The round's first try: the first problem was cut off by the usage limit.
+        dest = base.paths[0]
+        base.set_generation(dest, outcome="quota_exhausted", error="provider HTTP 429")
+        (dest.parent / "rep1_frozen/dut.v").unlink()  # Owned temporary fixture only.
+        record = strict_json((dest / "record.json").read_bytes())
+        record.update(outcome="quota_exhausted", execution_health="failed", result=None, audit={"ok": False})
+        record["manifest"]["submission_sha256"] = ""
+        atomic_json(dest / "record.json", record)
+        stage_publication(base.repo, base.root / "artifacts", base.plan, base.run, base.jobs, [])
+        self.round = base.repo / "pilot/results/agent-test"
+
+        self.rerun = {**base.plan, "try": 2, "release_on_quota": True,
+                      "slots": [{"model": self.model, "problem": self.cut}, {"model": self.model, "problem": self.kept}]}
+        self.wave = {**base.run, "id": 124, "html_url": f"https://github.com/{REPOSITORY}/actions/runs/124"}
+        self.artifacts = base.root / "wave"
+        self.jobs = []
+        self.add_slot(self.cut, outcome="submitted")
+
+    def add_slot(self, problem, outcome):
+        """One slot of wave 124: its receipt (and a scored record unless it was released)."""
+        base, model = self.base, self.model
+        artifact = self.artifacts / f"go-agent-records-{model}-{problem}-124"
+        atomic_json(artifact / "plan.json", self.rerun)
+        dest = artifact / f"opencode-go-{model}" / problem / "rep1"
+        source = dest.parent / "rep1_frozen/dut.v"
+        source.parent.mkdir(parents=True)
+        source.write_text("module dut(); endmodule\n")
+        digest = hashlib.sha256(source.read_bytes()).hexdigest()
+        generation = strict_json((base.paths[1] / "generation.json").read_bytes())
+        generation.update(problem=problem, outcome=outcome, submission_sha256=digest, **{"try": 2})
+        generation["github"]["GITHUB_RUN_ID"] = "124"
+        atomic_json(dest / "generation.json", generation)
+        released = outcome == "quota_exhausted"
+        if not released:
+            record = strict_json((base.paths[1] / "record.json").read_bytes())
+            record.update(problem=problem)
+            record["manifest"] = {"generation": generation, "submission_sha256": digest}
+            atomic_json(dest / "record.json", record)
+        else:
+            source.unlink()  # Owned temporary fixture only.
+        for offset, stage in enumerate(("Generate", "Evaluate")):
+            self.jobs.append({"id": 900 + len(self.jobs), "run_id": 124, "status": "completed",
+                "name": f"{model} · {problem} / {job_name(stage, model, problem, base.PROTOCOL)}",
+                "conclusion": "skipped" if released and stage == "Evaluate" else "success",
+                "completed_at": "2026-09-29T20:00:00Z",
+                "steps": [{"name": "Run standardized agent", "conclusion": "success"}] if stage == "Generate" else []})
+
+    def stage(self):
+        validate_source(self.wave, self.jobs, self.rerun, self.base.policy)
+        return stage_publication(self.base.repo, self.artifacts, self.rerun, self.wave, self.jobs, [])
+
+    def test_rerun_counts_in_place_of_the_voided_try(self):
+        before = {path: path.read_bytes() for path in self.round.rglob("*") if path.is_file() and path.name not in {"REPORT.md", "report.json"}}
+        self.stage()
+        for path, content in before.items():
+            self.assertEqual(path.read_bytes(), content)
+        added = self.round / f"opencode-go-{self.model}" / self.cut / "rep1-t2"
+        self.assertEqual(strict_json((added / "record.json").read_bytes())["try"], 2)
+        self.assertTrue((added.parent / "rep1-t2_frozen/dut.v").is_file())
+        board = strict_json((self.base.repo / "site/data/agent-test/leaderboard.json").read_bytes())
+        model = board["models"][0]
+        self.assertEqual((model["attempts"], model["correct"], model["infra"]), (2, 2, 0))
+        self.assertEqual(board["meta"]["reruns"][0]["workflow_url"], self.wave["html_url"])
+        self.assertEqual(board["meta"]["workflow_url"], self.base.run["html_url"])
+        receipt = strict_json((self.base.repo / "pilot/publications/run-124-attempt-1.json").read_bytes())
+        self.assertEqual((receipt["try"], receipt["result_slots"], receipt["confirmed_correct"]), (2, 1, 1))
+        self.assertEqual(self.stage(), self.stage())
+        board_before = (self.base.repo / "site/data/agent-test/leaderboard.json").read_bytes()
+        base = self.base
+        stage_publication(base.repo, base.root / "artifacts", base.plan, base.run, base.jobs, [])
+        self.assertEqual((self.base.repo / "site/data/agent-test/leaderboard.json").read_bytes(), board_before)
+
+    def test_released_and_absent_slots_publish_nothing(self):
+        self.jobs.clear()
+        shutil.rmtree(self.artifacts)
+        self.add_slot(self.cut, outcome="quota_exhausted")
+        self.assertEqual(self.stage(), [])
+        self.assertFalse((self.round / f"opencode-go-{self.model}" / self.cut / "rep1-t2").exists())
+
+    def test_rerun_never_replaces_a_model_outcome_or_an_unpublished_round(self):
+        self.add_slot(self.kept, outcome="submitted")
+        with self.assertRaisesRegex(ValueError, "infrastructure failure"):
+            self.stage()
+        shutil.rmtree(self.base.repo / "pilot/results")
+        with self.assertRaisesRegex(ValueError, "already published round"):
+            self.stage()
+
+    def test_a_wave_must_have_both_jobs_of_each_slot_it_ran(self):
+        with self.assertRaisesRegex(ValueError, "missing or duplicate"):
+            validate_source(self.wave, self.jobs[:1], self.rerun, self.base.policy)
+
+    def test_a_re_run_attempt_publishes_the_slot_its_first_attempt_generated(self):
+        # Attempt 2 found the slot claimed: its Generate skipped the agent and its
+        # Evaluate was skipped under an unexpanded name, so attempt 1's jobs count.
+        first = [{**job, "run_attempt": 1} for job in self.jobs]
+        again = [{**first[0], "id": 990, "run_attempt": 2, "steps": [{"name": "Run standardized agent", "conclusion": "skipped"}]},
+                 {**first[1], "id": 991, "run_attempt": 2, "conclusion": "skipped",
+                  "name": f"{self.model} · {self.cut} / Evaluate ${{{{ inputs.model }}}} · ${{{{ inputs.problem }}}} · {self.base.PROTOCOL}"}]
+        self.jobs[:] = latest_jobs(first + again)
+        self.assertEqual([job["id"] for job in self.jobs], [first[0]["id"], first[1]["id"]])
+        self.wave["run_attempt"] = 2
+        self.stage()
+        record = self.round / f"opencode-go-{self.model}" / self.cut / "rep1-t2/record.json"
+        self.assertEqual(strict_json(record.read_bytes())["execution"]["job_id"], first[1]["id"])
+
+    def test_a_receipt_from_a_later_attempt_is_rejected(self):
+        artifact = self.artifacts / f"go-agent-records-{self.model}-{self.cut}-124" / f"opencode-go-{self.model}" / self.cut / "rep1"
+        generation = strict_json((artifact / "generation.json").read_bytes())
+        generation["github"]["GITHUB_RUN_ATTEMPT"] = "2"
+        atomic_json(artifact / "generation.json", generation)
+        record = strict_json((artifact / "record.json").read_bytes())
+        record["manifest"]["generation"] = generation
+        atomic_json(artifact / "record.json", record)
+        with self.assertRaisesRegex(ValueError, "provenance"):
+            self.stage()
+
+    def test_republishing_different_content_is_rejected(self):
+        self.stage()
+        source = self.artifacts / f"go-agent-records-{self.model}-{self.cut}-124" / f"opencode-go-{self.model}" / self.cut
+        record = strict_json((source / "rep1/record.json").read_bytes())
+        record["result"]["cells"] = 5
+        record["result"]["adp"] = 100
+        atomic_json(source / "rep1/record.json", record)
+        with self.assertRaisesRegex(ValueError, "differs"):
+            self.stage()
 
 
 if __name__ == "__main__":
