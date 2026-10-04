@@ -84,40 +84,65 @@ test("every publication receipt binds exact frozen records and website outcomes"
     assert.match(receipt.dataset, /^[a-z0-9][a-z0-9-]{0,79}$/);
     const root = `../pilot/results/${receipt.dataset}`;
     const hashes = receipt.record_file_sha256;
-    const expectedPaths = ["plan.json"];
     const board = readJSON(`../site/data/${receipt.dataset}/leaderboard.json`);
     assert.equal(board.meta.pilot, receipt.dataset);
-    assert.equal(board.meta.git_commit, receipt.source_commit);
-    assert.equal(receipt.confirmed_correct, board.models.reduce((n, m) => n + m.correct, 0));
-    assert.equal(receipt.result_slots, board.models.reduce((n, m) => n + m.runs.length, 0));
     const plan = readJSON(`${root}/plan.json`);
     const protocol = plan.protocol || "single-shot";
-    for (const model of plan.models) {
-      assert.match(model.id, /^[a-z0-9][a-z0-9.-]*$/);
-      const published = board.models.find(m => m.label === `opencode-go/${model.id} [${protocol}]`);
+    const reruns = board.meta.reruns || [];
+    // A rerun receipt (try >= 2) covers only the slots its wave added as rep1-t<try>.
+    const tryNumber = receipt.try ?? 1;
+    assert.ok(Number.isSafeInteger(tryNumber) && tryNumber >= 1);
+    const repDir = tryNumber === 1 ? "rep1" : `rep1-t${tryNumber}`;
+    let slots;
+    if (tryNumber === 1) {
+      assert.equal(board.meta.git_commit, receipt.source_commit);
+      slots = plan.models.flatMap(model => plan.problems.map(problem => [model.id, problem]));
+    } else {
+      assert.ok(reruns.some(r => r.try === tryNumber && r.git_commit === receipt.source_commit
+        && r.workflow_url.endsWith(`/actions/runs/${receipt.source_run_id}`)));
+      slots = [...new Set(Object.keys(hashes).map(path => path.split("/").slice(0, 2).join("/")))]
+        .map(base => [base.replace(/^opencode-go-/, "").split("/")[0], base.split("/")[1]]);
+      assert.ok(slots.length > 0);
+    }
+    const expectedPaths = tryNumber === 1 ? ["plan.json"] : [];
+    let correct = 0;
+    for (const [modelId, problem] of slots) {
+      assert.match(modelId, /^[a-z0-9][a-z0-9.-]*$/);
+      assert.match(problem, /^[a-z0-9_]+$/);
+      assert.ok(plan.models.some(m => m.id === modelId) && plan.problems.includes(problem));
+      const published = board.models.find(m => m.label === `opencode-go/${modelId} [${protocol}]`);
       assert.ok(published);
-      for (const problem of plan.problems) {
-        assert.match(problem, /^[a-z0-9_]+$/);
-        const base = `opencode-go-${model.id}/${problem}`;
-        for (const filename of ["generation.json", "manifest.json", "record.json"])
-          expectedPaths.push(`${base}/rep1/${filename}`);
-        const record = readJSON(`${root}/${base}/rep1/record.json`);
-        const shown = published.runs.find(r => r.problem === problem);
-        assert.ok(findExecution(shown));
-        assert.deepEqual(shown.execution, record.execution);
-        assert.equal(record.execution.run_id, receipt.source_run_id);
-        assert.equal(record.execution.run_attempt, receipt.source_attempt);
-        assert.equal(record.execution.commit, receipt.source_commit);
-        assert.equal(shown.correct, protocol === "agent-assisted-v1" && !["correct", "incorrect"].includes(record.outcome) ? null : Boolean(record.result?.correct));
-        for (const metric of ["cells", "cycles"])
-          assert.equal(shown[metric], record.result?.[metric] ?? -1);
-        assert.equal(shown.ratio, record.result?.ratio || -1);
-        if (record.manifest.submission_sha256) {
-          expectedPaths.push(`${base}/rep1_frozen/dut.v`);
-          assert.equal(hashes[`${base}/rep1_frozen/dut.v`], record.manifest.submission_sha256);
-          assert.equal(shown.submission_sha256, record.manifest.submission_sha256);
-        }
+      const base = `opencode-go-${modelId}/${problem}`;
+      for (const filename of ["generation.json", "manifest.json", "record.json"])
+        expectedPaths.push(`${base}/${repDir}/${filename}`);
+      const record = readJSON(`${root}/${base}/${repDir}/record.json`);
+      assert.equal(record.execution.run_id, receipt.source_run_id);
+      assert.equal(record.execution.run_attempt, receipt.source_attempt);
+      assert.equal(record.execution.commit, receipt.source_commit);
+      correct += record.outcome === "correct" || (protocol === "single-shot" && Boolean(record.result?.correct)) ? 1 : 0;
+      if (record.manifest.submission_sha256) {
+        expectedPaths.push(`${base}/${repDir}_frozen/dut.v`);
+        assert.equal(hashes[`${base}/${repDir}_frozen/dut.v`], record.manifest.submission_sha256);
       }
+      // The site shows the latest try; a voided try stays only in the records.
+      const later = readdirSync(new URL(`${root}/${base}/`, import.meta.url))
+        .some(name => /^rep1-t[0-9]+$/.test(name) && Number(name.slice(6)) > tryNumber);
+      if (later) continue;
+      const shown = published.runs.find(r => r.problem === problem);
+      assert.ok(findExecution(shown));
+      assert.deepEqual(shown.execution, record.execution);
+      assert.equal(shown.correct, protocol.startsWith("agent-assisted-") && !["correct", "incorrect"].includes(record.outcome) ? null : Boolean(record.result?.correct));
+      for (const metric of ["cells", "cycles"])
+        assert.equal(shown[metric], record.result?.[metric] ?? -1);
+      assert.equal(shown.ratio, record.result?.ratio || -1);
+      if (record.manifest.submission_sha256) assert.equal(shown.submission_sha256, record.manifest.submission_sha256);
+    }
+    if (tryNumber === 1 && reruns.length === 0) {
+      assert.equal(receipt.confirmed_correct, board.models.reduce((n, m) => n + m.correct, 0));
+      assert.equal(receipt.result_slots, board.models.reduce((n, m) => n + m.runs.length, 0));
+    } else if (tryNumber > 1) {
+      assert.equal(receipt.confirmed_correct, correct);
+      assert.equal(receipt.result_slots, slots.length);
     }
     // Only canonical planned paths can be read; never arbitrary receipt paths.
     assert.deepEqual(Object.keys(hashes).sort(), expectedPaths.sort());
@@ -129,7 +154,7 @@ test("every publication receipt binds exact frozen records and website outcomes"
     for (const artifact of receipt.artifacts) {
       assert.ok(Number.isSafeInteger(artifact.id) && artifact.id > 0);
       assert.match(artifact.digest, /^sha256:[0-9a-f]{64}$/);
-      assert.ok(plan.models.some(m => protocol === "agent-assisted-v1"
+      assert.ok(plan.models.some(m => protocol.startsWith("agent-assisted-")
         ? plan.problems.some(p => ["go-agent-records", "go-agent-generation"].some(prefix => artifact.name === `${prefix}-${m.id}-${p}-${receipt.source_run_id}`))
         : ["go-core", "go-generation"].some(prefix => artifact.name === `${prefix}-${m.id}-${receipt.source_run_id}`)));
       assert.ok(!names.has(artifact.name));
