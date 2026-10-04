@@ -1,0 +1,71 @@
+{
+  "model": "glm-5.3",
+  "problem": "001_dot_product",
+  "protocol": "agent-assisted-v2",
+  "started": "2026-09-27T15:11:02.968354+00:00",
+  "generation_state": "completed",
+  "outcome": "submitted",
+  "error": "",
+  "turns": 8,
+  "checks": 3,
+  "max_turns": 20,
+  "max_checks": 3,
+  "max_output_tokens": 131072,
+  "usage": {
+    "prompt_tokens": 410997,
+    "completion_tokens": 96246,
+    "total_tokens": 507243
+  },
+  "incomplete_usage": false,
+  "generation_settings": {
+    "reasoning_effort": "high"
+  },
+  "reasoning_measured": {
+    "turns": 8,
+    "turns_with_reasoning": 5,
+    "reasoning_chars": 302722,
+    "answer_chars": 20446,
+    "reasoning_tokens": 90628
+  },
+  "github": {
+    "GITHUB_REPOSITORY": "arygupt/ADPBench",
+    "GITHUB_RUN_ID": "36328258003",
+    "GITHUB_RUN_ATTEMPT": "1",
+    "GITHUB_SHA": "c161737df2834581e912e9962ec9d7ab1a88c726"
+  },
+  "attempt": 1,
+  "try": 2,
+  "transport_retries": [],
+  "finish_reason": "tool_calls",
+  "writes": 3,
+  "development_checks": [
+    {
+      "index": 1,
+      "submission_sha256": "fd334587e6c6528e17a68d016c83cd662322224256ca376ed0ee408043d82d14",
+      "completed": true,
+      "correct": true,
+      "reason": "",
+      "audit_ok": true
+    },
+    {
+      "index": 2,
+      "submission_sha256": "1032fe30d4d76f63431566d6ce8dba63c352a9f29fdbdd6613bd1fbddccc451c",
+      "completed": true,
+      "correct": true,
+      "reason": "",
+      "audit_ok": true
+    },
+    {
+      "index": 3,
+      "submission_sha256": "578ff5f7e8a460158419f622243b8c777bd80ca5acca892b8b3516b679f15500",
+      "completed": true,
+      "correct": true,
+      "reason": "",
+      "audit_ok": true
+    }
+  ],
+  "submission_sha256": "578ff5f7e8a460158419f622243b8c777bd80ca5acca892b8b3516b679f15500",
+  "final_revision_checked": true,
+  "duration_s": 1797.46,
+  "execution_health": "completed"
+}
