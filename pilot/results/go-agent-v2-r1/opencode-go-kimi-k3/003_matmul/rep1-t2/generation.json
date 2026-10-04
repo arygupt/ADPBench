@@ -1,0 +1,80 @@
+{
+  "model": "kimi-k3",
+  "problem": "003_matmul",
+  "protocol": "agent-assisted-v2",
+  "started": "2026-09-29T11:37:41.479742+00:00",
+  "generation_state": "completed",
+  "outcome": "submitted",
+  "error": "",
+  "turns": 8,
+  "checks": 3,
+  "max_turns": 20,
+  "max_checks": 3,
+  "max_output_tokens": 131072,
+  "usage": {
+    "prompt_tokens": 214929,
+    "completion_tokens": 41816,
+    "total_tokens": 256745
+  },
+  "incomplete_usage": true,
+  "generation_settings": {
+    "thinking": {
+      "type": "enabled"
+    }
+  },
+  "reasoning_measured": {
+    "turns": 8,
+    "turns_with_reasoning": 7,
+    "reasoning_chars": 119049,
+    "answer_chars": 20105,
+    "reasoning_tokens": 35512
+  },
+  "github": {
+    "GITHUB_REPOSITORY": "arygupt/ADPBench",
+    "GITHUB_RUN_ID": "36562354781",
+    "GITHUB_RUN_ATTEMPT": "1",
+    "GITHUB_SHA": "32983e2aa732ca52b4f198fa2b6f802a61e9d64c"
+  },
+  "attempt": 1,
+  "try": 2,
+  "transport_retries": [
+    {
+      "turn": 4,
+      "retry": 1,
+      "reason": "stream_disconnected_before_terminal_event",
+      "usage_known": false
+    }
+  ],
+  "finish_reason": "tool_calls",
+  "writes": 3,
+  "development_checks": [
+    {
+      "index": 1,
+      "submission_sha256": "3095543a6b8909d6b98fc3fbf491d4fd9dda2169a049da18e2a996201fb3de8d",
+      "completed": true,
+      "correct": true,
+      "reason": "",
+      "audit_ok": true
+    },
+    {
+      "index": 2,
+      "submission_sha256": "1a66472e36c05276e8cb389b25d1670c31ee2ec5d8ea36362dd67619095b745a",
+      "completed": true,
+      "correct": true,
+      "reason": "",
+      "audit_ok": true
+    },
+    {
+      "index": 3,
+      "submission_sha256": "9769643abff7d2790872a940031ff4e2f746391c25209e008ad386c9b2c3ccf2",
+      "completed": true,
+      "correct": true,
+      "reason": "",
+      "audit_ok": true
+    }
+  ],
+  "submission_sha256": "9769643abff7d2790872a940031ff4e2f746391c25209e008ad386c9b2c3ccf2",
+  "final_revision_checked": true,
+  "duration_s": 1496.1,
+  "execution_health": "completed"
+}

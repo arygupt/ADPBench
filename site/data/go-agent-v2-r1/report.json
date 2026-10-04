@@ -620,20 +620,20 @@
     },
     "opencode-go/kimi-k3 [agent-assisted-v2]": {
       "attempts": 4,
-      "correct": 2,
-      "correctness_rate": 0.5,
-      "beating_baseline": 2,
-      "beat_baseline_rate": 0.5,
-      "geomean_ratio_successful": 3.9782,
+      "correct": 3,
+      "correctness_rate": 0.75,
+      "beating_baseline": 3,
+      "beat_baseline_rate": 0.75,
+      "geomean_ratio_successful": 4.3418,
       "failures": {
         "wrong_rtl": 0,
-        "infrastructure": 2,
+        "infrastructure": 1,
         "submission_failure": 0
       },
       "repetitions": 1,
       "outcomes": {
-        "correct": 2,
-        "quota_exhausted": 2
+        "correct": 3,
+        "quota_exhausted": 1
       },
       "per_problem": {
         "001_dot_product": {
@@ -672,19 +672,19 @@
         },
         "003_matmul": {
           "attempts": 1,
-          "correct": 0,
-          "correctness_rate": 0.0,
-          "beating_baseline": 0,
-          "beat_baseline_rate": 0.0,
-          "geomean_ratio_successful": -1.0,
+          "correct": 1,
+          "correctness_rate": 1.0,
+          "beating_baseline": 1,
+          "beat_baseline_rate": 1.0,
+          "geomean_ratio_successful": 5.1716,
           "failures": {
             "wrong_rtl": 0,
-            "infrastructure": 1,
+            "infrastructure": 0,
             "submission_failure": 0
           },
           "repetitions": 1,
           "outcomes": {
-            "quota_exhausted": 1
+            "correct": 1
           }
         },
         "004_conv1d": {
@@ -980,13 +980,14 @@
       "geomean_ratio_successful": 2.6723,
       "failures": {
         "wrong_rtl": 0,
-        "infrastructure": 2,
-        "submission_failure": 0
+        "infrastructure": 1,
+        "submission_failure": 1
       },
       "repetitions": 1,
       "outcomes": {
         "correct": 2,
-        "quota_exhausted": 2
+        "truncated": 1,
+        "quota_exhausted": 1
       },
       "per_problem": {
         "001_dot_product": {
@@ -1032,12 +1033,12 @@
           "geomean_ratio_successful": -1.0,
           "failures": {
             "wrong_rtl": 0,
-            "infrastructure": 1,
-            "submission_failure": 0
+            "infrastructure": 0,
+            "submission_failure": 1
           },
           "repetitions": 1,
           "outcomes": {
-            "quota_exhausted": 1
+            "truncated": 1
           }
         },
         "004_conv1d": {
@@ -1238,23 +1239,24 @@
   },
   "totals": {
     "attempts": 56,
-    "correct": 27,
-    "correctness_rate": 0.4821,
-    "beating_baseline": 26,
-    "beat_baseline_rate": 0.4643,
-    "geomean_ratio_successful": 3.5361,
+    "correct": 28,
+    "correctness_rate": 0.5,
+    "beating_baseline": 27,
+    "beat_baseline_rate": 0.4821,
+    "geomean_ratio_successful": 3.5844,
     "failures": {
       "wrong_rtl": 3,
-      "infrastructure": 26,
-      "submission_failure": 0
+      "infrastructure": 24,
+      "submission_failure": 1
     },
     "repetitions": 1,
     "outcomes": {
-      "correct": 27,
-      "quota_exhausted": 24,
+      "correct": 28,
+      "quota_exhausted": 22,
       "incorrect": 3,
       "provider_error": 1,
-      "transport_interrupted": 1
+      "transport_interrupted": 1,
+      "truncated": 1
     }
   }
 }
