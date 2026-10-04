@@ -1,0 +1,158 @@
+{
+  "problem": "004_conv1d",
+  "agent_cmd": "adpbench Go agent-assisted-v2 (read/write/check/submit)",
+  "label": "opencode-go/space-bunny-free [agent-assisted-v2]",
+  "attempt": 1,
+  "group": "go-agent-v2-r1-free",
+  "sandbox": "docker",
+  "started": "2026-10-03T23:46:38.439423+00:00",
+  "duration_s": 1694.67,
+  "exit_code": -1,
+  "timed_out": false,
+  "audit": {
+    "ok": false,
+    "violations": [
+      {
+        "line": 0,
+        "match": "",
+        "reason": "no RTL produced"
+      }
+    ],
+    "warnings": []
+  },
+  "result": null,
+  "error": "agent slot deadline reached",
+  "frozen": "",
+  "manifest": {
+    "adpbench_version": "unknown",
+    "git_commit": "",
+    "problem": "004_conv1d",
+    "problem_sha256": {
+      "dut.py": "8e77ef8ba2e5b0ae33d0f64e74f2949f4592a2d205981a2a64be3436234755e3",
+      "baseline.v": "6699c94499e0db0ab9721c8c99699fb69f195ca26411590478f7c7d69138f1cc",
+      "baseline.json": "311580d10187960784957e7e4b6f3354795b3b0193ee2b4da844fdae6066c515"
+    },
+    "cases": {
+      "seeds": [
+        1000,
+        1001,
+        1002
+      ],
+      "directed": [
+        "zeros",
+        "zero_weights",
+        "extreme_signs"
+      ],
+      "transactions": 2,
+      "input_lens": {
+        "in_x_flat": 128,
+        "in_w_flat": 16
+      }
+    },
+    "tools": {
+      "yosys": "Yosys 0.69+ (git sha1 143eb14f9, Release, GNU /usr/bin/c++ 12.2.0)",
+      "iverilog": "Icarus Verilog version 13.0 (stable) (v13_0)"
+    },
+    "submission_sha256": "",
+    "netlist_sha256": "",
+    "agent_cmd": "adpbench Go agent-assisted-v2 (read/write/check/submit)",
+    "budget_s": 7200,
+    "sandbox": {
+      "mode": "docker",
+      "image": "adpbench-go:ci",
+      "network": "none"
+    },
+    "result": {
+      "correct": false,
+      "ratio": -1.0,
+      "cells": -1,
+      "cycles": -1,
+      "stage": "error"
+    },
+    "error": "agent slot deadline reached",
+    "timed_out": false,
+    "duration_s": 1694.67,
+    "generation": {
+      "model": "space-bunny-free",
+      "problem": "004_conv1d",
+      "protocol": "agent-assisted-v2",
+      "started": "2026-10-03T23:46:38.439423+00:00",
+      "generation_state": "failed",
+      "outcome": "wall_timeout",
+      "error": "agent slot deadline reached",
+      "turns": 10,
+      "checks": 3,
+      "max_turns": 20,
+      "max_checks": 3,
+      "max_output_tokens": 524288,
+      "usage": {
+        "prompt_tokens": 746423,
+        "completion_tokens": 138399,
+        "total_tokens": 884822
+      },
+      "incomplete_usage": true,
+      "generation_settings": {
+        "reasoning_effort": "high"
+      },
+      "reasoning_measured": {
+        "turns": 9,
+        "turns_with_reasoning": 6,
+        "reasoning_chars": 434194,
+        "answer_chars": 33819,
+        "reasoning_tokens": 128550
+      },
+      "github": {
+        "GITHUB_REPOSITORY": "arygupt/ADPBench",
+        "GITHUB_RUN_ID": "37162530197",
+        "GITHUB_RUN_ATTEMPT": "1",
+        "GITHUB_SHA": "2e8fe051b1b91ccb4e75b56e7879971f496a8908"
+      },
+      "attempt": 1,
+      "try": 1,
+      "transport_retries": [],
+      "finish_reason": "tool_calls",
+      "writes": 4,
+      "development_checks": [
+        {
+          "index": 1,
+          "submission_sha256": "dc02d193ccfafed6fdbd2e704bd5667f7b1ca6dbba8bb20a7fd087dfd4231d32",
+          "completed": true,
+          "correct": false,
+          "reason": "",
+          "audit_ok": true
+        },
+        {
+          "index": 2,
+          "submission_sha256": "d6512d3633b1a1c21bfc00550084c0c55250575d5f69cec7cf36df319d224de0",
+          "completed": true,
+          "correct": false,
+          "reason": "",
+          "audit_ok": true
+        },
+        {
+          "index": 3,
+          "submission_sha256": "96b123bb6760e5cdaec974a70666263c26f2789faad2e73ac11f80e556f54e1b",
+          "completed": true,
+          "correct": false,
+          "reason": "",
+          "audit_ok": true
+        }
+      ],
+      "duration_s": 1694.67,
+      "execution_health": "completed"
+    }
+  },
+  "history": [],
+  "outcome": "wall_timeout",
+  "execution_health": "completed",
+  "execution": {
+    "kind": "model-evaluation",
+    "repository": "arygupt/ADPBench",
+    "run_id": 37162530197,
+    "run_attempt": 1,
+    "job_id": 111324129527,
+    "commit": "2e8fe051b1b91ccb4e75b56e7879971f496a8908",
+    "completed_at": "2026-10-04T00:15:27Z",
+    "job_conclusion": "success"
+  }
+}

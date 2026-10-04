@@ -1,0 +1,80 @@
+{
+  "model": "longcat-2.5-preview-free",
+  "problem": "002_gemv",
+  "protocol": "agent-assisted-v2",
+  "started": "2026-10-03T23:46:49.287998+00:00",
+  "generation_state": "completed",
+  "outcome": "submitted",
+  "error": "",
+  "turns": 17,
+  "checks": 3,
+  "max_turns": 20,
+  "max_checks": 3,
+  "max_output_tokens": 131072,
+  "usage": {
+    "prompt_tokens": 3044015,
+    "completion_tokens": 348499,
+    "total_tokens": 3392514
+  },
+  "incomplete_usage": false,
+  "generation_settings": {
+    "thinking": {
+      "type": "enabled"
+    }
+  },
+  "reasoning_measured": {
+    "turns": 17,
+    "turns_with_reasoning": 17,
+    "reasoning_chars": 1105967,
+    "answer_chars": 35521,
+    "reasoning_tokens": 337399
+  },
+  "github": {
+    "GITHUB_REPOSITORY": "arygupt/ADPBench",
+    "GITHUB_RUN_ID": "37162530197",
+    "GITHUB_RUN_ATTEMPT": "1",
+    "GITHUB_SHA": "2e8fe051b1b91ccb4e75b56e7879971f496a8908"
+  },
+  "attempt": 1,
+  "try": 1,
+  "transport_retries": [
+    {
+      "turn": 11,
+      "retry": 1,
+      "reason": "http_500",
+      "usage_known": true
+    }
+  ],
+  "finish_reason": "tool_calls",
+  "writes": 5,
+  "development_checks": [
+    {
+      "index": 1,
+      "submission_sha256": "56175b159e2fb78c75f367b650529a472fb44b45f6583b4513a03be9ca3306ea",
+      "completed": true,
+      "correct": true,
+      "reason": "",
+      "audit_ok": true
+    },
+    {
+      "index": 2,
+      "submission_sha256": "c043a7d167aa148f3e278d021a8f63d3e962520cf42891b73579427e9aec9854",
+      "completed": true,
+      "correct": true,
+      "reason": "",
+      "audit_ok": true
+    },
+    {
+      "index": 3,
+      "submission_sha256": "c043a7d167aa148f3e278d021a8f63d3e962520cf42891b73579427e9aec9854",
+      "completed": true,
+      "correct": true,
+      "reason": "",
+      "audit_ok": true
+    }
+  ],
+  "submission_sha256": "c043a7d167aa148f3e278d021a8f63d3e962520cf42891b73579427e9aec9854",
+  "final_revision_checked": true,
+  "duration_s": 5958.45,
+  "execution_health": "completed"
+}
