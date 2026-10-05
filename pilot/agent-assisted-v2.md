@@ -118,6 +118,13 @@ stopped every slot at validation, before any claim or model call, because
 workflow now takes the plan from `go-agent.yml` and checks it against that
 file's literal.
 
+The free round finished on 2026-10-04 and is final: LongCat's matmul slot hit
+the one-hour stream wall timeout, which is never rerun. On 2026-10-05 a
+one-token probe of a paid model returned 200 again, every model was still
+listed on models.dev with the plan's output limits, so the `-t2` rerun was
+selected again with a third window from 2026-10-05 01:15 UTC for its last 22
+slots.
+
 ## Reasoning
 
 Every model requests "high" where it offers it, or the nearest setting
