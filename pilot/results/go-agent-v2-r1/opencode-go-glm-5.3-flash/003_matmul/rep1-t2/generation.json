@@ -1,0 +1,84 @@
+{
+  "model": "glm-5.3-flash",
+  "problem": "003_matmul",
+  "protocol": "agent-assisted-v2",
+  "started": "2026-10-05T02:35:27.979352+00:00",
+  "generation_state": "completed",
+  "outcome": "submitted",
+  "error": "",
+  "turns": 12,
+  "checks": 3,
+  "max_turns": 20,
+  "max_checks": 3,
+  "max_output_tokens": 131072,
+  "usage": {
+    "prompt_tokens": 249006,
+    "completion_tokens": 33407,
+    "total_tokens": 282413
+  },
+  "incomplete_usage": true,
+  "generation_settings": {
+    "reasoning_effort": "high"
+  },
+  "reasoning_measured": {
+    "turns": 12,
+    "turns_with_reasoning": 8,
+    "reasoning_chars": 85271,
+    "answer_chars": 28375,
+    "reasoning_tokens": 23826
+  },
+  "github": {
+    "GITHUB_REPOSITORY": "arygupt/ADPBench",
+    "GITHUB_RUN_ID": "37251812830",
+    "GITHUB_RUN_ATTEMPT": "1",
+    "GITHUB_SHA": "4d2fff4ad19ed4f69303437ece5392a190516739"
+  },
+  "attempt": 1,
+  "try": 2,
+  "transport_retries": [
+    {
+      "turn": 2,
+      "retry": 1,
+      "reason": "provider_stream_error",
+      "usage_known": false
+    },
+    {
+      "turn": 3,
+      "retry": 1,
+      "reason": "provider_stream_error",
+      "usage_known": false
+    }
+  ],
+  "finish_reason": "tool_calls",
+  "writes": 6,
+  "development_checks": [
+    {
+      "index": 1,
+      "submission_sha256": "4e496dec4ddabf3a4cc2202c0f4a92d32df55dbdccfaa8e922b52bc5e6ab8169",
+      "completed": true,
+      "correct": false,
+      "reason": "",
+      "audit_ok": true
+    },
+    {
+      "index": 2,
+      "submission_sha256": "33c38820505fa261c49f92fa3b8148c3b84a175bdc9d080ba5e6e31890aa0347",
+      "completed": true,
+      "correct": true,
+      "reason": "",
+      "audit_ok": true
+    },
+    {
+      "index": 3,
+      "submission_sha256": "9469243517c283c816419efc2da18be3339212c748d3f983e186e1968d8c63b9",
+      "completed": true,
+      "correct": false,
+      "reason": "",
+      "audit_ok": true
+    }
+  ],
+  "submission_sha256": "b5dddd88faf966cf399ee9d194d2ca41084c3a256ce0620286b4ee884a1d6c06",
+  "final_revision_checked": false,
+  "duration_s": 1737.25,
+  "execution_health": "completed"
+}

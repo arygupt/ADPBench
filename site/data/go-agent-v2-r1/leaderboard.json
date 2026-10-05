@@ -52,10 +52,10 @@
     },
     "output_budget": "provider_max",
     "workflow_url": "https://github.com/arygupt/ADPBench/actions/runs/36265411322",
-    "generation_requests": 373,
+    "generation_requests": 466,
     "incomplete_usage": true,
     "incomplete_evidence": false,
-    "output_tokens": 2661649,
+    "output_tokens": 3565629,
     "reruns": [
       {
         "try": 2,
@@ -71,6 +71,11 @@
         "try": 2,
         "workflow_url": "https://github.com/arygupt/ADPBench/actions/runs/36562354781",
         "git_commit": "32983e2aa732ca52b4f198fa2b6f802a61e9d64c"
+      },
+      {
+        "try": 2,
+        "workflow_url": "https://github.com/arygupt/ADPBench/actions/runs/37251812830",
+        "git_commit": "4d2fff4ad19ed4f69303437ece5392a190516739"
       }
     ]
   },
@@ -249,15 +254,15 @@
     {
       "label": "opencode-go/deepseek-v4-pro [agent-assisted-v2]",
       "attempts": 4,
-      "correct": 3,
-      "beating": 3,
-      "correctness_rate": 0.75,
-      "beat_rate": 0.75,
-      "geomean": 2.5399,
+      "correct": 4,
+      "beating": 4,
+      "correctness_rate": 1.0,
+      "beat_rate": 1.0,
+      "geomean": 2.9303,
       "wrong_rtl": 0,
-      "infra": 1,
-      "score_ci": "\u00b133%",
-      "correctness_ci": "\u00b133%",
+      "infra": 0,
+      "score_ci": "\u00b124%",
+      "correctness_ci": "\u00b124%",
       "runs": [
         {
           "label": "opencode-go/deepseek-v4-pro [agent-assisted-v2]",
@@ -465,35 +470,39 @@
           "label": "opencode-go/deepseek-v4-pro [agent-assisted-v2]",
           "problem": "004_conv1d",
           "attempt": 1,
-          "correct": null,
-          "ratio": -1.0,
-          "cells": -1,
-          "cycles": -1,
-          "adp": -1.0,
-          "stage": "",
-          "correctness": "",
-          "duration_s": 151.22,
+          "correct": true,
+          "ratio": 4.499386782150136,
+          "cells": 5011,
+          "cycles": 1016,
+          "adp": 5091176.0,
+          "stage": "ok",
+          "correctness": "exact match on 6 cases",
+          "duration_s": 686.39,
           "timed_out": false,
-          "error": "provider HTTP 429; resends are listed in transport_retries; no fallback",
-          "audit_ok": false,
-          "submission_sha256": "",
-          "netlist_sha256": "",
+          "error": "",
+          "audit_ok": true,
+          "submission_sha256": "3b11e8ab7a63e8130d80c46ea8c0afd08a07bc03d9855448889cd1bb2b2661d2",
+          "netlist_sha256": "26cdbc91d9822f3e741808161ed3740d3102b39bda137e5584902f682b42830f",
           "history": 0,
           "execution": {
             "kind": "model-evaluation",
             "repository": "arygupt/ADPBench",
-            "run_id": 36265411322,
+            "run_id": 37251812830,
             "run_attempt": 1,
-            "job_id": 108475278511,
-            "commit": "a218a152859ade906e34f719960a2f36b198e183",
-            "completed_at": "2026-09-26T19:55:07Z",
-            "job_conclusion": "failure"
+            "job_id": 111607406016,
+            "commit": "4d2fff4ad19ed4f69303437ece5392a190516739",
+            "completed_at": "2026-10-05T03:48:11Z",
+            "job_conclusion": "success"
           },
           "record_origin": "scorer",
           "generation": {
             "model": "deepseek-v4-pro",
-            "finish_reason": null,
-            "usage": {},
+            "finish_reason": "tool_calls",
+            "usage": {
+              "prompt_tokens": 154125,
+              "completion_tokens": 40926,
+              "total_tokens": 195051
+            },
             "generation_settings": {
               "thinking": {
                 "type": "enabled"
@@ -501,61 +510,47 @@
               "reasoning_effort": "high"
             },
             "response_diagnostics": null,
-            "error": "provider HTTP 429; resends are listed in transport_retries; no fallback",
+            "error": "",
             "invalid_rtl": null,
             "evidence_unavailable": null,
             "protocol": "agent-assisted-v2",
-            "outcome": "quota_exhausted",
-            "turns": 1,
+            "outcome": "submitted",
+            "turns": 6,
             "max_turns": 20,
-            "incomplete_usage": true,
+            "incomplete_usage": false,
             "reasoning_measured": {
-              "turns": 0,
-              "turns_with_reasoning": 0,
-              "reasoning_chars": 0,
-              "answer_chars": 0,
-              "reasoning_tokens": null
+              "turns": 6,
+              "turns_with_reasoning": 6,
+              "reasoning_chars": 119499,
+              "answer_chars": 13488,
+              "reasoning_tokens": 36271
             },
-            "try": 1,
-            "transport_retries": [
-              {
-                "turn": 1,
-                "retry": 1,
-                "reason": "http_429",
-                "usage_known": true
-              },
-              {
-                "turn": 1,
-                "retry": 2,
-                "reason": "http_429",
-                "usage_known": true
-              }
-            ],
-            "dev_checks": 0
+            "try": 2,
+            "transport_retries": [],
+            "dev_checks": 2
           },
-          "outcome": "quota_exhausted",
-          "execution_health": "failed"
+          "outcome": "correct",
+          "execution_health": "completed"
         }
       ],
       "outcomes": {
-        "correct": 3,
-        "quota_exhausted": 1
+        "correct": 4
       },
-      "scored": 3,
-      "unscored": 1
+      "scored": 4,
+      "unscored": 0
     },
     {
       "label": "opencode-go/deepseek-v4.1-flash [agent-assisted-v2]",
       "attempts": 4,
-      "correct": 2,
-      "beating": 2,
-      "correctness_rate": 0.5,
-      "beat_rate": 0.5,
-      "geomean": 4.0988,
+      "correct": 3,
+      "beating": 3,
+      "correctness_rate": 0.75,
+      "beat_rate": 0.75,
+      "geomean": 5.1712,
       "wrong_rtl": 0,
-      "infra": 2,
-      "score_ci": "\u00b135%",
-      "correctness_ci": "\u00b135%",
+      "infra": 1,
+      "score_ci": "\u00b133%",
+      "correctness_ci": "\u00b133%",
       "runs": [
         {
           "label": "opencode-go/deepseek-v4.1-flash [agent-assisted-v2]",
@@ -693,35 +688,39 @@
           "label": "opencode-go/deepseek-v4.1-flash [agent-assisted-v2]",
           "problem": "003_matmul",
           "attempt": 1,
-          "correct": null,
-          "ratio": -1.0,
-          "cells": -1,
-          "cycles": -1,
-          "adp": -1.0,
-          "stage": "",
-          "correctness": "",
-          "duration_s": 150.62,
+          "correct": true,
+          "ratio": 8.231501881612042,
+          "cells": 11574,
+          "cycles": 144,
+          "adp": 1666656.0,
+          "stage": "ok",
+          "correctness": "exact match on 6 cases",
+          "duration_s": 783.18,
           "timed_out": false,
-          "error": "provider HTTP 429; resends are listed in transport_retries; no fallback",
-          "audit_ok": false,
-          "submission_sha256": "",
-          "netlist_sha256": "",
+          "error": "",
+          "audit_ok": true,
+          "submission_sha256": "1530cf559ef2ba47ea4bdb1e78f2f1a22dd4d7d260e2113bac64e3873f47f885",
+          "netlist_sha256": "4f9826ddb53b37ecdebd2507bb2c0d091579a45bbd65903a866ee402354bbf98",
           "history": 0,
           "execution": {
             "kind": "model-evaluation",
             "repository": "arygupt/ADPBench",
-            "run_id": 36265411322,
+            "run_id": 37251812830,
             "run_attempt": 1,
-            "job_id": 108474866353,
-            "commit": "a218a152859ade906e34f719960a2f36b198e183",
-            "completed_at": "2026-09-26T19:52:24Z",
-            "job_conclusion": "failure"
+            "job_id": 111592732236,
+            "commit": "4d2fff4ad19ed4f69303437ece5392a190516739",
+            "completed_at": "2026-10-05T02:35:02Z",
+            "job_conclusion": "success"
           },
           "record_origin": "scorer",
           "generation": {
             "model": "deepseek-v4.1-flash",
-            "finish_reason": null,
-            "usage": {},
+            "finish_reason": "tool_calls",
+            "usage": {
+              "prompt_tokens": 381883,
+              "completion_tokens": 111473,
+              "total_tokens": 493356
+            },
             "generation_settings": {
               "thinking": {
                 "type": "enabled"
@@ -729,40 +728,27 @@
               "reasoning_effort": "high"
             },
             "response_diagnostics": null,
-            "error": "provider HTTP 429; resends are listed in transport_retries; no fallback",
+            "error": "",
             "invalid_rtl": null,
             "evidence_unavailable": null,
             "protocol": "agent-assisted-v2",
-            "outcome": "quota_exhausted",
-            "turns": 1,
+            "outcome": "submitted",
+            "turns": 6,
             "max_turns": 20,
-            "incomplete_usage": true,
+            "incomplete_usage": false,
             "reasoning_measured": {
-              "turns": 0,
-              "turns_with_reasoning": 0,
-              "reasoning_chars": 0,
-              "answer_chars": 0,
-              "reasoning_tokens": null
+              "turns": 6,
+              "turns_with_reasoning": 5,
+              "reasoning_chars": 363506,
+              "answer_chars": 10208,
+              "reasoning_tokens": 108376
             },
-            "try": 1,
-            "transport_retries": [
-              {
-                "turn": 1,
-                "retry": 1,
-                "reason": "http_429",
-                "usage_known": true
-              },
-              {
-                "turn": 1,
-                "retry": 2,
-                "reason": "http_429",
-                "usage_known": true
-              }
-            ],
-            "dev_checks": 0
+            "try": 2,
+            "transport_retries": [],
+            "dev_checks": 2
           },
-          "outcome": "quota_exhausted",
-          "execution_health": "failed"
+          "outcome": "correct",
+          "execution_health": "completed"
         },
         {
           "label": "opencode-go/deepseek-v4.1-flash [agent-assisted-v2]",
@@ -841,11 +827,11 @@
         }
       ],
       "outcomes": {
-        "correct": 2,
-        "quota_exhausted": 2
+        "correct": 3,
+        "quota_exhausted": 1
       },
-      "scored": 2,
-      "unscored": 2
+      "scored": 3,
+      "unscored": 1
     },
     {
       "label": "opencode-go/glm-5.3 [agent-assisted-v2]",
@@ -1133,15 +1119,15 @@
     {
       "label": "opencode-go/glm-5.3-flash [agent-assisted-v2]",
       "attempts": 4,
-      "correct": 2,
-      "beating": 2,
-      "correctness_rate": 0.5,
-      "beat_rate": 0.5,
-      "geomean": 3.8781,
+      "correct": 3,
+      "beating": 3,
+      "correctness_rate": 0.75,
+      "beat_rate": 0.75,
+      "geomean": 4.7437,
       "wrong_rtl": 0,
-      "infra": 2,
-      "score_ci": "\u00b135%",
-      "correctness_ci": "\u00b135%",
+      "infra": 1,
+      "score_ci": "\u00b133%",
+      "correctness_ci": "\u00b133%",
       "runs": [
         {
           "label": "opencode-go/glm-5.3-flash [agent-assisted-v2]",
@@ -1299,73 +1285,77 @@
           "label": "opencode-go/glm-5.3-flash [agent-assisted-v2]",
           "problem": "003_matmul",
           "attempt": 1,
-          "correct": null,
-          "ratio": -1.0,
-          "cells": -1,
-          "cycles": -1,
-          "adp": -1.0,
-          "stage": "",
-          "correctness": "",
-          "duration_s": 150.69,
+          "correct": true,
+          "ratio": 7.097689785368468,
+          "cells": 13239,
+          "cycles": 146,
+          "adp": 1932894.0,
+          "stage": "ok",
+          "correctness": "exact match on 6 cases",
+          "duration_s": 1737.25,
           "timed_out": false,
-          "error": "provider HTTP 429; resends are listed in transport_retries; no fallback",
-          "audit_ok": false,
-          "submission_sha256": "",
-          "netlist_sha256": "",
+          "error": "",
+          "audit_ok": true,
+          "submission_sha256": "b5dddd88faf966cf399ee9d194d2ca41084c3a256ce0620286b4ee884a1d6c06",
+          "netlist_sha256": "7cace29f84fc1ae8d8a3abd9a97d846f5bbad9ec2c8e2f1c1726380b8e6c3fa8",
           "history": 0,
           "execution": {
             "kind": "model-evaluation",
             "repository": "arygupt/ADPBench",
-            "run_id": 36265411322,
+            "run_id": 37251812830,
             "run_attempt": 1,
-            "job_id": 108474887512,
-            "commit": "a218a152859ade906e34f719960a2f36b198e183",
-            "completed_at": "2026-09-26T19:52:19Z",
-            "job_conclusion": "failure"
+            "job_id": 111598835734,
+            "commit": "4d2fff4ad19ed4f69303437ece5392a190516739",
+            "completed_at": "2026-10-05T03:06:00Z",
+            "job_conclusion": "success"
           },
           "record_origin": "scorer",
           "generation": {
             "model": "glm-5.3-flash",
-            "finish_reason": null,
-            "usage": {},
+            "finish_reason": "tool_calls",
+            "usage": {
+              "prompt_tokens": 249006,
+              "completion_tokens": 33407,
+              "total_tokens": 282413
+            },
             "generation_settings": {
               "reasoning_effort": "high"
             },
             "response_diagnostics": null,
-            "error": "provider HTTP 429; resends are listed in transport_retries; no fallback",
+            "error": "",
             "invalid_rtl": null,
             "evidence_unavailable": null,
             "protocol": "agent-assisted-v2",
-            "outcome": "quota_exhausted",
-            "turns": 1,
+            "outcome": "submitted",
+            "turns": 12,
             "max_turns": 20,
             "incomplete_usage": true,
             "reasoning_measured": {
-              "turns": 0,
-              "turns_with_reasoning": 0,
-              "reasoning_chars": 0,
-              "answer_chars": 0,
-              "reasoning_tokens": null
+              "turns": 12,
+              "turns_with_reasoning": 8,
+              "reasoning_chars": 85271,
+              "answer_chars": 28375,
+              "reasoning_tokens": 23826
             },
-            "try": 1,
+            "try": 2,
             "transport_retries": [
               {
-                "turn": 1,
+                "turn": 2,
                 "retry": 1,
-                "reason": "http_429",
-                "usage_known": true
+                "reason": "provider_stream_error",
+                "usage_known": false
               },
               {
-                "turn": 1,
-                "retry": 2,
-                "reason": "http_429",
-                "usage_known": true
+                "turn": 3,
+                "retry": 1,
+                "reason": "provider_stream_error",
+                "usage_known": false
               }
             ],
-            "dev_checks": 0
+            "dev_checks": 3
           },
-          "outcome": "quota_exhausted",
-          "execution_health": "failed"
+          "outcome": "correct",
+          "execution_health": "completed"
         },
         {
           "label": "opencode-go/glm-5.3-flash [agent-assisted-v2]",
@@ -1441,24 +1431,24 @@
         }
       ],
       "outcomes": {
-        "correct": 2,
-        "quota_exhausted": 2
+        "correct": 3,
+        "quota_exhausted": 1
       },
-      "scored": 2,
-      "unscored": 2
+      "scored": 3,
+      "unscored": 1
     },
     {
       "label": "opencode-go/gpt-6-luna [agent-assisted-v2]",
       "attempts": 4,
-      "correct": 3,
-      "beating": 3,
-      "correctness_rate": 0.75,
-      "beat_rate": 0.75,
-      "geomean": 4.0356,
+      "correct": 4,
+      "beating": 4,
+      "correctness_rate": 1.0,
+      "beat_rate": 1.0,
+      "geomean": 4.091,
       "wrong_rtl": 0,
-      "infra": 1,
-      "score_ci": "\u00b133%",
-      "correctness_ci": "\u00b133%",
+      "infra": 0,
+      "score_ci": "\u00b124%",
+      "correctness_ci": "\u00b124%",
       "runs": [
         {
           "label": "opencode-go/gpt-6-luna [agent-assisted-v2]",
@@ -1662,35 +1652,39 @@
           "label": "opencode-go/gpt-6-luna [agent-assisted-v2]",
           "problem": "004_conv1d",
           "attempt": 1,
-          "correct": null,
-          "ratio": -1.0,
-          "cells": -1,
-          "cycles": -1,
-          "adp": -1.0,
-          "stage": "",
-          "correctness": "",
-          "duration_s": 150.85,
+          "correct": true,
+          "ratio": 4.261767354289456,
+          "cells": 5280,
+          "cycles": 1018,
+          "adp": 5375040.0,
+          "stage": "ok",
+          "correctness": "exact match on 6 cases",
+          "duration_s": 78.86,
           "timed_out": false,
-          "error": "provider HTTP 429; resends are listed in transport_retries; no fallback",
-          "audit_ok": false,
-          "submission_sha256": "",
-          "netlist_sha256": "",
+          "error": "",
+          "audit_ok": true,
+          "submission_sha256": "af34d18257d78c0834b3392c26d7e68ca3a54eff5d98dd9626d8051c4d977d82",
+          "netlist_sha256": "cb380d5ff28762c0c6b9eb535d281b8c0405fe855eac37c86b0f7ef56e857c7a",
           "history": 0,
           "execution": {
             "kind": "model-evaluation",
             "repository": "arygupt/ADPBench",
-            "run_id": 36265411322,
+            "run_id": 37251812830,
             "run_attempt": 1,
-            "job_id": 108475077225,
-            "commit": "a218a152859ade906e34f719960a2f36b198e183",
-            "completed_at": "2026-09-26T19:53:28Z",
-            "job_conclusion": "failure"
+            "job_id": 111599556970,
+            "commit": "4d2fff4ad19ed4f69303437ece5392a190516739",
+            "completed_at": "2026-10-05T03:09:31Z",
+            "job_conclusion": "success"
           },
           "record_origin": "scorer",
           "generation": {
             "model": "gpt-6-luna",
-            "finish_reason": null,
-            "usage": {},
+            "finish_reason": "tool_calls",
+            "usage": {
+              "input_tokens": 23144,
+              "output_tokens": 9010,
+              "total_tokens": 32154
+            },
             "generation_settings": {
               "reasoning": {
                 "effort": "high"
@@ -1698,61 +1692,47 @@
               "token_limit_key": "max_output_tokens"
             },
             "response_diagnostics": null,
-            "error": "provider HTTP 429; resends are listed in transport_retries; no fallback",
+            "error": "",
             "invalid_rtl": null,
             "evidence_unavailable": null,
             "protocol": "agent-assisted-v2",
-            "outcome": "quota_exhausted",
-            "turns": 1,
+            "outcome": "submitted",
+            "turns": 4,
             "max_turns": 20,
-            "incomplete_usage": true,
+            "incomplete_usage": false,
             "reasoning_measured": {
-              "turns": 0,
+              "turns": 4,
               "turns_with_reasoning": 0,
               "reasoning_chars": 0,
-              "answer_chars": 0,
-              "reasoning_tokens": null
+              "answer_chars": 5898,
+              "reasoning_tokens": 7296
             },
-            "try": 1,
-            "transport_retries": [
-              {
-                "turn": 1,
-                "retry": 1,
-                "reason": "http_429",
-                "usage_known": true
-              },
-              {
-                "turn": 1,
-                "retry": 2,
-                "reason": "http_429",
-                "usage_known": true
-              }
-            ],
-            "dev_checks": 0
+            "try": 2,
+            "transport_retries": [],
+            "dev_checks": 1
           },
-          "outcome": "quota_exhausted",
-          "execution_health": "failed"
+          "outcome": "correct",
+          "execution_health": "completed"
         }
       ],
       "outcomes": {
-        "correct": 3,
-        "quota_exhausted": 1
+        "correct": 4
       },
-      "scored": 3,
-      "unscored": 1
+      "scored": 4,
+      "unscored": 0
     },
     {
       "label": "opencode-go/grok-4.7 [agent-assisted-v2]",
       "attempts": 4,
-      "correct": 3,
-      "beating": 3,
-      "correctness_rate": 0.75,
-      "beat_rate": 0.75,
-      "geomean": 5.0298,
+      "correct": 4,
+      "beating": 4,
+      "correctness_rate": 1.0,
+      "beat_rate": 1.0,
+      "geomean": 4.9394,
       "wrong_rtl": 0,
-      "infra": 1,
-      "score_ci": "\u00b133%",
-      "correctness_ci": "\u00b133%",
+      "infra": 0,
+      "score_ci": "\u00b124%",
+      "correctness_ci": "\u00b124%",
       "runs": [
         {
           "label": "opencode-go/grok-4.7 [agent-assisted-v2]",
@@ -1956,35 +1936,39 @@
           "label": "opencode-go/grok-4.7 [agent-assisted-v2]",
           "problem": "004_conv1d",
           "attempt": 1,
-          "correct": null,
-          "ratio": -1.0,
-          "cells": -1,
-          "cycles": -1,
-          "adp": -1.0,
-          "stage": "",
-          "correctness": "",
-          "duration_s": 150.65,
+          "correct": true,
+          "ratio": 4.6777736845888445,
+          "cells": 4736,
+          "cycles": 1034,
+          "adp": 4897024.0,
+          "stage": "ok",
+          "correctness": "exact match on 6 cases",
+          "duration_s": 781.04,
           "timed_out": false,
-          "error": "provider HTTP 429; resends are listed in transport_retries; no fallback",
-          "audit_ok": false,
-          "submission_sha256": "",
-          "netlist_sha256": "",
+          "error": "",
+          "audit_ok": true,
+          "submission_sha256": "6798d7b0ffc10f79ec38f33b5582b60534838c7b132757433b8ff187f4146aaa",
+          "netlist_sha256": "3f8f35adc99bc898f8aae57ca06c458578f46a0a87eabecaf651cbd7328c1533",
           "history": 0,
           "execution": {
             "kind": "model-evaluation",
             "repository": "arygupt/ADPBench",
-            "run_id": 36265411322,
+            "run_id": 37251812830,
             "run_attempt": 1,
-            "job_id": 108475229333,
-            "commit": "a218a152859ade906e34f719960a2f36b198e183",
-            "completed_at": "2026-09-26T19:54:33Z",
-            "job_conclusion": "failure"
+            "job_id": 111602712186,
+            "commit": "4d2fff4ad19ed4f69303437ece5392a190516739",
+            "completed_at": "2026-10-05T03:24:25Z",
+            "job_conclusion": "success"
           },
           "record_origin": "scorer",
           "generation": {
             "model": "grok-4.7",
-            "finish_reason": null,
-            "usage": {},
+            "finish_reason": "tool_calls",
+            "usage": {
+              "input_tokens": 114599,
+              "output_tokens": 55742,
+              "total_tokens": 170341
+            },
             "generation_settings": {
               "reasoning": {
                 "effort": "high"
@@ -1992,61 +1976,47 @@
               "token_limit_key": "max_output_tokens"
             },
             "response_diagnostics": null,
-            "error": "provider HTTP 429; resends are listed in transport_retries; no fallback",
+            "error": "",
             "invalid_rtl": null,
             "evidence_unavailable": null,
             "protocol": "agent-assisted-v2",
-            "outcome": "quota_exhausted",
-            "turns": 1,
+            "outcome": "submitted",
+            "turns": 5,
             "max_turns": 20,
-            "incomplete_usage": true,
+            "incomplete_usage": false,
             "reasoning_measured": {
-              "turns": 0,
-              "turns_with_reasoning": 0,
-              "reasoning_chars": 0,
-              "answer_chars": 0,
-              "reasoning_tokens": null
+              "turns": 5,
+              "turns_with_reasoning": 3,
+              "reasoning_chars": 80238,
+              "answer_chars": 8092,
+              "reasoning_tokens": 53455
             },
-            "try": 1,
-            "transport_retries": [
-              {
-                "turn": 1,
-                "retry": 1,
-                "reason": "http_429",
-                "usage_known": true
-              },
-              {
-                "turn": 1,
-                "retry": 2,
-                "reason": "http_429",
-                "usage_known": true
-              }
-            ],
-            "dev_checks": 0
+            "try": 2,
+            "transport_retries": [],
+            "dev_checks": 1
           },
-          "outcome": "quota_exhausted",
-          "execution_health": "failed"
+          "outcome": "correct",
+          "execution_health": "completed"
         }
       ],
       "outcomes": {
-        "correct": 3,
-        "quota_exhausted": 1
+        "correct": 4
       },
-      "scored": 3,
-      "unscored": 1
+      "scored": 4,
+      "unscored": 0
     },
     {
       "label": "opencode-go/kimi-k2.6 [agent-assisted-v2]",
       "attempts": 4,
-      "correct": 1,
-      "beating": 0,
-      "correctness_rate": 0.25,
-      "beat_rate": 0.0,
-      "geomean": 0.9894,
+      "correct": 2,
+      "beating": 1,
+      "correctness_rate": 0.5,
+      "beat_rate": 0.25,
+      "geomean": 1.6911,
       "wrong_rtl": 0,
-      "infra": 3,
-      "score_ci": "\u00b124%",
-      "correctness_ci": "\u00b133%",
+      "infra": 2,
+      "score_ci": "\u00b133%",
+      "correctness_ci": "\u00b135%",
       "runs": [
         {
           "label": "opencode-go/kimi-k2.6 [agent-assisted-v2]",
@@ -2178,75 +2148,66 @@
           "label": "opencode-go/kimi-k2.6 [agent-assisted-v2]",
           "problem": "003_matmul",
           "attempt": 1,
-          "correct": null,
-          "ratio": -1.0,
-          "cells": -1,
-          "cycles": -1,
-          "adp": -1.0,
-          "stage": "",
-          "correctness": "",
-          "duration_s": 150.69,
+          "correct": true,
+          "ratio": 2.890436691619069,
+          "cells": 26665,
+          "cycles": 178,
+          "adp": 4746370.0,
+          "stage": "ok",
+          "correctness": "exact match on 6 cases",
+          "duration_s": 2373.83,
           "timed_out": false,
-          "error": "provider HTTP 429; resends are listed in transport_retries; no fallback",
-          "audit_ok": false,
-          "submission_sha256": "",
-          "netlist_sha256": "",
+          "error": "",
+          "audit_ok": true,
+          "submission_sha256": "e9713d50377c7f2fa7fe8c28b31b7dac4a12be5ddd01dc24749fe5d88ba7811c",
+          "netlist_sha256": "c3d809b1df072bf04ab85d219aacc95289ecfa16f247926ab24b6bcface6768b",
           "history": 0,
           "execution": {
             "kind": "model-evaluation",
             "repository": "arygupt/ADPBench",
-            "run_id": 36265411322,
+            "run_id": 37251812830,
             "run_attempt": 1,
-            "job_id": 108474948318,
-            "commit": "a218a152859ade906e34f719960a2f36b198e183",
-            "completed_at": "2026-09-26T19:52:51Z",
-            "job_conclusion": "failure"
+            "job_id": 111605414827,
+            "commit": "4d2fff4ad19ed4f69303437ece5392a190516739",
+            "completed_at": "2026-10-05T03:39:36Z",
+            "job_conclusion": "success"
           },
           "record_origin": "scorer",
           "generation": {
             "model": "kimi-k2.6",
-            "finish_reason": null,
-            "usage": {},
+            "finish_reason": "tool_calls",
+            "usage": {
+              "prompt_tokens": 598379,
+              "completion_tokens": 85334,
+              "total_tokens": 683713
+            },
             "generation_settings": {
               "thinking": {
                 "type": "enabled"
               }
             },
             "response_diagnostics": null,
-            "error": "provider HTTP 429; resends are listed in transport_retries; no fallback",
+            "error": "",
             "invalid_rtl": null,
             "evidence_unavailable": null,
             "protocol": "agent-assisted-v2",
-            "outcome": "quota_exhausted",
-            "turns": 1,
+            "outcome": "submitted",
+            "turns": 11,
             "max_turns": 20,
-            "incomplete_usage": true,
+            "incomplete_usage": false,
             "reasoning_measured": {
-              "turns": 0,
-              "turns_with_reasoning": 0,
-              "reasoning_chars": 0,
-              "answer_chars": 0,
-              "reasoning_tokens": null
+              "turns": 11,
+              "turns_with_reasoning": 11,
+              "reasoning_chars": 252076,
+              "answer_chars": 44677,
+              "reasoning_tokens": 73486
             },
-            "try": 1,
-            "transport_retries": [
-              {
-                "turn": 1,
-                "retry": 1,
-                "reason": "http_429",
-                "usage_known": true
-              },
-              {
-                "turn": 1,
-                "retry": 2,
-                "reason": "http_429",
-                "usage_known": true
-              }
-            ],
-            "dev_checks": 0
+            "try": 2,
+            "transport_retries": [],
+            "dev_checks": 3
           },
-          "outcome": "quota_exhausted",
-          "execution_health": "failed"
+          "outcome": "correct",
+          "execution_health": "completed"
         },
         {
           "label": "opencode-go/kimi-k2.6 [agent-assisted-v2]",
@@ -2324,12 +2285,12 @@
         }
       ],
       "outcomes": {
-        "correct": 1,
+        "correct": 2,
         "provider_error": 1,
-        "quota_exhausted": 2
+        "quota_exhausted": 1
       },
-      "scored": 1,
-      "unscored": 3
+      "scored": 2,
+      "unscored": 2
     },
     {
       "label": "opencode-go/kimi-k3 [agent-assisted-v2]",
@@ -2632,15 +2593,15 @@
     {
       "label": "opencode-go/mimo-v2.5 [agent-assisted-v2]",
       "attempts": 4,
-      "correct": 2,
-      "beating": 2,
-      "correctness_rate": 0.5,
-      "beat_rate": 0.5,
-      "geomean": 2.5149,
+      "correct": 3,
+      "beating": 3,
+      "correctness_rate": 0.75,
+      "beat_rate": 0.75,
+      "geomean": 3.7847,
       "wrong_rtl": 0,
-      "infra": 2,
-      "score_ci": "\u00b135%",
-      "correctness_ci": "\u00b135%",
+      "infra": 1,
+      "score_ci": "\u00b133%",
+      "correctness_ci": "\u00b133%",
       "runs": [
         {
           "label": "opencode-go/mimo-v2.5 [agent-assisted-v2]",
@@ -2778,35 +2739,39 @@
           "label": "opencode-go/mimo-v2.5 [agent-assisted-v2]",
           "problem": "003_matmul",
           "attempt": 1,
-          "correct": null,
-          "ratio": -1.0,
-          "cells": -1,
-          "cycles": -1,
-          "adp": -1.0,
-          "stage": "",
-          "correctness": "",
-          "duration_s": 150.65,
+          "correct": true,
+          "ratio": 8.571426250812216,
+          "cells": 11115,
+          "cycles": 144,
+          "adp": 1600560.0,
+          "stage": "ok",
+          "correctness": "exact match on 6 cases",
+          "duration_s": 3129.1,
           "timed_out": false,
-          "error": "provider HTTP 429; resends are listed in transport_retries; no fallback",
-          "audit_ok": false,
-          "submission_sha256": "",
-          "netlist_sha256": "",
+          "error": "",
+          "audit_ok": true,
+          "submission_sha256": "51b3a2cca4135fe8ee213b5d2af6c0670da60846840a7d1adaaf440ae4efdc7f",
+          "netlist_sha256": "bb608436621a71bcde275975f71363b48060a0928350ccc15843fea97eede783",
           "history": 0,
           "execution": {
             "kind": "model-evaluation",
             "repository": "arygupt/ADPBench",
-            "run_id": 36265411322,
+            "run_id": 37251812830,
             "run_attempt": 1,
-            "job_id": 108474819178,
-            "commit": "a218a152859ade906e34f719960a2f36b198e183",
-            "completed_at": "2026-09-26T19:52:00Z",
-            "job_conclusion": "failure"
+            "job_id": 111591964269,
+            "commit": "4d2fff4ad19ed4f69303437ece5392a190516739",
+            "completed_at": "2026-10-05T02:31:05Z",
+            "job_conclusion": "success"
           },
           "record_origin": "scorer",
           "generation": {
             "model": "mimo-v2.5",
-            "finish_reason": null,
-            "usage": {},
+            "finish_reason": "tool_calls",
+            "usage": {
+              "prompt_tokens": 825524,
+              "completion_tokens": 169712,
+              "total_tokens": 995236
+            },
             "generation_settings": {
               "reasoning": {
                 "enabled": true
@@ -2814,40 +2779,34 @@
               "token_limit_key": "max_completion_tokens"
             },
             "response_diagnostics": null,
-            "error": "provider HTTP 429; resends are listed in transport_retries; no fallback",
+            "error": "",
             "invalid_rtl": null,
             "evidence_unavailable": null,
             "protocol": "agent-assisted-v2",
-            "outcome": "quota_exhausted",
-            "turns": 1,
+            "outcome": "submitted",
+            "turns": 9,
             "max_turns": 20,
             "incomplete_usage": true,
             "reasoning_measured": {
-              "turns": 0,
-              "turns_with_reasoning": 0,
-              "reasoning_chars": 0,
-              "answer_chars": 0,
-              "reasoning_tokens": null
+              "turns": 9,
+              "turns_with_reasoning": 9,
+              "reasoning_chars": 518129,
+              "answer_chars": 25297,
+              "reasoning_tokens": 162899
             },
-            "try": 1,
+            "try": 2,
             "transport_retries": [
               {
-                "turn": 1,
+                "turn": 2,
                 "retry": 1,
-                "reason": "http_429",
-                "usage_known": true
-              },
-              {
-                "turn": 1,
-                "retry": 2,
-                "reason": "http_429",
-                "usage_known": true
+                "reason": "stream_disconnected_before_terminal_event",
+                "usage_known": false
               }
             ],
-            "dev_checks": 0
+            "dev_checks": 3
           },
-          "outcome": "quota_exhausted",
-          "execution_health": "failed"
+          "outcome": "correct",
+          "execution_health": "completed"
         },
         {
           "label": "opencode-go/mimo-v2.5 [agent-assisted-v2]",
@@ -2926,11 +2885,11 @@
         }
       ],
       "outcomes": {
-        "correct": 2,
-        "quota_exhausted": 2
+        "correct": 3,
+        "quota_exhausted": 1
       },
-      "scored": 2,
-      "unscored": 2
+      "scored": 3,
+      "unscored": 1
     },
     {
       "label": "opencode-go/mimo-v2.6-pro [agent-assisted-v2]",
@@ -2941,7 +2900,7 @@
       "beat_rate": 0.25,
       "geomean": 4.6594,
       "wrong_rtl": 0,
-      "infra": 3,
+      "infra": 2,
       "score_ci": "\u00b133%",
       "correctness_ci": "\u00b133%",
       "runs": [
@@ -3088,9 +3047,9 @@
           "adp": -1.0,
           "stage": "",
           "correctness": "",
-          "duration_s": 150.62,
+          "duration_s": 4694.12,
           "timed_out": false,
-          "error": "provider HTTP 429; resends are listed in transport_retries; no fallback",
+          "error": "provider output maximum reached; partial actions not executed",
           "audit_ok": false,
           "submission_sha256": "",
           "netlist_sha256": "",
@@ -3098,18 +3057,22 @@
           "execution": {
             "kind": "model-evaluation",
             "repository": "arygupt/ADPBench",
-            "run_id": 36265411322,
+            "run_id": 37251812830,
             "run_attempt": 1,
-            "job_id": 108474793134,
-            "commit": "a218a152859ade906e34f719960a2f36b198e183",
-            "completed_at": "2026-09-26T19:52:02Z",
-            "job_conclusion": "failure"
+            "job_id": 111597145054,
+            "commit": "4d2fff4ad19ed4f69303437ece5392a190516739",
+            "completed_at": "2026-10-05T02:56:30Z",
+            "job_conclusion": "success"
           },
           "record_origin": "scorer",
           "generation": {
             "model": "mimo-v2.6-pro",
-            "finish_reason": null,
-            "usage": {},
+            "finish_reason": "length",
+            "usage": {
+              "prompt_tokens": 170364,
+              "completion_tokens": 212374,
+              "total_tokens": 382738
+            },
             "generation_settings": {
               "reasoning": {
                 "enabled": true
@@ -3117,40 +3080,27 @@
               "token_limit_key": "max_completion_tokens"
             },
             "response_diagnostics": null,
-            "error": "provider HTTP 429; resends are listed in transport_retries; no fallback",
+            "error": "provider output maximum reached; partial actions not executed",
             "invalid_rtl": null,
             "evidence_unavailable": null,
             "protocol": "agent-assisted-v2",
-            "outcome": "quota_exhausted",
-            "turns": 1,
+            "outcome": "truncated",
+            "turns": 4,
             "max_turns": 20,
-            "incomplete_usage": true,
+            "incomplete_usage": false,
             "reasoning_measured": {
-              "turns": 0,
-              "turns_with_reasoning": 0,
-              "reasoning_chars": 0,
-              "answer_chars": 0,
-              "reasoning_tokens": null
+              "turns": 4,
+              "turns_with_reasoning": 4,
+              "reasoning_chars": 623893,
+              "answer_chars": 6456,
+              "reasoning_tokens": 210489
             },
-            "try": 1,
-            "transport_retries": [
-              {
-                "turn": 1,
-                "retry": 1,
-                "reason": "http_429",
-                "usage_known": true
-              },
-              {
-                "turn": 1,
-                "retry": 2,
-                "reason": "http_429",
-                "usage_known": true
-              }
-            ],
-            "dev_checks": 0
+            "try": 2,
+            "transport_retries": [],
+            "dev_checks": 1
           },
-          "outcome": "quota_exhausted",
-          "execution_health": "failed"
+          "outcome": "truncated",
+          "execution_health": "completed"
         },
         {
           "label": "opencode-go/mimo-v2.6-pro [agent-assisted-v2]",
@@ -3231,7 +3181,8 @@
       "outcomes": {
         "transport_interrupted": 1,
         "correct": 1,
-        "quota_exhausted": 2
+        "truncated": 1,
+        "quota_exhausted": 1
       },
       "scored": 1,
       "unscored": 3
@@ -3244,8 +3195,8 @@
       "correctness_rate": 0.0,
       "beat_rate": 0.0,
       "geomean": -1.0,
-      "wrong_rtl": 2,
-      "infra": 2,
+      "wrong_rtl": 3,
+      "infra": 1,
       "score_ci": "\u00b124%",
       "correctness_ci": "\u00b124%",
       "runs": [
@@ -3377,71 +3328,63 @@
           "label": "opencode-go/minimax-m2.7 [agent-assisted-v2]",
           "problem": "003_matmul",
           "attempt": 1,
-          "correct": null,
+          "correct": false,
           "ratio": -1.0,
-          "cells": -1,
+          "cells": 60152,
           "cycles": -1,
           "adp": -1.0,
-          "stage": "",
-          "correctness": "",
-          "duration_s": 150.73,
+          "stage": "timeout",
+          "correctness": "timeout in the timing run - DUT never produced a full result",
+          "duration_s": 1526.78,
           "timed_out": false,
-          "error": "provider HTTP 429; resends are listed in transport_retries; no fallback",
-          "audit_ok": false,
-          "submission_sha256": "",
-          "netlist_sha256": "",
+          "error": "",
+          "audit_ok": true,
+          "submission_sha256": "eeac206c3989b6b448703cd91a06d89378844bd606f0ed5dbf1f66c19a40578d",
+          "netlist_sha256": "f3cd75cad00e08510c499f80dec7a77fca77e795725f2220e5085b06ce03bf00",
           "history": 0,
           "execution": {
             "kind": "model-evaluation",
             "repository": "arygupt/ADPBench",
-            "run_id": 36265411322,
+            "run_id": 37251812830,
             "run_attempt": 1,
-            "job_id": 108475012685,
-            "commit": "a218a152859ade906e34f719960a2f36b198e183",
-            "completed_at": "2026-09-26T19:53:20Z",
-            "job_conclusion": "failure"
+            "job_id": 111603841765,
+            "commit": "4d2fff4ad19ed4f69303437ece5392a190516739",
+            "completed_at": "2026-10-05T03:34:45Z",
+            "job_conclusion": "success"
           },
           "record_origin": "scorer",
           "generation": {
             "model": "minimax-m2.7",
-            "finish_reason": null,
-            "usage": {},
+            "finish_reason": "tool_use",
+            "usage": {
+              "input_tokens": 54743,
+              "output_tokens": 18560,
+              "cache_creation_input_tokens": 0,
+              "cache_read_input_tokens": 119581
+            },
             "generation_settings": {},
             "response_diagnostics": null,
-            "error": "provider HTTP 429; resends are listed in transport_retries; no fallback",
+            "error": "",
             "invalid_rtl": null,
             "evidence_unavailable": null,
             "protocol": "agent-assisted-v2",
-            "outcome": "quota_exhausted",
-            "turns": 1,
+            "outcome": "submitted",
+            "turns": 12,
             "max_turns": 20,
-            "incomplete_usage": true,
+            "incomplete_usage": false,
             "reasoning_measured": {
-              "turns": 0,
-              "turns_with_reasoning": 0,
-              "reasoning_chars": 0,
-              "answer_chars": 0,
+              "turns": 12,
+              "turns_with_reasoning": 12,
+              "reasoning_chars": 47036,
+              "answer_chars": 26546,
               "reasoning_tokens": null
             },
-            "try": 1,
-            "transport_retries": [
-              {
-                "turn": 1,
-                "retry": 1,
-                "reason": "http_429",
-                "usage_known": true
-              },
-              {
-                "turn": 1,
-                "retry": 2,
-                "reason": "http_429",
-                "usage_known": true
-              }
-            ],
-            "dev_checks": 0
+            "try": 2,
+            "transport_retries": [],
+            "dev_checks": 3
           },
-          "outcome": "quota_exhausted",
-          "execution_health": "failed"
+          "outcome": "incorrect",
+          "execution_health": "completed"
         },
         {
           "label": "opencode-go/minimax-m2.7 [agent-assisted-v2]",
@@ -3515,11 +3458,11 @@
         }
       ],
       "outcomes": {
-        "incorrect": 2,
-        "quota_exhausted": 2
+        "incorrect": 3,
+        "quota_exhausted": 1
       },
-      "scored": 2,
-      "unscored": 2
+      "scored": 3,
+      "unscored": 1
     },
     {
       "label": "opencode-go/minimax-m3 [agent-assisted-v2]",
@@ -3819,15 +3762,15 @@
     {
       "label": "opencode-go/qwen3.8-flash [agent-assisted-v2]",
       "attempts": 4,
-      "correct": 2,
-      "beating": 2,
-      "correctness_rate": 0.5,
-      "beat_rate": 0.5,
-      "geomean": 3.4036,
+      "correct": 3,
+      "beating": 3,
+      "correctness_rate": 0.75,
+      "beat_rate": 0.75,
+      "geomean": 3.797,
       "wrong_rtl": 0,
-      "infra": 2,
-      "score_ci": "\u00b135%",
-      "correctness_ci": "\u00b135%",
+      "infra": 1,
+      "score_ci": "\u00b133%",
+      "correctness_ci": "\u00b133%",
       "runs": [
         {
           "label": "opencode-go/qwen3.8-flash [agent-assisted-v2]",
@@ -3967,35 +3910,40 @@
           "label": "opencode-go/qwen3.8-flash [agent-assisted-v2]",
           "problem": "003_matmul",
           "attempt": 1,
-          "correct": null,
-          "ratio": -1.0,
-          "cells": -1,
-          "cycles": -1,
-          "adp": -1.0,
-          "stage": "",
-          "correctness": "",
-          "duration_s": 150.86,
+          "correct": true,
+          "ratio": 4.725347329380125,
+          "cells": 16496,
+          "cycles": 176,
+          "adp": 2903296.0,
+          "stage": "ok",
+          "correctness": "exact match on 6 cases",
+          "duration_s": 1768.05,
           "timed_out": false,
-          "error": "provider HTTP 429; resends are listed in transport_retries; no fallback",
-          "audit_ok": false,
-          "submission_sha256": "",
-          "netlist_sha256": "",
+          "error": "",
+          "audit_ok": true,
+          "submission_sha256": "8cba1bce36ed89bb755b80b385ab9a488a7effa5f29bb1a9d05efa56f5d3bb17",
+          "netlist_sha256": "8e794e0586516101f87b8d27084d2589cc4c6e1308f84bffe8910e570fe1809f",
           "history": 0,
           "execution": {
             "kind": "model-evaluation",
             "repository": "arygupt/ADPBench",
-            "run_id": 36265411322,
+            "run_id": 37251812830,
             "run_attempt": 1,
-            "job_id": 108474885643,
-            "commit": "a218a152859ade906e34f719960a2f36b198e183",
-            "completed_at": "2026-09-26T19:52:32Z",
-            "job_conclusion": "failure"
+            "job_id": 111598180041,
+            "commit": "4d2fff4ad19ed4f69303437ece5392a190516739",
+            "completed_at": "2026-10-05T03:02:41Z",
+            "job_conclusion": "success"
           },
           "record_origin": "scorer",
           "generation": {
             "model": "qwen3.8-flash",
-            "finish_reason": null,
-            "usage": {},
+            "finish_reason": "tool_use",
+            "usage": {
+              "input_tokens": 88790,
+              "output_tokens": 94154,
+              "cache_creation_input_tokens": 0,
+              "cache_read_input_tokens": 571648
+            },
             "generation_settings": {
               "thinking": {
                 "type": "enabled",
@@ -4003,40 +3951,27 @@
               }
             },
             "response_diagnostics": null,
-            "error": "provider HTTP 429; resends are listed in transport_retries; no fallback",
+            "error": "",
             "invalid_rtl": null,
             "evidence_unavailable": null,
             "protocol": "agent-assisted-v2",
-            "outcome": "quota_exhausted",
-            "turns": 1,
+            "outcome": "submitted",
+            "turns": 13,
             "max_turns": 20,
-            "incomplete_usage": true,
+            "incomplete_usage": false,
             "reasoning_measured": {
-              "turns": 0,
-              "turns_with_reasoning": 0,
-              "reasoning_chars": 0,
-              "answer_chars": 0,
+              "turns": 13,
+              "turns_with_reasoning": 13,
+              "reasoning_chars": 221420,
+              "answer_chars": 60768,
               "reasoning_tokens": null
             },
-            "try": 1,
-            "transport_retries": [
-              {
-                "turn": 1,
-                "retry": 1,
-                "reason": "http_429",
-                "usage_known": true
-              },
-              {
-                "turn": 1,
-                "retry": 2,
-                "reason": "http_429",
-                "usage_known": true
-              }
-            ],
-            "dev_checks": 0
+            "try": 2,
+            "transport_retries": [],
+            "dev_checks": 3
           },
-          "outcome": "quota_exhausted",
-          "execution_health": "failed"
+          "outcome": "correct",
+          "execution_health": "completed"
         },
         {
           "label": "opencode-go/qwen3.8-flash [agent-assisted-v2]",
@@ -4115,24 +4050,24 @@
         }
       ],
       "outcomes": {
-        "correct": 2,
-        "quota_exhausted": 2
+        "correct": 3,
+        "quota_exhausted": 1
       },
-      "scored": 2,
-      "unscored": 2
+      "scored": 3,
+      "unscored": 1
     },
     {
       "label": "opencode-go/qwen3.8-max [agent-assisted-v2]",
       "attempts": 4,
-      "correct": 2,
-      "beating": 2,
-      "correctness_rate": 0.5,
-      "beat_rate": 0.5,
-      "geomean": 4.4812,
+      "correct": 3,
+      "beating": 3,
+      "correctness_rate": 0.75,
+      "beat_rate": 0.75,
+      "geomean": 5.3328,
       "wrong_rtl": 0,
-      "infra": 2,
-      "score_ci": "\u00b135%",
-      "correctness_ci": "\u00b135%",
+      "infra": 1,
+      "score_ci": "\u00b133%",
+      "correctness_ci": "\u00b133%",
       "runs": [
         {
           "label": "opencode-go/qwen3.8-max [agent-assisted-v2]",
@@ -4272,35 +4207,40 @@
           "label": "opencode-go/qwen3.8-max [agent-assisted-v2]",
           "problem": "003_matmul",
           "attempt": 1,
-          "correct": null,
-          "ratio": -1.0,
-          "cells": -1,
-          "cycles": -1,
-          "adp": -1.0,
-          "stage": "",
-          "correctness": "",
-          "duration_s": 150.95,
+          "correct": true,
+          "ratio": 7.552348100666545,
+          "cells": 12442,
+          "cycles": 146,
+          "adp": 1816532.0,
+          "stage": "ok",
+          "correctness": "exact match on 6 cases",
+          "duration_s": 2433.95,
           "timed_out": false,
-          "error": "provider HTTP 429; resends are listed in transport_retries; no fallback",
-          "audit_ok": false,
-          "submission_sha256": "",
-          "netlist_sha256": "",
+          "error": "",
+          "audit_ok": true,
+          "submission_sha256": "fb8d4443d73e8de7ee680754876accf75cc3f5efcd8ae37d022084a906b1d926",
+          "netlist_sha256": "2ad11aa9c18c3854254aacdf16005627e587d93de42d87f064ef363ba64c0331",
           "history": 0,
           "execution": {
             "kind": "model-evaluation",
             "repository": "arygupt/ADPBench",
-            "run_id": 36265411322,
+            "run_id": 37251812830,
             "run_attempt": 1,
-            "job_id": 108474655369,
-            "commit": "a218a152859ade906e34f719960a2f36b198e183",
-            "completed_at": "2026-09-26T19:50:55Z",
-            "job_conclusion": "failure"
+            "job_id": 111589720030,
+            "commit": "4d2fff4ad19ed4f69303437ece5392a190516739",
+            "completed_at": "2026-10-05T02:19:56Z",
+            "job_conclusion": "success"
           },
           "record_origin": "scorer",
           "generation": {
             "model": "qwen3.8-max",
-            "finish_reason": null,
-            "usage": {},
+            "finish_reason": "tool_use",
+            "usage": {
+              "input_tokens": 78568,
+              "output_tokens": 73288,
+              "cache_creation_input_tokens": 0,
+              "cache_read_input_tokens": 330880
+            },
             "generation_settings": {
               "thinking": {
                 "type": "enabled",
@@ -4308,40 +4248,40 @@
               }
             },
             "response_diagnostics": null,
-            "error": "provider HTTP 429; resends are listed in transport_retries; no fallback",
+            "error": "",
             "invalid_rtl": null,
             "evidence_unavailable": null,
             "protocol": "agent-assisted-v2",
-            "outcome": "quota_exhausted",
-            "turns": 1,
+            "outcome": "submitted",
+            "turns": 11,
             "max_turns": 20,
             "incomplete_usage": true,
             "reasoning_measured": {
-              "turns": 0,
-              "turns_with_reasoning": 0,
-              "reasoning_chars": 0,
-              "answer_chars": 0,
+              "turns": 11,
+              "turns_with_reasoning": 11,
+              "reasoning_chars": 195738,
+              "answer_chars": 47198,
               "reasoning_tokens": null
             },
-            "try": 1,
+            "try": 2,
             "transport_retries": [
               {
-                "turn": 1,
+                "turn": 5,
                 "retry": 1,
-                "reason": "http_429",
-                "usage_known": true
+                "reason": "stream_disconnected_before_terminal_event",
+                "usage_known": false
               },
               {
-                "turn": 1,
+                "turn": 5,
                 "retry": 2,
-                "reason": "http_429",
-                "usage_known": true
+                "reason": "stream_disconnected_before_terminal_event",
+                "usage_known": false
               }
             ],
-            "dev_checks": 0
+            "dev_checks": 3
           },
-          "outcome": "quota_exhausted",
-          "execution_health": "failed"
+          "outcome": "correct",
+          "execution_health": "completed"
         },
         {
           "label": "opencode-go/qwen3.8-max [agent-assisted-v2]",
@@ -4420,11 +4360,11 @@
         }
       ],
       "outcomes": {
-        "correct": 2,
-        "quota_exhausted": 2
+        "correct": 3,
+        "quota_exhausted": 1
       },
-      "scored": 2,
-      "unscored": 2
+      "scored": 3,
+      "unscored": 1
     }
   ]
 }

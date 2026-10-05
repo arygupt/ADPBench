@@ -1,0 +1,73 @@
+{
+  "model": "kimi-k2.6",
+  "problem": "003_matmul",
+  "protocol": "agent-assisted-v2",
+  "started": "2026-10-05T02:57:00.408132+00:00",
+  "generation_state": "completed",
+  "outcome": "submitted",
+  "error": "",
+  "turns": 11,
+  "checks": 3,
+  "max_turns": 20,
+  "max_checks": 3,
+  "max_output_tokens": 65536,
+  "usage": {
+    "prompt_tokens": 598379,
+    "completion_tokens": 85334,
+    "total_tokens": 683713
+  },
+  "incomplete_usage": false,
+  "generation_settings": {
+    "thinking": {
+      "type": "enabled"
+    }
+  },
+  "reasoning_measured": {
+    "turns": 11,
+    "turns_with_reasoning": 11,
+    "reasoning_chars": 252076,
+    "answer_chars": 44677,
+    "reasoning_tokens": 73486
+  },
+  "github": {
+    "GITHUB_REPOSITORY": "arygupt/ADPBench",
+    "GITHUB_RUN_ID": "37251812830",
+    "GITHUB_RUN_ATTEMPT": "1",
+    "GITHUB_SHA": "4d2fff4ad19ed4f69303437ece5392a190516739"
+  },
+  "attempt": 1,
+  "try": 2,
+  "transport_retries": [],
+  "finish_reason": "tool_calls",
+  "writes": 5,
+  "development_checks": [
+    {
+      "index": 1,
+      "submission_sha256": "56d45e6c6bfdd80d8852191a7d5f3195dbc1d1286dc087f7d63d7110412fdbad",
+      "completed": true,
+      "correct": false,
+      "reason": "",
+      "audit_ok": true
+    },
+    {
+      "index": 2,
+      "submission_sha256": "3e2d8d2518add01e0c50dce4412f57fd319012ab02a615818a2778733164cd54",
+      "completed": true,
+      "correct": true,
+      "reason": "",
+      "audit_ok": true
+    },
+    {
+      "index": 3,
+      "submission_sha256": "e9713d50377c7f2fa7fe8c28b31b7dac4a12be5ddd01dc24749fe5d88ba7811c",
+      "completed": true,
+      "correct": true,
+      "reason": "",
+      "audit_ok": true
+    }
+  ],
+  "submission_sha256": "e9713d50377c7f2fa7fe8c28b31b7dac4a12be5ddd01dc24749fe5d88ba7811c",
+  "final_revision_checked": true,
+  "duration_s": 2373.83,
+  "execution_health": "completed"
+}
