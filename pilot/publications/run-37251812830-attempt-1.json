@@ -1,0 +1,129 @@
+{
+  "schema_version": 1,
+  "kind": "validated-model-results-publication",
+  "source_run_id": 37251812830,
+  "source_attempt": 1,
+  "source_commit": "4d2fff4ad19ed4f69303437ece5392a190516739",
+  "source_workflow": ".github/workflows/go-agent.yml",
+  "dataset": "go-agent-v2-r1",
+  "try": 2,
+  "confirmed_correct": 9,
+  "result_slots": 11,
+  "artifacts": [
+    {
+      "id": 11322371491,
+      "name": "go-agent-records-qwen3.8-max-003_matmul-37251812830",
+      "digest": "sha256:054770cb22b055924e7ac65ea5905d542a6a5f650a3fc44a0fc37b3da25634e1"
+    },
+    {
+      "id": 11322913854,
+      "name": "go-agent-records-mimo-v2.6-pro-003_matmul-37251812830",
+      "digest": "sha256:1203cbabffe1bd7576419128f08a2b91aec0c85ff019f843d9986d4f0fe4bf83"
+    },
+    {
+      "id": 11323085318,
+      "name": "go-agent-records-mimo-v2.5-003_matmul-37251812830",
+      "digest": "sha256:46e4d6e5c2ddffa5da5843a151ef59eb947442e2c23c91c7e90569971ce8b134"
+    },
+    {
+      "id": 11322766744,
+      "name": "go-agent-records-deepseek-v4.1-flash-003_matmul-37251812830",
+      "digest": "sha256:375641ff0fd2028cb783df00057e81b5e4bfaa84ec3abae7291d1c5d84624606"
+    },
+    {
+      "id": 11322754937,
+      "name": "go-agent-records-qwen3.8-flash-003_matmul-37251812830",
+      "digest": "sha256:b5223d50cf515c1af841564dfd42e495180aad91082c5c8f82f02fe736a87374"
+    },
+    {
+      "id": 11322914951,
+      "name": "go-agent-records-glm-5.3-flash-003_matmul-37251812830",
+      "digest": "sha256:ed025ef8873ad0e9d32a8bb44b0a8edddd58649cd08b6858fcb2896a0686732c"
+    },
+    {
+      "id": 11323648688,
+      "name": "go-agent-records-kimi-k2.6-003_matmul-37251812830",
+      "digest": "sha256:8d0af07e5c7863455754d48f53568cb241d1b8db3b82fda66dd43a6c1a7c2c9d"
+    },
+    {
+      "id": 11324103479,
+      "name": "go-agent-records-minimax-m2.7-003_matmul-37251812830",
+      "digest": "sha256:a93bdd720676f5b1252bbf03cbbd201a51f29dc05454d9aee2051b4930eeb49b"
+    },
+    {
+      "id": 11323103105,
+      "name": "go-agent-records-gpt-6-luna-004_conv1d-37251812830",
+      "digest": "sha256:233853c6789795672a798d987069b01f45bd58fc92bba24cde72255dc0525599"
+    },
+    {
+      "id": 11323912865,
+      "name": "go-agent-records-grok-4.7-004_conv1d-37251812830",
+      "digest": "sha256:48a9e7853e100f83db4cafb7bfa15b19987c0633734cdc4bb4e9150e664ef9b7"
+    },
+    {
+      "id": 11324491232,
+      "name": "go-agent-generation-kimi-k3-004_conv1d-37251812830",
+      "digest": "sha256:4cc5d8993eebf9049b74347b025978278553bdc1e49669135a009223b1baa454"
+    },
+    {
+      "id": 11324545961,
+      "name": "go-agent-records-deepseek-v4-pro-004_conv1d-37251812830",
+      "digest": "sha256:2692bdf0b72db8215e84d2ec5fe198e833108f2571a641f1794b9b064b582fb6"
+    },
+    {
+      "id": 11324700856,
+      "name": "go-agent-generation-glm-5.3-004_conv1d-37251812830",
+      "digest": "sha256:c379f3d5889a12249023232509843f27361dbddbb413b5db05aece8ceab3f67e"
+    },
+    {
+      "id": 11324921231,
+      "name": "go-agent-generation-qwen3.8-max-004_conv1d-37251812830",
+      "digest": "sha256:b65c35675bcd2370877d583f1b31b7e64a3b43a50bf903dbb6c7c2933cc6e22b"
+    }
+  ],
+  "record_file_sha256": {
+    "opencode-go-deepseek-v4-pro/004_conv1d/rep1-t2/generation.json": "d35f6d61f5b30baedfc986c812a29fe15351c1cca71604f8283b655da8aef28d",
+    "opencode-go-deepseek-v4-pro/004_conv1d/rep1-t2/manifest.json": "a8b037317bcd1122b9c2ac3201d8b3610ec7f5a382fe5a9ec625810088c220b8",
+    "opencode-go-deepseek-v4-pro/004_conv1d/rep1-t2/record.json": "8c251412d91f11445e9f9c68a792996de28e067589c93432d2f795a602331214",
+    "opencode-go-deepseek-v4-pro/004_conv1d/rep1-t2_frozen/dut.v": "3b11e8ab7a63e8130d80c46ea8c0afd08a07bc03d9855448889cd1bb2b2661d2",
+    "opencode-go-deepseek-v4.1-flash/003_matmul/rep1-t2/generation.json": "e1a3f71cdec5d9c31c1c7290249fa11e9492f4c4b33f569c29c81d5abd9ae6fe",
+    "opencode-go-deepseek-v4.1-flash/003_matmul/rep1-t2/manifest.json": "5de03c69af38e441ee6982dab25130714eff9986aeb653dd84692136bbab58da",
+    "opencode-go-deepseek-v4.1-flash/003_matmul/rep1-t2/record.json": "168c00f22305133a08c42dcccf7efeb0b40e73e1070aee6ef5f975fde01e3978",
+    "opencode-go-deepseek-v4.1-flash/003_matmul/rep1-t2_frozen/dut.v": "1530cf559ef2ba47ea4bdb1e78f2f1a22dd4d7d260e2113bac64e3873f47f885",
+    "opencode-go-glm-5.3-flash/003_matmul/rep1-t2/generation.json": "2566312662661ce232aa16b8704d9624e35d95ade7cd16dea168772411a39c8b",
+    "opencode-go-glm-5.3-flash/003_matmul/rep1-t2/manifest.json": "f653c7532c0b0a9f0a85cc2cadcf483202b4ee63f95d04920b1801ffcec31cdd",
+    "opencode-go-glm-5.3-flash/003_matmul/rep1-t2/record.json": "e9cb48c45b68d288f3a261d860a77324f35a97679ae2922ebca483f92bcc7b1e",
+    "opencode-go-glm-5.3-flash/003_matmul/rep1-t2_frozen/dut.v": "b5dddd88faf966cf399ee9d194d2ca41084c3a256ce0620286b4ee884a1d6c06",
+    "opencode-go-gpt-6-luna/004_conv1d/rep1-t2/generation.json": "391cc4e35e9042e4b0bdc922fd9e3985e4480126590a6c14251641d6f7f96eeb",
+    "opencode-go-gpt-6-luna/004_conv1d/rep1-t2/manifest.json": "33f7c943582875f2a8944e47d6ee2e1d36c2c7a165aaf79ad11db86d29684489",
+    "opencode-go-gpt-6-luna/004_conv1d/rep1-t2/record.json": "c93261a49475a18ceee267050100e0f30068d463d4788238cc6cdab963fad33b",
+    "opencode-go-gpt-6-luna/004_conv1d/rep1-t2_frozen/dut.v": "af34d18257d78c0834b3392c26d7e68ca3a54eff5d98dd9626d8051c4d977d82",
+    "opencode-go-grok-4.7/004_conv1d/rep1-t2/generation.json": "0eff60b591e444250bb6b771c42ff26992a115f279b0d51c60af7ca9c842d4cd",
+    "opencode-go-grok-4.7/004_conv1d/rep1-t2/manifest.json": "990ad770b434fc692e4708bb54011a51af53eb75507316461e7b238914dbb5e1",
+    "opencode-go-grok-4.7/004_conv1d/rep1-t2/record.json": "23e94ba6803774f66d17527d324b6b43b95fb19e0c5ca8bda77c591dafc08b76",
+    "opencode-go-grok-4.7/004_conv1d/rep1-t2_frozen/dut.v": "6798d7b0ffc10f79ec38f33b5582b60534838c7b132757433b8ff187f4146aaa",
+    "opencode-go-kimi-k2.6/003_matmul/rep1-t2/generation.json": "1d7e18dd9362abe476efd85d300dc896a1c72c57a27c579b77412897ebd79526",
+    "opencode-go-kimi-k2.6/003_matmul/rep1-t2/manifest.json": "88d2b24f35e198cfc1f857e2f4416d70279b3a195910d678cdd9ce0328557e8f",
+    "opencode-go-kimi-k2.6/003_matmul/rep1-t2/record.json": "920d42ab9365dff6bc1e05796441554cdfecf7a61591305f27acb64e15dccc0a",
+    "opencode-go-kimi-k2.6/003_matmul/rep1-t2_frozen/dut.v": "e9713d50377c7f2fa7fe8c28b31b7dac4a12be5ddd01dc24749fe5d88ba7811c",
+    "opencode-go-mimo-v2.5/003_matmul/rep1-t2/generation.json": "331ba20eab42acaa200b0c5541d1477183ac4fb9d04a7a0c3cfb370b947bbad6",
+    "opencode-go-mimo-v2.5/003_matmul/rep1-t2/manifest.json": "1d404d1fd6ce6c343f548e4ecc5a4721f074b4d5d99285bffb3e2fe3756d497f",
+    "opencode-go-mimo-v2.5/003_matmul/rep1-t2/record.json": "046527c1254e54694ce34ddd01f75a65501406f0f1181af5dfea9766f5f94b74",
+    "opencode-go-mimo-v2.5/003_matmul/rep1-t2_frozen/dut.v": "51b3a2cca4135fe8ee213b5d2af6c0670da60846840a7d1adaaf440ae4efdc7f",
+    "opencode-go-mimo-v2.6-pro/003_matmul/rep1-t2/generation.json": "37817226f94770779aba3ca8ef61c18eeb7f6aff62f33ac66aab1b00c9fc3fee",
+    "opencode-go-mimo-v2.6-pro/003_matmul/rep1-t2/manifest.json": "a568c37d63dc229f6f8f1554e1c72ee34d93384bd8ba03d3b1dcf1dc14141620",
+    "opencode-go-mimo-v2.6-pro/003_matmul/rep1-t2/record.json": "d6ee1239849a7cd36d7e2f52851b925c4ca38131db814c63532ecf7ca8d8dcbb",
+    "opencode-go-minimax-m2.7/003_matmul/rep1-t2/generation.json": "95194daf04688d70ee1c2755fd8b6fa34b2157cd631584bdf140705ebb3552c6",
+    "opencode-go-minimax-m2.7/003_matmul/rep1-t2/manifest.json": "e150aa66f4567f13caf1f5a4bb5c99abff816b671002c72ae672f4953a340c06",
+    "opencode-go-minimax-m2.7/003_matmul/rep1-t2/record.json": "6dd667d20936498712c1ce1e8205c4dce215ce90e96a72b0e63577006c26b48b",
+    "opencode-go-minimax-m2.7/003_matmul/rep1-t2_frozen/dut.v": "eeac206c3989b6b448703cd91a06d89378844bd606f0ed5dbf1f66c19a40578d",
+    "opencode-go-qwen3.8-flash/003_matmul/rep1-t2/generation.json": "9a196ce9aa0c69acf9edd703f31549b3815cda2198ee56700e9be9575a8ca22f",
+    "opencode-go-qwen3.8-flash/003_matmul/rep1-t2/manifest.json": "8719c13db8ee4a5c153da1bc088d547f701d94f5b0b5b9d5ccc8c451aee6d2cd",
+    "opencode-go-qwen3.8-flash/003_matmul/rep1-t2/record.json": "af9b9711c8baf7b57789f29af3c89e03906c0b4e3602f68ccccc7a86094be05c",
+    "opencode-go-qwen3.8-flash/003_matmul/rep1-t2_frozen/dut.v": "8cba1bce36ed89bb755b80b385ab9a488a7effa5f29bb1a9d05efa56f5d3bb17",
+    "opencode-go-qwen3.8-max/003_matmul/rep1-t2/generation.json": "0faae53681d864bfacfc630f05325dd6789e0420081cf9fc44f2f2dcc04b35aa",
+    "opencode-go-qwen3.8-max/003_matmul/rep1-t2/manifest.json": "88846d94fcc04c8dc14f06f9725516ca8afd71c54b28b62a845d445f1e861877",
+    "opencode-go-qwen3.8-max/003_matmul/rep1-t2/record.json": "0434347adf672f2128cdf5076b6be4f04c975e7eb77d686024505710e433b2f6",
+    "opencode-go-qwen3.8-max/003_matmul/rep1-t2_frozen/dut.v": "fb8d4443d73e8de7ee680754876accf75cc3f5efcd8ae37d022084a906b1d926"
+  }
+}

@@ -1,0 +1,56 @@
+{
+  "model": "mimo-v2.6-pro",
+  "problem": "003_matmul",
+  "protocol": "agent-assisted-v2",
+  "started": "2026-10-05T01:37:42.499650+00:00",
+  "generation_state": "failed",
+  "outcome": "truncated",
+  "error": "provider output maximum reached; partial actions not executed",
+  "turns": 4,
+  "checks": 1,
+  "max_turns": 20,
+  "max_checks": 3,
+  "max_output_tokens": 131072,
+  "usage": {
+    "prompt_tokens": 170364,
+    "completion_tokens": 212374,
+    "total_tokens": 382738
+  },
+  "incomplete_usage": false,
+  "generation_settings": {
+    "reasoning": {
+      "enabled": true
+    },
+    "token_limit_key": "max_completion_tokens"
+  },
+  "reasoning_measured": {
+    "turns": 4,
+    "turns_with_reasoning": 4,
+    "reasoning_chars": 623893,
+    "answer_chars": 6456,
+    "reasoning_tokens": 210489
+  },
+  "github": {
+    "GITHUB_REPOSITORY": "arygupt/ADPBench",
+    "GITHUB_RUN_ID": "37251812830",
+    "GITHUB_RUN_ATTEMPT": "1",
+    "GITHUB_SHA": "4d2fff4ad19ed4f69303437ece5392a190516739"
+  },
+  "attempt": 1,
+  "try": 2,
+  "transport_retries": [],
+  "finish_reason": "length",
+  "writes": 1,
+  "development_checks": [
+    {
+      "index": 1,
+      "submission_sha256": "b6338d9a35f022c8ea2526fcfed8814713419ddb9203c3b6c1f645c98451cd14",
+      "completed": true,
+      "correct": true,
+      "reason": "",
+      "audit_ok": true
+    }
+  ],
+  "duration_s": 4694.12,
+  "execution_health": "completed"
+}

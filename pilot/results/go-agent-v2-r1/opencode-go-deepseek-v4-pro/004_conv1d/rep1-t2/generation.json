@@ -1,0 +1,66 @@
+{
+  "model": "deepseek-v4-pro",
+  "problem": "004_conv1d",
+  "protocol": "agent-assisted-v2",
+  "started": "2026-10-05T03:35:18.602873+00:00",
+  "generation_state": "completed",
+  "outcome": "submitted",
+  "error": "",
+  "turns": 6,
+  "checks": 2,
+  "max_turns": 20,
+  "max_checks": 3,
+  "max_output_tokens": 384000,
+  "usage": {
+    "prompt_tokens": 154125,
+    "completion_tokens": 40926,
+    "total_tokens": 195051
+  },
+  "incomplete_usage": false,
+  "generation_settings": {
+    "thinking": {
+      "type": "enabled"
+    },
+    "reasoning_effort": "high"
+  },
+  "reasoning_measured": {
+    "turns": 6,
+    "turns_with_reasoning": 6,
+    "reasoning_chars": 119499,
+    "answer_chars": 13488,
+    "reasoning_tokens": 36271
+  },
+  "github": {
+    "GITHUB_REPOSITORY": "arygupt/ADPBench",
+    "GITHUB_RUN_ID": "37251812830",
+    "GITHUB_RUN_ATTEMPT": "1",
+    "GITHUB_SHA": "4d2fff4ad19ed4f69303437ece5392a190516739"
+  },
+  "attempt": 1,
+  "try": 2,
+  "transport_retries": [],
+  "finish_reason": "tool_calls",
+  "writes": 2,
+  "development_checks": [
+    {
+      "index": 1,
+      "submission_sha256": "ada6045b3b543662e84831cf510d9250e4719179daa33cd65c8c4be1b1d35295",
+      "completed": true,
+      "correct": true,
+      "reason": "",
+      "audit_ok": true
+    },
+    {
+      "index": 2,
+      "submission_sha256": "3b11e8ab7a63e8130d80c46ea8c0afd08a07bc03d9855448889cd1bb2b2661d2",
+      "completed": true,
+      "correct": true,
+      "reason": "",
+      "audit_ok": true
+    }
+  ],
+  "submission_sha256": "3b11e8ab7a63e8130d80c46ea8c0afd08a07bc03d9855448889cd1bb2b2661d2",
+  "final_revision_checked": true,
+  "duration_s": 686.39,
+  "execution_health": "completed"
+}
