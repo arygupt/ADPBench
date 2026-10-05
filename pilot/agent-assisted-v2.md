@@ -199,8 +199,10 @@ wave's results PR before dispatching the next, since every wave rebuilds the
 same leaderboard. For round 1 the waves with finished slots are 36328258003,
 36496973482 and 36562354781.
 
-Round 1 is published with those three waves (PRs #37, #47–#49), but the site
-keeps showing the v1 leaderboard until its last 22 slots finish: the site
-shows the first agent-assisted entry in `site/data/evaluations.json`, and
-unfinished slots would count as infrastructure failures in every rate. Move
-`go-agent-v2-r1` back to the top of that list once the round is complete.
+Round 1 is complete and live. The rerun's third window ran its last 22 slots
+in two waves (37251812830 and 37273058093, PRs #55 and #56), so every one of
+the 56 paid slots has a final result: 44 correct, 6 incorrect, and 3 that
+stopped for other reasons, with 3 infrastructure failures left on slots that
+had already used their one rerun. `go-agent-v2-r1` is the first entry in
+`site/data/evaluations.json`, which is the dataset the site shows; the free
+models' dataset, `go-agent-v2-r1-free`, stays published below v1.
