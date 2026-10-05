@@ -1,0 +1,113 @@
+{
+  "schema_version": 1,
+  "kind": "validated-model-results-publication",
+  "source_run_id": 37273058093,
+  "source_attempt": 1,
+  "source_commit": "31d8b7ab9855dfac4fbc68a2764a1caf9e7c1ab6",
+  "source_workflow": ".github/workflows/go-agent.yml",
+  "dataset": "go-agent-v2-r1",
+  "try": 2,
+  "confirmed_correct": 7,
+  "result_slots": 11,
+  "artifacts": [
+    {
+      "id": 11330505493,
+      "name": "go-agent-records-kimi-k3-004_conv1d-37273058093",
+      "digest": "sha256:319dd3f9bafe261e5ff310a197b5053c00fb8cd5aa148cca3270874642056738"
+    },
+    {
+      "id": 11330163428,
+      "name": "go-agent-records-glm-5.3-004_conv1d-37273058093",
+      "digest": "sha256:14711883bb2a028992db55b331a6804454fc16f173f2a32d24980e8aaec1c994"
+    },
+    {
+      "id": 11330291236,
+      "name": "go-agent-records-qwen3.8-max-004_conv1d-37273058093",
+      "digest": "sha256:1dab835b16d8d43809db6c68697304d351f66517e4776d0c485b59d61bac3b26"
+    },
+    {
+      "id": 11332141811,
+      "name": "go-agent-records-minimax-m3-004_conv1d-37273058093",
+      "digest": "sha256:8a26e629239af1f971a275c4a4b1ceff387dda058b9970be1f7958fa62263ce1"
+    },
+    {
+      "id": 11332732317,
+      "name": "go-agent-records-mimo-v2.6-pro-004_conv1d-37273058093",
+      "digest": "sha256:1fed97c4aee45d570505a097418e7a6a818603d6bde34c4cc90ec73c85fc8ace"
+    },
+    {
+      "id": 11332785022,
+      "name": "go-agent-records-mimo-v2.5-004_conv1d-37273058093",
+      "digest": "sha256:f4829aa259cd055b59fe3a304a786a8660b5f5a3c62fbd80a32655e153099842"
+    },
+    {
+      "id": 11333905808,
+      "name": "go-agent-records-deepseek-v4.1-flash-004_conv1d-37273058093",
+      "digest": "sha256:69e5311ea0c6982f989f75c20f6832e41538457ed0597d70c82e1c917aa6f155"
+    },
+    {
+      "id": 11334735207,
+      "name": "go-agent-records-qwen3.8-flash-004_conv1d-37273058093",
+      "digest": "sha256:69b8f985a4353ad484ff5262909824491fdd2789673e3b4378310ed56ee91b6b"
+    },
+    {
+      "id": 11333258280,
+      "name": "go-agent-records-glm-5.3-flash-004_conv1d-37273058093",
+      "digest": "sha256:3434871ab9091d09bb9125f75fb4ac35b53a6460acbdfa67bb605787fb809a62"
+    },
+    {
+      "id": 11333988178,
+      "name": "go-agent-records-kimi-k2.6-004_conv1d-37273058093",
+      "digest": "sha256:cc6be6149933b447f953ac0d2219ad24ee50adbc8e7eca651cc22df18ccf0486"
+    },
+    {
+      "id": 11335235228,
+      "name": "go-agent-records-minimax-m2.7-004_conv1d-37273058093",
+      "digest": "sha256:f3013411131a5dc8c546e35e4f6b72b760fabb78b89b5493aad93448c0fb0de3"
+    }
+  ],
+  "record_file_sha256": {
+    "opencode-go-deepseek-v4.1-flash/004_conv1d/rep1-t2/generation.json": "3f810a6d86d7b4405879dece2519a9119bb118d508619fd12219152b2afb0d8c",
+    "opencode-go-deepseek-v4.1-flash/004_conv1d/rep1-t2/manifest.json": "ec5f67ebbe301d09b9f93857febe0a1ff0bfd22fd99e4c81ea4b37d4421b10a9",
+    "opencode-go-deepseek-v4.1-flash/004_conv1d/rep1-t2/record.json": "dd4a263f4ee755d19aa1652f111b12f6639c54f92506d2a218b6784f8ed8a642",
+    "opencode-go-deepseek-v4.1-flash/004_conv1d/rep1-t2_frozen/dut.v": "7543c17212649c00bad0b6991139fa321c2a5742d556478d34a0ec3e18e01024",
+    "opencode-go-glm-5.3/004_conv1d/rep1-t2/generation.json": "f03191c3ff7edf3bece9abef19456acd7475fb23be635591ce190036d82eb053",
+    "opencode-go-glm-5.3/004_conv1d/rep1-t2/manifest.json": "0b09c7110318a9990ff776c37e7d650e1be47e8b6655386cf0bdc0eb96d13981",
+    "opencode-go-glm-5.3/004_conv1d/rep1-t2/record.json": "3919f55c1e34ea8f234799e3d06b914d546cd923d15889e1dcf4f392321b8961",
+    "opencode-go-glm-5.3/004_conv1d/rep1-t2_frozen/dut.v": "d6b62e530e4b554df39aa1cf014da8aff06ee84eadf3a0c6d04f2e6d970bbaac",
+    "opencode-go-glm-5.3-flash/004_conv1d/rep1-t2/generation.json": "b9748ef04943e64462410a617278af26d5050e4a109ec994a717703c78869dd9",
+    "opencode-go-glm-5.3-flash/004_conv1d/rep1-t2/manifest.json": "c5107d86e4cce80819f51e9eaaf2e341edf50408431b94bfa673c3385cf0a686",
+    "opencode-go-glm-5.3-flash/004_conv1d/rep1-t2/record.json": "7e5c343c93b7042633fe984daa351eb5aa329a8bd10f0d00868aacc0df55fb60",
+    "opencode-go-kimi-k2.6/004_conv1d/rep1-t2/generation.json": "1f517ccd4bd52fc39fd034ccf3f0497467116643271bdc74d9f3ea592657a987",
+    "opencode-go-kimi-k2.6/004_conv1d/rep1-t2/manifest.json": "fe39c56f1dd77bf2034541bfbe8035c6261b9f38c13859ee5b85d1560b7688cf",
+    "opencode-go-kimi-k2.6/004_conv1d/rep1-t2/record.json": "6d72b920de3825e18344a3fee4af143f4dfa7c1b67fce67beb24eb900500df37",
+    "opencode-go-kimi-k2.6/004_conv1d/rep1-t2_frozen/dut.v": "3fd4541dcaf058e7c4c2a033aaf319b0be4401e33f5c6bf2767237e76b0c11c0",
+    "opencode-go-kimi-k3/004_conv1d/rep1-t2/generation.json": "63387830bfb197a2c3814d7ebb89b4a75599a5bb65f212fc334bc499d3fea33c",
+    "opencode-go-kimi-k3/004_conv1d/rep1-t2/manifest.json": "183e9db8b46958153855474313f00a2693633110c8f79e4f209aa412ca7a0e9f",
+    "opencode-go-kimi-k3/004_conv1d/rep1-t2/record.json": "9c26f8355eac0fc785a3823bd6e519618680dab49d24b0894067e116d74789ad",
+    "opencode-go-kimi-k3/004_conv1d/rep1-t2_frozen/dut.v": "f68a5b8a38cd5290314a7484dda896626825120dacf40fa9f9899aa6309e2701",
+    "opencode-go-mimo-v2.5/004_conv1d/rep1-t2/generation.json": "ea661c3a5ff6927b2d24f2f3d606bb5e9cc7bc2a7d79a37b3931cf1283915888",
+    "opencode-go-mimo-v2.5/004_conv1d/rep1-t2/manifest.json": "a1db1f9d1e4e880c8f80b41f6ce318e9cd9cd03cf33861ede9e1a794ae76888d",
+    "opencode-go-mimo-v2.5/004_conv1d/rep1-t2/record.json": "03952d31aa2011765da5b48ca9a9ca7f699314f522c6619e9f8b31ce199b0ae3",
+    "opencode-go-mimo-v2.5/004_conv1d/rep1-t2_frozen/dut.v": "b77931d49fb1d497e05eb4745d4db587d0dab98349008d0ab9a965618509a81d",
+    "opencode-go-mimo-v2.6-pro/004_conv1d/rep1-t2/generation.json": "60c84f3f092a10690629146f4c4a769527ec721d4f391c2d69c3ae1035886a4b",
+    "opencode-go-mimo-v2.6-pro/004_conv1d/rep1-t2/manifest.json": "2f9759c09d2d65e069c73b34d66e1be49d7d50cc4798a8b87097c3fe3430f6f9",
+    "opencode-go-mimo-v2.6-pro/004_conv1d/rep1-t2/record.json": "c48327c6ee86dd25fb038a70f78f2437ea86552fa93840a7b18b4a5f6d6121bd",
+    "opencode-go-mimo-v2.6-pro/004_conv1d/rep1-t2_frozen/dut.v": "3fdd208c736cb2890b864f25215978db3ebb048008b62bc7c88975f41ee7abc1",
+    "opencode-go-minimax-m2.7/004_conv1d/rep1-t2/generation.json": "72a3d82fb0b48cbdf5c95567f0cb008b3c403d6a9e4f0c801901841a5c1d79af",
+    "opencode-go-minimax-m2.7/004_conv1d/rep1-t2/manifest.json": "0204849bb442a4d40baadc8e4ff86ced86a8b99bd1df9db01304a95d98369580",
+    "opencode-go-minimax-m2.7/004_conv1d/rep1-t2/record.json": "5a3486d3d65e28cffec698d744800265451f6c93621d4c4ac8a6af04c04353e5",
+    "opencode-go-minimax-m2.7/004_conv1d/rep1-t2_frozen/dut.v": "3bb4d6df18fb08d26e2eb301a651382a7bc49bc67e43e7270ef72dca96f36eee",
+    "opencode-go-minimax-m3/004_conv1d/rep1-t2/generation.json": "ff5ddfdafe08eb79d4622e4f54e609889d1b966d914392827fc9e7c9afb67d12",
+    "opencode-go-minimax-m3/004_conv1d/rep1-t2/manifest.json": "ae11b8e08d3cc4adf0c8fe2eb470f4660f144d3a981f1075a708e9b657a0d486",
+    "opencode-go-minimax-m3/004_conv1d/rep1-t2/record.json": "13ffa61d32e6cfd049f8b0fcb0ec90cddc89b6b62f993b15d9f8c4a58563323f",
+    "opencode-go-minimax-m3/004_conv1d/rep1-t2_frozen/dut.v": "b0514c4e1365501ffd6ca334aab15d377418080344d42c7a4e12a967ce184c9b",
+    "opencode-go-qwen3.8-flash/004_conv1d/rep1-t2/generation.json": "c5b8ac44f41a976e09381ba179b7c3511c69d14be73bcdf74b4a68a560d42875",
+    "opencode-go-qwen3.8-flash/004_conv1d/rep1-t2/manifest.json": "2d0ba230178c90823ea0e1bf8b0db0bf126f5b7fccbc99585d951fb82f6c7cb9",
+    "opencode-go-qwen3.8-flash/004_conv1d/rep1-t2/record.json": "508c96d3243374ad52b1ba8f6176c5cb0784fbab6330077659c9f69fcbec8788",
+    "opencode-go-qwen3.8-max/004_conv1d/rep1-t2/generation.json": "f236a9271ff7a27f5a5de4ebcdf1ea4ca2fbc5541cb2286ad46c82245830577d",
+    "opencode-go-qwen3.8-max/004_conv1d/rep1-t2/manifest.json": "152d03fdacfb465ab7dc343be1ee0d1af3e3f2082f3f3478a09b2da884bb559e",
+    "opencode-go-qwen3.8-max/004_conv1d/rep1-t2/record.json": "279ea0be8f81961dee593329b3eb635f147a528831058b2f61fb1b439452d097",
+    "opencode-go-qwen3.8-max/004_conv1d/rep1-t2_frozen/dut.v": "0d7fe8f3a7a8da5ca10cd147eb0bc440ec2a30d8d305cbc57434dc361c2fcaaa"
+  }
+}

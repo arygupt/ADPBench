@@ -1,0 +1,65 @@
+{
+  "model": "kimi-k2.6",
+  "problem": "004_conv1d",
+  "protocol": "agent-assisted-v2",
+  "started": "2026-10-05T08:32:15.395954+00:00",
+  "generation_state": "completed",
+  "outcome": "submitted",
+  "error": "",
+  "turns": 6,
+  "checks": 2,
+  "max_turns": 20,
+  "max_checks": 3,
+  "max_output_tokens": 65536,
+  "usage": {
+    "prompt_tokens": 210873,
+    "completion_tokens": 59950,
+    "total_tokens": 270823
+  },
+  "incomplete_usage": false,
+  "generation_settings": {
+    "thinking": {
+      "type": "enabled"
+    }
+  },
+  "reasoning_measured": {
+    "turns": 6,
+    "turns_with_reasoning": 6,
+    "reasoning_chars": 192473,
+    "answer_chars": 10911,
+    "reasoning_tokens": 56467
+  },
+  "github": {
+    "GITHUB_REPOSITORY": "arygupt/ADPBench",
+    "GITHUB_RUN_ID": "37273058093",
+    "GITHUB_RUN_ATTEMPT": "1",
+    "GITHUB_SHA": "31d8b7ab9855dfac4fbc68a2764a1caf9e7c1ab6"
+  },
+  "attempt": 1,
+  "try": 2,
+  "transport_retries": [],
+  "finish_reason": "tool_calls",
+  "writes": 2,
+  "development_checks": [
+    {
+      "index": 1,
+      "submission_sha256": "3810e1f27fc3af81fd313ccfb24c9b62e1a2736bae18f3c12ed8733a6c77ab89",
+      "completed": true,
+      "correct": true,
+      "reason": "",
+      "audit_ok": true
+    },
+    {
+      "index": 2,
+      "submission_sha256": "3fd4541dcaf058e7c4c2a033aaf319b0be4401e33f5c6bf2767237e76b0c11c0",
+      "completed": true,
+      "correct": true,
+      "reason": "",
+      "audit_ok": true
+    }
+  ],
+  "submission_sha256": "3fd4541dcaf058e7c4c2a033aaf319b0be4401e33f5c6bf2767237e76b0c11c0",
+  "final_revision_checked": true,
+  "duration_s": 902.72,
+  "execution_health": "completed"
+}

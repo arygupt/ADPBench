@@ -1,0 +1,81 @@
+{
+  "model": "deepseek-v4.1-flash",
+  "problem": "004_conv1d",
+  "protocol": "agent-assisted-v2",
+  "started": "2026-10-05T07:57:08.489929+00:00",
+  "generation_state": "completed",
+  "outcome": "submitted",
+  "error": "",
+  "turns": 9,
+  "checks": 3,
+  "max_turns": 20,
+  "max_checks": 3,
+  "max_output_tokens": 384000,
+  "usage": {
+    "prompt_tokens": 1157426,
+    "completion_tokens": 243364,
+    "total_tokens": 1400790
+  },
+  "incomplete_usage": true,
+  "generation_settings": {
+    "thinking": {
+      "type": "enabled"
+    },
+    "reasoning_effort": "high"
+  },
+  "reasoning_measured": {
+    "turns": 9,
+    "turns_with_reasoning": 8,
+    "reasoning_chars": 746906,
+    "answer_chars": 35863,
+    "reasoning_tokens": 232525
+  },
+  "github": {
+    "GITHUB_REPOSITORY": "arygupt/ADPBench",
+    "GITHUB_RUN_ID": "37273058093",
+    "GITHUB_RUN_ATTEMPT": "1",
+    "GITHUB_SHA": "31d8b7ab9855dfac4fbc68a2764a1caf9e7c1ab6"
+  },
+  "attempt": 1,
+  "try": 2,
+  "transport_retries": [
+    {
+      "turn": 2,
+      "retry": 1,
+      "reason": "stream_disconnected_before_terminal_event",
+      "usage_known": false
+    }
+  ],
+  "finish_reason": "tool_calls",
+  "writes": 4,
+  "development_checks": [
+    {
+      "index": 1,
+      "submission_sha256": "e8335bcf5acd6042a07c3d068b39bc57cae875fcb6de9340e16c92a2da000b91",
+      "completed": true,
+      "correct": false,
+      "reason": "",
+      "audit_ok": true
+    },
+    {
+      "index": 2,
+      "submission_sha256": "c4f979a8eff6eaceff4a05c842a6049bcfc4a7cd568aa51d62c812e8c80423f9",
+      "completed": true,
+      "correct": true,
+      "reason": "",
+      "audit_ok": true
+    },
+    {
+      "index": 3,
+      "submission_sha256": "7543c17212649c00bad0b6991139fa321c2a5742d556478d34a0ec3e18e01024",
+      "completed": true,
+      "correct": true,
+      "reason": "",
+      "audit_ok": true
+    }
+  ],
+  "submission_sha256": "7543c17212649c00bad0b6991139fa321c2a5742d556478d34a0ec3e18e01024",
+  "final_revision_checked": true,
+  "duration_s": 2002.99,
+  "execution_health": "completed"
+}
