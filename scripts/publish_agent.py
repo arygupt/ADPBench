@@ -77,10 +77,15 @@ def slots(plan: dict, run_id: int):
         yield models[model_id], problem, f"go-agent-records-{identity}", f"go-agent-generation-{identity}"
 
 
-def rerun_dir(out: Path, model_id: str, problem: str, plan: dict) -> Path:
-    """Where a rerun is published: next to the try it replaces, e.g. `rep1-t2`."""
+def in_waves(plan: dict) -> bool:
+    """Whether the plan publishes wave by wave: a rerun, or a round paced under the usage limit."""
+    return plan.get("try", 1) > 1 or bool(plan.get("release_on_quota"))
+
+
+def wave_dir(out: Path, model_id: str, problem: str, plan: dict) -> Path:
+    """Where a wave publishes a slot: `rep<N>` for a first try, or next to the try it replaces (`rep<N>-t2`)."""
     first = slot_dir(out, model_id, problem, plan_attempt(plan))
-    return first.with_name(f"{first.name}-t{plan['try']}")
+    return first if plan.get("try", 1) == 1 else first.with_name(f"{first.name}-t{plan['try']}")
 
 
 def step_ran(job: dict, step_name: str) -> bool:
@@ -188,8 +193,8 @@ def publish_agent(
     """Validate each slot's artifacts against its jobs, then publish. Returns the leaderboard."""
     if run.get("path") != WORKFLOW or plan.get("protocol") not in AGENT_PROTOCOLS:
         raise ValueError("agent publication requires its own workflow and protocol")
-    if plan.get("try", 1) > 1:
-        raise ValueError("a rerun is published into its round with rerun_slots")
+    if in_waves(plan):
+        raise ValueError("a rerun or paced round is published wave by wave with wave_slots")
     if output.exists() or site_output.exists():
         raise FileExistsError("never overwrite published results")
 
@@ -204,36 +209,46 @@ def publish_agent(
     board = export_leaderboard(output, site_output, plan)
     generations = [slot["generation"] for slot in prepared]
     records = [slot["record"] for slot in prepared]
-    board["meta"].update(
-        {
-            "git_commit": run["head_sha"],
-            "protocol": plan["protocol"],
-            "repetitions": plan_attempt(plan),
-            "max_turns": plan["max_turns"],
-            "max_output_tokens": plan["max_output_tokens"],
-            "output_budget": plan.get("output_budget", "fixed"),
-            "workflow_url": run["html_url"],
-            "sandbox": {"mode": "docker · network disabled"},
-            "generation_requests": sum(g.get("turns", 0) for g in generations),
-            "incomplete_usage": any(g.get("incomplete_usage") for g in generations),
-            "incomplete_evidence": any(r.get("record_origin", "scorer") != "scorer" for r in records),
-            "output_tokens": sum(output_tokens(g, prefer="output_tokens") for g in generations),
-        }
-    )
+    board["meta"].update(round_meta(plan, run, generations, records))
     save_leaderboard(output, site_output, board, run, jobs)
     return board
 
 
-def rerun_slots(artifacts: Path, plan: dict, run: dict, jobs: list[dict], round_dir: Path) -> list[dict]:
-    """The finished slots one rerun wave adds to its published round.
+def round_meta(plan: dict, run: dict, generations: list[dict], records: list[dict]) -> dict:
+    """A round leaderboard's provenance (from `run`) and spend (over `generations`)."""
+    return {
+        "git_commit": run["head_sha"],
+        "protocol": plan["protocol"],
+        "repetitions": plan_attempt(plan),
+        "max_turns": plan["max_turns"],
+        "max_output_tokens": plan["max_output_tokens"],
+        "output_budget": plan.get("output_budget", "fixed"),
+        "workflow_url": run["html_url"],
+        "sandbox": {"mode": "docker · network disabled"},
+        **round_spend(generations, records),
+    }
+
+
+def round_spend(generations: list[dict], records: list[dict]) -> dict:
+    return {
+        "generation_requests": sum(g.get("turns", 0) for g in generations),
+        "incomplete_usage": any(g.get("incomplete_usage") for g in generations),
+        "incomplete_evidence": any(r.get("record_origin", "scorer") != "scorer" for r in records),
+        "output_tokens": sum(output_tokens(g, prefer="output_tokens") for g in generations),
+    }
+
+
+def wave_slots(artifacts: Path, plan: dict, run: dict, jobs: list[dict], round_dir: Path) -> list[dict]:
+    """The finished slots one wave adds to its round.
 
     A wave runs only the slots it claimed. A slot the usage limit cut off
     released its claim and runs again in a later wave, so it is skipped; its
-    evidence stays in the Actions artifacts. Every published slot must replace
-    a first try in `round_dir` that failed for infrastructure reasons.
+    evidence stays in the Actions artifacts. A rerun slot must replace a first
+    try in `round_dir` that failed for infrastructure reasons.
     """
-    if run.get("path") != WORKFLOW or plan.get("protocol") not in AGENT_PROTOCOLS or plan.get("try", 1) < 2:
-        raise ValueError("not an agent rerun")
+    if run.get("path") != WORKFLOW or plan.get("protocol") not in AGENT_PROTOCOLS or not in_waves(plan):
+        raise ValueError("not an agent wave")
+    rerun = plan.get("try", 1) > 1
     prepared = []
     for model, problem, records_artifact, _ in slots(plan, run["id"]):
         artifact = artifacts / records_artifact
@@ -250,25 +265,27 @@ def rerun_slots(artifacts: Path, plan: dict, run: dict, jobs: list[dict], round_
         ):
             continue
 
-        first = slot_dir(round_dir, model["id"], problem, plan_attempt(plan)) / "record.json"
-        if not first.is_file():
-            raise ValueError("a rerun needs its round's published first try")
-        voided = json.loads(first.read_text())
-        if voided.get("outcome") not in RERUNNABLE or voided.get("execution_health") != "failed":
-            raise ValueError("a rerun may only replace an infrastructure failure")
+        if rerun:
+            first = slot_dir(round_dir, model["id"], problem, plan_attempt(plan)) / "record.json"
+            if not first.is_file():
+                raise ValueError("a rerun needs its round's published first try")
+            voided = json.loads(first.read_text())
+            if voided.get("outcome") not in RERUNNABLE or voided.get("execution_health") != "failed":
+                raise ValueError("a rerun may only replace an infrastructure failure")
 
         job = _scoring_job(jobs, model["id"], problem, plan["protocol"])
         slot = _prepare_slot(artifact, plan, run, job, model, problem)
         slot["record"]["execution"] = execution_evidence(run, job)
-        slot["record"]["try"] = plan["try"]
+        if rerun:
+            slot["record"]["try"] = plan["try"]
         prepared.append(slot)
     return prepared
 
 
-def write_rerun_records(round_dir: Path, plan: dict, prepared: list[dict]) -> None:
-    """Add each rerun slot next to the try it replaces. Never touches existing files."""
+def write_wave_records(round_dir: Path, plan: dict, prepared: list[dict]) -> None:
+    """Add each slot of a wave to its round. Never touches existing files."""
     for slot in prepared:
-        dest = rerun_dir(round_dir, slot["model_id"], slot["problem"], plan)
+        dest = wave_dir(round_dir, slot["model_id"], slot["problem"], plan)
         dest.mkdir(parents=True)
         atomic_json(dest / "generation.json", slot["generation"])
         atomic_json(dest / "record.json", slot["record"])

@@ -191,6 +191,16 @@ not a published infrastructure failure (`quota_exhausted`, `provider_error`,
 `transport_interrupted` or `harness_error`), skips slots a wave released after
 the usage limit, and treats a republished wave as a no-op.
 
+A paced round (one with `release_on_quota`, such as round 2) publishes the
+same way from its first wave: that wave creates the round with the slots it
+finished, as `rep<N>/`, and each later wave adds the slots it finished, so a
+slot the usage limit cut off appears only once a later wave completes it. The
+leaderboard keeps the first wave's provenance and `meta.waves` lists the rest.
+Every wave must run the round's published `plan.json`, apart from its window
+and pacing (`generation_enabled`, `expires_at`, `schedule`, `max_parallel`
+and each model's `not_before`). The publisher leaves the site catalog alone,
+so a paced round goes on the site by a reviewed change once it is complete.
+
 The scheduler dispatches waves with the workflow token, which never triggers
 the publisher, so publish each wave by dispatching
 [Publish OpenCode Go results](https://github.com/arygupt/ADPBench/actions/workflows/publish-results.yml)
