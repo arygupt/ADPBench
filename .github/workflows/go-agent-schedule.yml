@@ -1,9 +1,10 @@
 name: OpenCode Go agent schedule
 run-name: "OpenCode Go · ${{ github.event_name == 'pull_request' && 'schedule checks' || 'hourly wave check' }}"
 
-# Dispatches the next wave of a scheduled agent round (see scripts/go_schedule.py).
-# It never calls a model. The dispatched run claims each slot before any
-# request, exactly as a manual dispatch does.
+# Dispatches the next wave of a scheduled agent round, and the publisher for its
+# finished waves (see scripts/go_schedule.py). It never calls a model. The
+# dispatched run claims each slot before any request, exactly as a manual
+# dispatch does.
 on:
   schedule:
     - cron: "7,37 * * * *"
@@ -38,13 +39,14 @@ jobs:
       - run: python -m unittest tests.test_go_schedule -v
 
   dispatch:
-    name: Dispatch the next wave if one is due
+    name: Dispatch the next wave and publication if due
     if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     timeout-minutes: 5
     permissions:
       contents: read
-      actions: write # Only to dispatch go-agent.yml.
+      actions: write # Only to dispatch go-agent.yml and publish-results.yml.
+      pull-requests: read
     steps:
       - uses: actions/checkout@v4
         with:

@@ -1,6 +1,6 @@
 """Hourly check that dispatches the next wave of a round waiting out a Go usage limit.
 
-    python -m scripts.go_schedule check [--dispatch]   # decide; dispatch go-agent.yml if due
+    python -m scripts.go_schedule check [--dispatch]   # decide; dispatch the next wave and publication if due
     python -m scripts.go_schedule names --model <id> --problem <id> --run-id <id>
                                                      # "<claim tag> <pause tag> <release?>"
 
@@ -17,6 +17,11 @@ OpenCode Go's 5-hour usage limit is shared by the whole account. A slot that
 the limit cuts off releases its claim (see go-agent-slot.yml), so a later
 hourly check picks it up once the limit resets. Committing a scheduled plan
 is the authorization, including the confirmation that Go "Use balance" is off.
+
+A wave dispatched with the workflow token never triggers publish-results.yml,
+so the same check dispatches it for the oldest finished wave of the plan that
+has no publication run yet. Every wave rebuilds the same leaderboard, so it
+waits while a publication runs or a results PR from this plan awaits review.
 """
 
 from __future__ import annotations
@@ -34,6 +39,8 @@ from scripts.go_pilot import claim_name, due, now_utc, pause_name, plan_slots, r
 
 REPOSITORY = "arygupt/ADPBench"
 AGENT_WORKFLOW = Path(".github/workflows/go-agent.yml")
+PUBLISH_WORKFLOW = "publish-results.yml"
+ROUND_TITLE = "OpenCode Go · agent-assisted-v2 · round evaluation"
 PLAN_LINE = re.compile(r"^  PLAN: (pilot/[a-z0-9-]+\.json)\s*$", re.M)
 
 
@@ -59,6 +66,33 @@ def decide(plan: dict, claimed: set[str], active_runs: int, now: datetime) -> tu
     if not waiting:
         return False, "every slot is claimed; nothing to run"
     return True, f"{len(waiting)} unclaimed slot(s)"
+
+
+def to_publish(plan: dict, waves: list[dict], publications: list[dict], open_branches: list[str]) -> tuple[int | None, str]:
+    """(source run to publish, or None; reason). Pure: every input is passed in.
+
+    `waves` and `publications` are `gh run list` rows for go-agent.yml and
+    publish-results.yml; `open_branches` are the heads of open PRs.
+    """
+    since = min(datetime.fromisoformat(model["not_before"]) for model in plan["models"])
+    finished = sorted(
+        (
+            run for run in waves
+            if run["status"] == "completed" and run["event"] == "workflow_dispatch" and run["headBranch"] == "main"
+            and run["displayTitle"] == ROUND_TITLE and datetime.fromisoformat(run["createdAt"]) >= since
+        ),
+        key=lambda run: run["createdAt"],
+    )
+    publications = [run for run in publications if run["event"] != "pull_request"]
+    started = {run["displayTitle"] for run in publications}
+    waiting = [run["databaseId"] for run in finished if f"Publish results · source run {run['databaseId']}" not in started]
+    if not waiting:
+        return None, "every finished wave has a publication run"
+    if any(run["status"] != "completed" for run in publications):
+        return None, "a publication is still running"
+    if any(branch.startswith(f"automation/results-{run['databaseId']}-") for run in finished for branch in open_branches):
+        return None, "a results PR from this plan awaits review"
+    return waiting[0], f"{len(waiting)} finished wave(s) to publish"
 
 
 def gh(*args: str) -> str:
@@ -107,6 +141,16 @@ def main() -> None:
             "-f", "run_models=true", "-f", "run_canary=false", "-f", "subscription_only=true",
         )
         print("Dispatched the agent workflow; each slot still claims its own tag before any request.")
+
+    fields = "databaseId,status,event,headBranch,displayTitle,createdAt"
+    waves = json.loads(gh("run", "list", "--repo", REPOSITORY, "--workflow", AGENT_WORKFLOW.name, "--limit", "50", "--json", fields))
+    publications = json.loads(gh("run", "list", "--repo", REPOSITORY, "--workflow", PUBLISH_WORKFLOW, "--limit", "100", "--json", fields))
+    branches = json.loads(gh("pr", "list", "--repo", REPOSITORY, "--state", "open", "--json", "headRefName"))
+    source, reason = to_publish(plan, waves, publications, [pr["headRefName"] for pr in branches])
+    print(f"{plan['name']} publication: {f'publish run {source}' if source else 'wait'} - {reason}")
+    if source and args.dispatch:
+        gh("workflow", "run", PUBLISH_WORKFLOW, "--repo", REPOSITORY, "--ref", "main", "-f", f"run_id={source}")
+        print("Dispatched the publisher; it validates the wave and opens a review-only results PR.")
 
 
 if __name__ == "__main__":

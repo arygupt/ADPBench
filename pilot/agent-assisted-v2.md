@@ -202,12 +202,16 @@ and each model's `not_before`). The publisher leaves the site catalog alone,
 so a paced round goes on the site by a reviewed change once it is complete.
 
 The scheduler dispatches waves with the workflow token, which never triggers
-the publisher, so publish each wave by dispatching
+the publisher. So each hourly check also dispatches
 [Publish OpenCode Go results](https://github.com/arygupt/ADPBench/actions/workflows/publish-results.yml)
-with its run ID. A wave with no finished slot publishes nothing. Merge each
-wave's results PR before dispatching the next, since every wave rebuilds the
-same leaderboard. For round 1 the waves with finished slots are 36328258003,
-36496973482 and 36562354781.
+for the oldest finished wave of the selected plan that has no publication run
+yet. It publishes one wave at a time and waits while a results PR from the
+plan awaits review, since every wave rebuilds the same leaderboard; merging
+that PR lets the next check publish the next wave. A failed publication is
+not retried; dispatch the publisher with the wave's run ID once it is fixed.
+A wave with no finished slot publishes nothing. Round 1's waves were
+published by hand; those with finished slots are 36328258003, 36496973482
+and 36562354781.
 
 Round 1 is complete and live. The rerun's third window ran its last 22 slots
 in two waves (37251812830 and 37273058093, PRs #55 and #56), so every one of
