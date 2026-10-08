@@ -1,4 +1,5 @@
-/* Typography and base palette match aryamangupta.me. */
+/* The base palette matches aryamangupta.me. Type is Martian Mono at its
+   condensed width (87.5), which keeps the dense tables readable. */
 :root {
   color-scheme: dark;
   --bg: #1a1a1a;
@@ -20,9 +21,7 @@
   --weight-strong: 600;
   --radius: 8px;
   --radius-lg: 12px;
-  --font:
-    "Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
-    sans-serif;
+  --font: "Martian Mono", ui-monospace, "SF Mono", Menlo, monospace;
 }
 * {
   box-sizing: border-box;
@@ -911,7 +910,7 @@ dialog::backdrop {
 .ranking-table .attempt-col { width: 75px; }
 .ranking-table .reasoning-col { width: 150px; }
 .reasoning-stat strong { display: block; color: var(--text); font-weight: var(--weight-normal); }
-.reasoning-stat span { display: block; margin-top: 2px; font-size: 10px; color: var(--faint); white-space: nowrap; }
+.reasoning-stat span { display: block; margin-top: 2px; font-size: 10px; color: var(--faint); }
 .ranking-table thead th { text-transform: uppercase; font-size: 10px; letter-spacing: .6px; color: var(--muted); font-weight: var(--weight-strong); text-align: right; padding: 17px 8px; border-bottom: 1px solid var(--border-strong); }
 .ranking-table thead th:first-child, .ranking-table thead .chart-heading { text-align: left; }
 .ranking-table .chart-heading span { text-transform: none; letter-spacing: 0; color: var(--faint); font-size: 9px; }
@@ -993,6 +992,7 @@ dialog::backdrop {
   .workspace .matrix-table { min-width: calc(var(--problems, 4) * 84px + 150px); }
   .workspace .matrix-table th:first-child { width: 120px; }
   .workspace .matrix-table th.correct-heading { width: 56px; }
+  .workspace .matrix-table th { font-size: 10px; padding-inline: 4px; }
   .matrix-table .model-label { white-space: normal; }
 }
 @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } * { transition: none !important; } }
