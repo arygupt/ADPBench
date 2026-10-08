@@ -34,12 +34,13 @@ class AgentPublicationTest(unittest.TestCase):
         self.repo = self.root / "checkout"
         atomic_json(self.repo / "site/data/evaluations.json", {"schema_version":1, "default":"pilot-001", "evaluations":[
             {"id":"pilot-001", "label":"Original", "path":"data/leaderboard.json", "protocol":"iterative"}]})
+        rep = f"rep{self.plan.get('attempt', 1)}"
         for index, problem in enumerate(self.plan["problems"]):
             model = self.plan["models"][0]
             artifact = self.root / "artifacts" / f"go-agent-records-{model['id']}-{problem}-123"
             atomic_json(artifact / "plan.json", self.plan)
-            dest = artifact / f"opencode-go-{model['id']}" / problem / "rep1"
-            source = dest.parent / "rep1_frozen/dut.v"
+            dest = artifact / f"opencode-go-{model['id']}" / problem / rep
+            source = dest.parent / f"{rep}_frozen/dut.v"
             source.parent.mkdir(parents=True)
             source.write_text("module dut; endmodule\n")
             generation = {"model":model["id"], "problem":problem, "protocol":PROTOCOL, "outcome":"submitted",
@@ -49,7 +50,7 @@ class AgentPublicationTest(unittest.TestCase):
                 "usage":{"input_tokens":40, "output_tokens":30}, "error":"",
                 "github":{"GITHUB_REPOSITORY":REPOSITORY, "GITHUB_RUN_ID":"123", "GITHUB_RUN_ATTEMPT":"1", "GITHUB_SHA":"a"*40},
                 **self.RECEIPT_FIELDS}
-            record = {"problem":problem, "label":f"opencode-go/{model['id']} [{PROTOCOL}]", "attempt":1,
+            record = {"problem":problem, "label":f"opencode-go/{model['id']} [{PROTOCOL}]", "attempt":self.plan.get("attempt", 1),
                 "group":"agent-test", "outcome":"correct", "execution_health":"completed", "audit":{"ok":True},
                 "result":{"correct":True, "ratio":1.2, "cells":10, "cycles":20, "adp":200, "metadata":{"stage":"ok"}},
                 "manifest":{"generation":generation, "submission_sha256":hashlib.sha256(source.read_bytes()).hexdigest()}}
@@ -211,7 +212,7 @@ class AgentV2PublicationTest(AgentPublicationTest):
 
     def test_a_rerun_is_published_through_its_round(self):
         rerun = {**self.plan, "try": 2, "slots": [{"model": self.plan["models"][0]["id"], "problem": self.plan["problems"][0]}]}
-        with self.assertRaisesRegex(ValueError, "rerun_slots"):
+        with self.assertRaisesRegex(ValueError, "wave_slots"):
             publish_agent(self.root / "artifacts", rerun, self.run, self.jobs, self.root / "published", self.root / "site")
 
 
@@ -350,6 +351,114 @@ class AgentRerunPublicationTest(unittest.TestCase):
         atomic_json(source / "rep1/record.json", record)
         with self.assertRaisesRegex(ValueError, "differs"):
             self.stage()
+
+
+class AgentPacedRoundPublicationTest(unittest.TestCase):
+    """A paced round publishes wave by wave as `rep<N>`; the catalog waits for a reviewed change."""
+
+    def setUp(self):
+        self.base = AgentV2PublicationTest("test_slot_artifacts_publish_separate_track_and_usage")
+        self.base.PLAN_FIELDS = {**AgentV2PublicationTest.PLAN_FIELDS, "attempt": 2, "release_on_quota": True,
+                                 "schedule": "hourly", "max_parallel": 3}
+        self.base.RECEIPT_FIELDS = {**AgentV2PublicationTest.RECEIPT_FIELDS, "attempt": 2}
+        self.base.setUp()
+        self.addCleanup(self.base.doCleanups)
+        base = self.base
+        self.plan, self.model = base.plan, base.plan["models"][0]["id"]
+        self.round = base.repo / "pilot/results/agent-test"
+        self.catalog = (base.repo / "site/data/evaluations.json").read_bytes()
+        # Wave 123 finished the first problem; the usage limit cut off the
+        # second, which released its claim.
+        self.released = self.plan["problems"][1]
+        dest = base.paths[1]
+        base.set_generation(dest, outcome="quota_exhausted", error="provider HTTP 429")
+        # Owned temporary fixtures only.
+        (dest / "record.json").unlink()
+        shutil.rmtree(dest.parent / "rep2_frozen")
+        for job in base.jobs:
+            if job["name"].startswith(f"{self.model} · {self.released} / Evaluate"):
+                job["conclusion"] = "skipped"
+
+    def second_wave(self, plan):
+        """Wave 124 finishes the slot wave 123 released, and has no jobs for the one it published."""
+        base, model = self.base, self.model
+        run = {**base.run, "id": 124, "html_url": f"https://github.com/{REPOSITORY}/actions/runs/124"}
+        artifacts, jobs = base.root / "wave", []
+        for problem in (self.released,):
+            artifact = artifacts / f"go-agent-records-{model}-{problem}-124"
+            atomic_json(artifact / "plan.json", plan)
+            dest = artifact / f"opencode-go-{model}" / problem / "rep2"
+            source = dest.parent / "rep2_frozen/dut.v"
+            source.parent.mkdir(parents=True)
+            source.write_text("module dut(); endmodule\n")
+            digest = hashlib.sha256(source.read_bytes()).hexdigest()
+            generation = strict_json((base.paths[0] / "generation.json").read_bytes())
+            generation.update(problem=problem, submission_sha256=digest)
+            generation["github"]["GITHUB_RUN_ID"] = "124"
+            record = strict_json((base.paths[0] / "record.json").read_bytes())
+            record.update(problem=problem, manifest={"generation": generation, "submission_sha256": digest})
+            atomic_json(dest / "generation.json", generation)
+            atomic_json(dest / "record.json", record)
+            for stage in ("Generate", "Evaluate"):
+                jobs.append({"id": 900 + len(jobs), "run_id": 124, "status": "completed", "conclusion": "success",
+                    "name": f"{model} · {problem} / {job_name(stage, model, problem, base.PROTOCOL)}",
+                    "completed_at": "2026-10-09T20:00:00Z",
+                    "steps": [{"name": "Run standardized agent", "conclusion": "success"}] if stage == "Generate" else []})
+        return artifacts, run, jobs
+
+    def stage(self, artifacts, plan, run, jobs):
+        validate_source(run, jobs, plan, self.base.policy)
+        return stage_publication(self.base.repo, artifacts, plan, run, jobs, [])
+
+    def board(self):
+        return strict_json((self.base.repo / "site/data/agent-test/leaderboard.json").read_bytes())
+
+    def receipt(self, run_id):
+        return strict_json((self.base.repo / f"pilot/publications/run-{run_id}-attempt-1.json").read_bytes())
+
+    def test_each_wave_adds_its_finished_slots(self):
+        base = self.base
+        self.stage(base.root / "artifacts", self.plan, base.run, base.jobs)
+        slots = self.round / f"opencode-go-{self.model}"
+        self.assertEqual([path.parents[1].name for path in slots.glob("*/rep2/record.json")], self.plan["problems"][:1])
+        self.assertFalse((slots / self.released).exists())
+        board = self.board()
+        self.assertEqual((board["models"][0]["attempts"], board["meta"]["repetitions"]), (1, 2))
+        self.assertEqual(board["meta"]["workflow_url"], base.run["html_url"])
+        self.assertEqual((base.repo / "site/data/evaluations.json").read_bytes(), self.catalog)
+        receipt = self.receipt(123)
+        self.assertEqual((receipt["try"], receipt["result_slots"], receipt["confirmed_correct"]), (1, 1, 1))
+        self.assertIn("plan.json", receipt["record_file_sha256"])
+
+        before = {path: path.read_bytes() for path in self.round.rglob("*")
+                  if path.is_file() and path.name not in {"REPORT.md", "report.json"}}
+        paced = {**self.plan, "max_parallel": 2}  # Pacing may change between waves.
+        artifacts, run, jobs = self.second_wave(paced)
+        self.stage(artifacts, paced, run, jobs)
+        for path, content in before.items():
+            self.assertEqual(path.read_bytes(), content)
+        board = self.board()
+        self.assertEqual((board["models"][0]["attempts"], board["models"][0]["correct"]), (2, 2))
+        self.assertEqual(board["meta"]["workflow_url"], base.run["html_url"])
+        self.assertEqual(board["meta"]["waves"], [{"workflow_url": run["html_url"], "git_commit": run["head_sha"]}])
+        self.assertNotIn("reruns", board["meta"])
+        self.assertEqual(self.receipt(124)["result_slots"], 1)
+        self.stage(base.root / "artifacts", self.plan, base.run, base.jobs)
+        self.stage(artifacts, paced, run, jobs)
+        self.assertEqual(self.board(), board)
+
+    def test_a_wave_keeps_the_round_settings(self):
+        base = self.base
+        self.stage(base.root / "artifacts", self.plan, base.run, base.jobs)
+        changed = {**self.plan, "request_timeout_s": 300}
+        artifacts, run, jobs = self.second_wave(changed)
+        with self.assertRaisesRegex(ValueError, "reviewed settings"):
+            self.stage(artifacts, changed, run, jobs)
+
+    def test_a_paced_round_is_never_published_whole(self):
+        base = self.base
+        with self.assertRaisesRegex(ValueError, "wave_slots"):
+            publish_agent(base.root / "artifacts", self.plan, base.run, base.jobs, base.root / "published", base.root / "site")
 
 
 if __name__ == "__main__":

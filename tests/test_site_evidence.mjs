@@ -89,18 +89,25 @@ test("every publication receipt binds exact frozen records and website outcomes"
     const plan = readJSON(`${root}/plan.json`);
     const protocol = plan.protocol || "single-shot";
     const reruns = board.meta.reruns || [];
-    // A rerun receipt (try >= 2) covers only the slots its wave added as rep1-t<try>.
+    // A wave receipt (one with `try`) covers only the slots its wave added: a
+    // paced round's first try as rep<N>, or a rerun next to it as rep<N>-t<try>.
+    const wave = "try" in receipt;
     const tryNumber = receipt.try ?? 1;
     assert.ok(Number.isSafeInteger(tryNumber) && tryNumber >= 1);
-    const repDir = tryNumber === 1 ? "rep1" : `rep1-t${tryNumber}`;
+    const rep = `rep${plan.attempt ?? 1}`;
+    const repDir = tryNumber === 1 ? rep : `${rep}-t${tryNumber}`;
+    const fromRun = url => url.endsWith(`/actions/runs/${receipt.source_run_id}`);
     let slots;
-    if (tryNumber === 1) {
+    if (!wave) {
       assert.equal(board.meta.git_commit, receipt.source_commit);
       slots = plan.models.flatMap(model => plan.problems.map(problem => [model.id, problem]));
     } else {
-      assert.ok(reruns.some(r => r.try === tryNumber && r.git_commit === receipt.source_commit
-        && r.workflow_url.endsWith(`/actions/runs/${receipt.source_run_id}`)));
-      slots = [...new Set(Object.keys(hashes).map(path => path.split("/").slice(0, 2).join("/")))]
+      const waves = tryNumber === 1
+        ? [{workflow_url: board.meta.workflow_url, git_commit: board.meta.git_commit}, ...(board.meta.waves || [])]
+        : reruns.filter(r => r.try === tryNumber);
+      assert.ok(waves.some(w => w.git_commit === receipt.source_commit && fromRun(w.workflow_url)));
+      slots = [...new Set(Object.keys(hashes).filter(path => path !== "plan.json")
+        .map(path => path.split("/").slice(0, 2).join("/")))]
         .map(base => [base.replace(/^opencode-go-/, "").split("/")[0], base.split("/")[1]]);
       assert.ok(slots.length > 0);
     }
@@ -126,7 +133,7 @@ test("every publication receipt binds exact frozen records and website outcomes"
       }
       // The site shows the latest try; a voided try stays only in the records.
       const later = readdirSync(new URL(`${root}/${base}/`, import.meta.url))
-        .some(name => /^rep1-t[0-9]+$/.test(name) && Number(name.slice(6)) > tryNumber);
+        .some(name => name.startsWith(`${rep}-t`) && /^rep[0-9]+-t[0-9]+$/.test(name) && Number(name.slice(rep.length + 2)) > tryNumber);
       if (later) continue;
       const shown = published.runs.find(r => r.problem === problem);
       assert.ok(findExecution(shown));
@@ -137,10 +144,10 @@ test("every publication receipt binds exact frozen records and website outcomes"
       assert.equal(shown.ratio, record.result?.ratio || -1);
       if (record.manifest.submission_sha256) assert.equal(shown.submission_sha256, record.manifest.submission_sha256);
     }
-    if (tryNumber === 1 && reruns.length === 0) {
+    if (!wave && reruns.length === 0) {
       assert.equal(receipt.confirmed_correct, board.models.reduce((n, m) => n + m.correct, 0));
       assert.equal(receipt.result_slots, board.models.reduce((n, m) => n + m.runs.length, 0));
-    } else if (tryNumber > 1) {
+    } else if (wave) {
       assert.equal(receipt.confirmed_correct, correct);
       assert.equal(receipt.result_slots, slots.length);
     }

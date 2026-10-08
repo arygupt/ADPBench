@@ -46,15 +46,14 @@ from scripts.go_pilot import (
 from scripts.publish_agent import AGENT_GENERATION_STEP, GITHUB_TIMESTAMP
 from scripts.publish_agent import OUTCOMES as AGENT_OUTCOMES
 from scripts.publish_agent import WORKFLOW as AGENT_WORKFLOW
-from scripts.publish_agent import matches_job, publish_agent, rerun_slots, step_ran, validate_generation
+from scripts.publish_agent import matches_job, publish_agent, step_ran, validate_generation, wave_slots
 from scripts.publish_agent import slots as agent_slots
-from scripts.publish_agent import rerun_dir, write_rerun_records
+from scripts.publish_agent import in_waves, round_meta, round_spend, wave_dir, write_wave_records
 from scripts.publish_go import (
     ACTIONS_JOB_FIELDS,
     ACTIONS_RUN_FIELDS,
     REPOSITORY,
     export_leaderboard,
-    output_tokens,
     publish,
 )
 
@@ -71,6 +70,8 @@ FINISHED_JOB_CONCLUSIONS = {"success", "failure", "cancelled", "timed_out"}
 SINGLE_SHOT_GENERATION_STEP = "Generate two single-shot submissions (no retries or fallback)"
 RERUN_PATH = re.compile(r"(?:^|/)rep\d+-t\d+(?:_frozen)?/")
 PUBLISHED_FILES = {"record.json", "generation.json", "manifest.json", "dut.v", "plan.json"}
+# What a paced round may change between waves: its authorization window and pacing.
+WAVE_WINDOW_FIELDS = {"generation_enabled", "expires_at", "schedule", "max_parallel"}
 
 # Published records must never contain these fields.
 CREDENTIAL_FIELD = re.compile(r'"(?:authorization|api_key|x-api-key|OPENCODE_GO_API_KEY)"\s*:', re.I)
@@ -209,22 +210,22 @@ def _validate_agent_jobs(run: dict, jobs: list[dict], plan: dict) -> None:
     if type(plan.get("max_turns")) is not int or not 1 <= plan["max_turns"] <= 100:
         raise ValueError("invalid agent turn budget")
 
-    # A round runs every slot in one dispatch; a rerun wave runs only the
-    # slots that were unclaimed when it started.
-    rerun = plan.get("try", 1) > 1
+    # An unpaced round runs every slot in one dispatch; a wave of a rerun or
+    # paced round runs only the slots that were unclaimed when it started.
+    waves = in_waves(plan)
     selected = []
     for model, problem, _, _ in agent_slots(plan, run["id"]):
         pair = [
             [job for job in jobs if matches_job(job, stage, model["id"], problem, plan["protocol"])]
             for stage in ("Generate", "Evaluate")
         ]
-        if rerun and pair == [[], []]:
+        if waves and pair == [[], []]:
             continue
         if any(len(matches) != 1 for matches in pair):
             raise ValueError("missing or duplicate agent slot jobs")
         generate, evaluate = pair[0][0], pair[1][0]
-        # A rerun slot released after the usage limit skips its scoring job.
-        if rerun and evaluate.get("conclusion") == "skipped":
+        # A slot released after the usage limit skips its scoring job.
+        if waves and evaluate.get("conclusion") == "skipped":
             evaluate = {**evaluate, "conclusion": "success"}
         selected.extend((generate, evaluate))
 
@@ -487,8 +488,8 @@ def stage_publication(
     site_dir = repo / "site/data" / name
     receipt_path = repo / "pilot/publications" / f"run-{run['id']}-attempt-{run['run_attempt']}.json"
     validate_records(artifacts, plan, run)
-    if plan.get("try", 1) > 1:
-        return _stage_rerun(repo, artifacts, plan, run, jobs, evidence)
+    if in_waves(plan):
+        return _stage_wave(repo, artifacts, plan, run, jobs, evidence)
 
     with tempfile.TemporaryDirectory(prefix="adpbench-publish-") as temp:
         draft = Path(temp)
@@ -533,46 +534,64 @@ def stage_publication(
     return [str(path.relative_to(repo)) for path in (records_dir, site_dir, receipt_path, catalog_path)]
 
 
-def _stage_rerun(
+def _stage_wave(
     repo: Path, artifacts: Path, plan: dict, run: dict, jobs: list[dict], evidence: list[dict]
 ) -> list[str]:
-    """Add one rerun wave's finished slots to its published round, then rebuild the round's site data.
+    """Add one wave's finished slots to its round, then rebuild the round's site data.
 
-    The round's existing files never change. Republishing the same wave is a
-    no-op; different content for an already published slot is an error.
+    A paced round's first wave creates the round; later waves and reruns add
+    to it. The round's existing files never change. Republishing the same
+    wave is a no-op; different content for an already published slot is an
+    error. The catalog is left alone: a paced round goes on the site by a
+    reviewed change once it is complete.
     """
     name = plan["name"]
     records_dir = repo / "pilot/results" / name
     site_dir = repo / "site/data" / name
     receipt_path = repo / "pilot/publications" / f"run-{run['id']}-attempt-{run['run_attempt']}.json"
-    if not (records_dir / "plan.json").is_file() or not (site_dir / "leaderboard.json").is_file():
+    first_try = plan.get("try", 1) == 1
+    published = (records_dir / "plan.json").is_file() and (site_dir / "leaderboard.json").is_file()
+    if not published and not first_try:
         raise ValueError("a rerun publishes into an already published round")
+    if not published and (records_dir.exists() or site_dir.exists()):
+        raise ValueError("existing immutable results differ from source artifacts")
+    if published and first_try and _wave_settings(strict_json((records_dir / "plan.json").read_bytes())) != _wave_settings(plan):
+        raise ValueError("a wave must run its round's reviewed settings")
 
     with tempfile.TemporaryDirectory(prefix="adpbench-publish-") as temp:
         draft = Path(temp) / "records"
-        shutil.copytree(records_dir, draft)
+        if published:
+            shutil.copytree(records_dir, draft)
+        else:
+            draft.mkdir()
+            atomic_json(draft / "plan.json", plan)
         before = payload_files(draft)
-        prepared = rerun_slots(artifacts, plan, run, jobs, draft)
+        prepared = wave_slots(artifacts, plan, run, jobs, draft)
         if not prepared:
-            print("No finished rerun slots in this run; nothing to publish.")
+            print("No finished slots in this wave; nothing to publish.")
             return []
-        added = [slot for slot in prepared if not rerun_dir(draft, slot["model_id"], slot["problem"], plan).exists()]
-        with tempfile.TemporaryDirectory(prefix="adpbench-rerun-") as fresh:
+        added = [slot for slot in prepared if not wave_dir(draft, slot["model_id"], slot["problem"], plan).exists()]
+        with tempfile.TemporaryDirectory(prefix="adpbench-wave-") as fresh:
             # Already published slots must match this wave exactly.
-            write_rerun_records(Path(fresh), plan, prepared)
+            write_wave_records(Path(fresh), plan, prepared)
             ours = payload_files(Path(fresh))
-        write_rerun_records(draft, plan, added)
+        write_wave_records(draft, plan, added)
         hashes = payload_files(draft)
         if any(hashes.get(path) != digest for path, digest in {**before, **ours}.items()):
-            raise ValueError("rerun content differs from the published round")
+            raise ValueError("wave content differs from the published round")
         if added:
-            board = _rebuild_round_site(draft, Path(temp) / "site", site_dir, plan, run)
-            shutil.rmtree(records_dir)
+            board = _rebuild_round_site(draft, Path(temp) / "site", site_dir if published else None, plan, run)
+            if published:
+                shutil.rmtree(records_dir)
             shutil.copytree(draft, records_dir)
             atomic_json(records_dir / f"actions-run-{run['id']}.json", _actions(run, jobs))
+            site_dir.mkdir(parents=True, exist_ok=True)
             atomic_json(site_dir / "leaderboard.json", board)
             for extra in ("problems.json", "report.json"):
                 shutil.copyfile(Path(temp) / "site" / extra, site_dir / extra)
+    if first_try:
+        # Like a whole round's receipt, a first-try wave binds the round's plan.
+        ours["plan.json"] = hashes["plan.json"]
 
     records = [slot["record"] for slot in prepared]
     receipt = {
@@ -583,7 +602,7 @@ def _stage_rerun(
         "source_commit": run["head_sha"],
         "source_workflow": run["path"],
         "dataset": name,
-        "try": plan["try"],
+        "try": plan.get("try", 1),
         "confirmed_correct": sum(record.get("outcome") == "correct" for record in records),
         "result_slots": len(records),
         "artifacts": evidence,
@@ -595,25 +614,37 @@ def _stage_rerun(
     return [str(path.relative_to(repo)) for path in (records_dir, site_dir, receipt_path)]
 
 
-def _rebuild_round_site(records: Path, scratch: Path, site_dir: Path, plan: dict, run: dict) -> dict:
-    """The round's leaderboard over every counted try, keeping the first dispatch's provenance."""
-    previous = strict_json((site_dir / "leaderboard.json").read_bytes())
+def _wave_settings(plan: dict) -> dict:
+    """A paced round's plan without the fields its waves may change."""
+    settings = {key: value for key, value in plan.items() if key not in WAVE_WINDOW_FIELDS}
+    settings["models"] = [{key: value for key, value in model.items() if key != "not_before"} for model in plan["models"]]
+    return settings
+
+
+def _rebuild_round_site(records: Path, scratch: Path, site_dir: Path | None, plan: dict, run: dict) -> dict:
+    """The round's leaderboard over every counted try, keeping the first wave's provenance.
+
+    `site_dir` is None for a paced round's first wave, which has no leaderboard yet.
+    """
     round_plan = strict_json((records / "plan.json").read_bytes())
     board = export_leaderboard(records, scratch, round_plan)
+    # Spend counts every try, including voided ones.
     generations = [strict_json(path.read_bytes()) for path in sorted(records.glob("*/*/rep*/generation.json"))]
-    meta = dict(previous["meta"])
-    meta.update(
-        {
-            # Spend counts every try, including voided ones.
-            "generation_requests": sum(g.get("turns", 0) for g in generations),
-            "incomplete_usage": any(g.get("incomplete_usage") for g in generations),
-            "output_tokens": sum(output_tokens(g, prefer="output_tokens") for g in generations),
-            "reruns": [
-                *[r for r in previous["meta"].get("reruns", []) if r["workflow_url"] != run["html_url"]],
-                {"try": plan["try"], "workflow_url": run["html_url"], "git_commit": run["head_sha"]},
-            ],
-        }
-    )
+    tries = [strict_json(path.read_bytes()) for path in sorted(records.glob("*/*/rep*/record.json"))]
+    if site_dir is None:
+        board["meta"].update(round_meta(round_plan, run, generations, tries))
+        return board
+    meta = {**strict_json((site_dir / "leaderboard.json").read_bytes())["meta"], **round_spend(generations, tries)}
+    if plan.get("try", 1) > 1:
+        meta["reruns"] = [
+            *[r for r in meta.get("reruns", []) if r["workflow_url"] != run["html_url"]],
+            {"try": plan["try"], "workflow_url": run["html_url"], "git_commit": run["head_sha"]},
+        ]
+    elif meta["workflow_url"] != run["html_url"]:
+        meta["waves"] = [
+            *[w for w in meta.get("waves", []) if w["workflow_url"] != run["html_url"]],
+            {"workflow_url": run["html_url"], "git_commit": run["head_sha"]},
+        ]
     board["meta"] = meta
     return board
 
