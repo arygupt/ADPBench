@@ -206,3 +206,10 @@ stopped for other reasons, with 3 infrastructure failures left on slots that
 had already used their one rerun. `go-agent-v2-r1` is the first entry in
 `site/data/evaluations.json`, which is the dataset the site shows; the free
 models' dataset, `go-agent-v2-r1-free`, stays published below v1.
+
+Round 2 ([`go-agent-v2-r2.json`](go-agent-v2-r2.json)) runs the same 56
+slots with round 1's settings as repetition 2, paced from the start: the
+hourly schedule runs 3 slots at a time and releases any slot the usage limit
+cuts off, so a later wave runs it as a first try instead of a rerun. Each
+wave publishes into `go-agent-v2-r2` as it finishes. The site keeps showing
+round 1 until round 2 is complete.
