@@ -1,0 +1,275 @@
+{
+  "problem": "001_dot_product",
+  "agent_cmd": "adpbench Go agent-assisted-v2 (read/write/check/submit)",
+  "label": "opencode-go/gpt-6-luna [agent-assisted-v2]",
+  "attempt": 2,
+  "group": "go-agent-v2-r2",
+  "sandbox": "docker",
+  "started": "2026-10-08T18:20:29.675054+00:00",
+  "duration_s": 207.2,
+  "exit_code": -1,
+  "timed_out": false,
+  "audit": {
+    "ok": true,
+    "violations": [],
+    "warnings": []
+  },
+  "result": {
+    "problem": "001_dot_product",
+    "source": "go-agent-assisted-v2",
+    "compiled": true,
+    "synthesizable": true,
+    "correct": true,
+    "cells": 11092,
+    "cycles": 66,
+    "adp": 732072.0,
+    "ratio": 1.5975641740156705,
+    "metadata": {
+      "cases": [
+        1000,
+        1001,
+        1002,
+        "zeros",
+        "min_values",
+        "extreme_signs"
+      ],
+      "job": "4a9da48a",
+      "per_case": [
+        {
+          "case": 1000,
+          "synthesizable": true,
+          "correct": true,
+          "cells": 11092,
+          "cycles": 66,
+          "stage": "ok",
+          "correctness": "exact match under score and backpressure runs",
+          "netlist_sha256": "e9b078ca71f6706eb332a8ab3f99cce309ffb93a706a8040f8a1280bf7b56b78"
+        },
+        {
+          "case": 1001,
+          "synthesizable": true,
+          "correct": true,
+          "cells": 11092,
+          "cycles": 66,
+          "stage": "ok",
+          "correctness": "exact match under score and backpressure runs",
+          "netlist_sha256": "e9b078ca71f6706eb332a8ab3f99cce309ffb93a706a8040f8a1280bf7b56b78"
+        },
+        {
+          "case": 1002,
+          "synthesizable": true,
+          "correct": true,
+          "cells": 11092,
+          "cycles": 66,
+          "stage": "ok",
+          "correctness": "exact match under score and backpressure runs",
+          "netlist_sha256": "e9b078ca71f6706eb332a8ab3f99cce309ffb93a706a8040f8a1280bf7b56b78"
+        },
+        {
+          "case": "zeros",
+          "synthesizable": true,
+          "correct": true,
+          "cells": 11092,
+          "cycles": 66,
+          "stage": "ok",
+          "correctness": "exact match under score and backpressure runs",
+          "netlist_sha256": "e9b078ca71f6706eb332a8ab3f99cce309ffb93a706a8040f8a1280bf7b56b78"
+        },
+        {
+          "case": "min_values",
+          "synthesizable": true,
+          "correct": true,
+          "cells": 11092,
+          "cycles": 66,
+          "stage": "ok",
+          "correctness": "exact match under score and backpressure runs",
+          "netlist_sha256": "e9b078ca71f6706eb332a8ab3f99cce309ffb93a706a8040f8a1280bf7b56b78"
+        },
+        {
+          "case": "extreme_signs",
+          "synthesizable": true,
+          "correct": true,
+          "cells": 11092,
+          "cycles": 66,
+          "stage": "ok",
+          "correctness": "exact match under score and backpressure runs",
+          "netlist_sha256": "e9b078ca71f6706eb332a8ab3f99cce309ffb93a706a8040f8a1280bf7b56b78"
+        }
+      ],
+      "stage": "ok",
+      "correctness": "exact match on 6 cases",
+      "baseline": {
+        "problem": "001_dot_product",
+        "seeds": [
+          1000,
+          1001,
+          1002
+        ],
+        "directed": [
+          "zeros",
+          "min_values",
+          "extreme_signs"
+        ],
+        "transactions": 2,
+        "params": {
+          "LEN": 256,
+          "LANES": 32,
+          "DATA_W": 8,
+          "ACC_W": 32
+        },
+        "input_lens": {
+          "in_a_flat": 256,
+          "in_b_flat": 256
+        },
+        "flow_sha256": "8864f13cd77efe923ff82e77b4573a29ae4da7008af77dbb387b3d0d39555776",
+        "tools": {
+          "yosys": "Yosys 0.69+post (git sha1 143eb14f9cc55d6f8927e68523b0c9d2166ed02c, Release, AppleClang clang++ 21.0.0.21000101)",
+          "iverilog": "Icarus Verilog version 13.0 (stable) (v13_0)"
+        },
+        "cells": 2142,
+        "cycles": 546,
+        "adp": 1169532.0,
+        "source": "baseline.v"
+      }
+    }
+  },
+  "error": "",
+  "frozen": "/output/opencode-go-gpt-6-luna/001_dot_product/rep2_frozen/dut.v",
+  "manifest": {
+    "adpbench_version": "unknown",
+    "git_commit": "",
+    "problem": "001_dot_product",
+    "problem_sha256": {
+      "dut.py": "91fd0433d225e3f9dd67022edc55b1809f6f642019e415e6b921d67086530a45",
+      "baseline.v": "44111a2a04a8b1ef5517f87f9076861c696422ecb301c1e9e551d828a321d3e7",
+      "baseline.json": "06f89f858ee67fdd51e191965e7f3370ea08827ebf2a1bed935a1c74cf09e63e"
+    },
+    "cases": {
+      "seeds": [
+        1000,
+        1001,
+        1002
+      ],
+      "directed": [
+        "zeros",
+        "min_values",
+        "extreme_signs"
+      ],
+      "transactions": 2,
+      "input_lens": {
+        "in_a_flat": 256,
+        "in_b_flat": 256
+      }
+    },
+    "tools": {
+      "yosys": "Yosys 0.69+ (git sha1 143eb14f9, Release, GNU /usr/bin/c++ 12.2.0)",
+      "iverilog": "Icarus Verilog version 13.0 (stable) (v13_0)"
+    },
+    "submission_sha256": "7498e9b170df41fc1018d7746a131b950089df811459f0267ac159c66abbca9b",
+    "netlist_sha256": "e9b078ca71f6706eb332a8ab3f99cce309ffb93a706a8040f8a1280bf7b56b78",
+    "agent_cmd": "adpbench Go agent-assisted-v2 (read/write/check/submit)",
+    "budget_s": 7200,
+    "sandbox": {
+      "mode": "docker",
+      "image": "adpbench-go:ci",
+      "network": "none"
+    },
+    "result": {
+      "correct": true,
+      "ratio": 1.5975641740156705,
+      "cells": 11092,
+      "cycles": 66,
+      "stage": "ok"
+    },
+    "error": "",
+    "timed_out": false,
+    "duration_s": 207.2,
+    "generation": {
+      "model": "gpt-6-luna",
+      "problem": "001_dot_product",
+      "protocol": "agent-assisted-v2",
+      "started": "2026-10-08T18:20:29.675054+00:00",
+      "generation_state": "completed",
+      "outcome": "submitted",
+      "error": "",
+      "turns": 11,
+      "checks": 3,
+      "max_turns": 20,
+      "max_checks": 3,
+      "max_output_tokens": 128000,
+      "usage": {
+        "input_tokens": 84211,
+        "output_tokens": 13984,
+        "total_tokens": 98195
+      },
+      "incomplete_usage": false,
+      "generation_settings": {
+        "reasoning": {
+          "effort": "high"
+        },
+        "token_limit_key": "max_output_tokens"
+      },
+      "reasoning_measured": {
+        "turns": 11,
+        "turns_with_reasoning": 0,
+        "reasoning_chars": 0,
+        "answer_chars": 13557,
+        "reasoning_tokens": 9778
+      },
+      "github": {
+        "GITHUB_REPOSITORY": "arygupt/ADPBench",
+        "GITHUB_RUN_ID": "37821626566",
+        "GITHUB_RUN_ATTEMPT": "1",
+        "GITHUB_SHA": "7cc1b28ac4c3ae2e862b50092bad73747fecd04c"
+      },
+      "attempt": 2,
+      "try": 1,
+      "transport_retries": [],
+      "finish_reason": "tool_calls",
+      "writes": 4,
+      "development_checks": [
+        {
+          "index": 1,
+          "submission_sha256": "cd7940a18e9a43a4505e6d15eb8321d5f4a60739a556872ca159d9683856ac0c",
+          "completed": true,
+          "correct": true,
+          "reason": "",
+          "audit_ok": true
+        },
+        {
+          "index": 2,
+          "submission_sha256": "f02c964a3478f39a96f8a633a5a8875f0023bdf898697de87da1543464e013e8",
+          "completed": true,
+          "correct": true,
+          "reason": "",
+          "audit_ok": true
+        },
+        {
+          "index": 3,
+          "submission_sha256": "4d2f9bfcc725f419fdc527808dadcd52e6deba551e750dca890a2b3a87d55f80",
+          "completed": true,
+          "correct": true,
+          "reason": "",
+          "audit_ok": true
+        }
+      ],
+      "submission_sha256": "7498e9b170df41fc1018d7746a131b950089df811459f0267ac159c66abbca9b",
+      "final_revision_checked": false,
+      "duration_s": 207.2,
+      "execution_health": "completed"
+    }
+  },
+  "history": [],
+  "outcome": "correct",
+  "execution_health": "completed",
+  "execution": {
+    "kind": "model-evaluation",
+    "repository": "arygupt/ADPBench",
+    "run_id": 37821626566,
+    "run_attempt": 1,
+    "job_id": 113471943730,
+    "commit": "7cc1b28ac4c3ae2e862b50092bad73747fecd04c",
+    "completed_at": "2026-10-08T18:25:23Z",
+    "job_conclusion": "success"
+  }
+}

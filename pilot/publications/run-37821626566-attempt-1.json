@@ -1,0 +1,50 @@
+{
+  "schema_version": 1,
+  "kind": "validated-model-results-publication",
+  "source_run_id": 37821626566,
+  "source_attempt": 1,
+  "source_commit": "7cc1b28ac4c3ae2e862b50092bad73747fecd04c",
+  "source_workflow": ".github/workflows/go-agent.yml",
+  "dataset": "go-agent-v2-r2",
+  "try": 1,
+  "confirmed_correct": 2,
+  "result_slots": 2,
+  "artifacts": [
+    {
+      "id": 11570886428,
+      "name": "go-agent-records-gpt-6-luna-001_dot_product-37821626566",
+      "digest": "sha256:0333ebf539583ff46dc56bf368fdf5d655695ff53dc147a3a933d23c12953656"
+    },
+    {
+      "id": 11572190840,
+      "name": "go-agent-generation-grok-4.7-001_dot_product-37821626566",
+      "digest": "sha256:09f32e92371bf2540a79b2620b232c043a3056c457eb1e1388d3aca813cbffb4"
+    },
+    {
+      "id": 11570818075,
+      "name": "go-agent-records-kimi-k3-001_dot_product-37821626566",
+      "digest": "sha256:c3d4c13ed3c39b9d65ea239458fe2483def8c4acc942d4eff098835e9e781f08"
+    },
+    {
+      "id": 11571946102,
+      "name": "go-agent-generation-deepseek-v4-pro-001_dot_product-37821626566",
+      "digest": "sha256:74771cb3eee8638c394b298a386c3d6c766c2904cd16acdcd286b7269aa5fb1e"
+    },
+    {
+      "id": 11571571676,
+      "name": "go-agent-generation-glm-5.3-001_dot_product-37821626566",
+      "digest": "sha256:17304e8222deaa92d668e6040c8c0405633f2552432454cd43b0f01679f4afd9"
+    }
+  ],
+  "record_file_sha256": {
+    "opencode-go-gpt-6-luna/001_dot_product/rep2/generation.json": "d1e41b544c1e00b320dc879d903cfd2f23d1308e7844d2cec787d5a279338808",
+    "opencode-go-gpt-6-luna/001_dot_product/rep2/manifest.json": "da27af405fea87c171786349c5b07d34e615ea0792696a1b50b8c5c1d0941fa8",
+    "opencode-go-gpt-6-luna/001_dot_product/rep2/record.json": "88c8f9573ed74528e4204c48bebfd99ba3791f0437595628229498e39223a97e",
+    "opencode-go-gpt-6-luna/001_dot_product/rep2_frozen/dut.v": "7498e9b170df41fc1018d7746a131b950089df811459f0267ac159c66abbca9b",
+    "opencode-go-kimi-k3/001_dot_product/rep2/generation.json": "c4b99b46c3ea4d3fe296c0c2874e03bccfc6854775bd5b268dc0c14e1cb74559",
+    "opencode-go-kimi-k3/001_dot_product/rep2/manifest.json": "0e65c5923fc4de89ccb28df2f15e5aa3685338ef16b311e827b76bce8116cff8",
+    "opencode-go-kimi-k3/001_dot_product/rep2/record.json": "1975a6b1d04eae288b767fafe87967be0078a7fa700c9b833abe716e95fb66d5",
+    "opencode-go-kimi-k3/001_dot_product/rep2_frozen/dut.v": "f3bfbdacccd7ef26b0fefc24bbf43fcf7537cac7215b5b5c857f7110babf5c06",
+    "plan.json": "7f234ad91af5c105e7672e90aa0789eae70003bf79c1c1a033120a2b13207f56"
+  }
+}
