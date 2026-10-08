@@ -1,0 +1,93 @@
+{
+  "labels": {
+    "opencode-go/gpt-6-luna [agent-assisted-v2]": {
+      "attempts": 1,
+      "correct": 1,
+      "correctness_rate": 1.0,
+      "beating_baseline": 1,
+      "beat_baseline_rate": 1.0,
+      "geomean_ratio_successful": 1.5976,
+      "failures": {
+        "wrong_rtl": 0,
+        "infrastructure": 0,
+        "submission_failure": 0
+      },
+      "repetitions": 2,
+      "outcomes": {
+        "correct": 1
+      },
+      "per_problem": {
+        "001_dot_product": {
+          "attempts": 1,
+          "correct": 1,
+          "correctness_rate": 1.0,
+          "beating_baseline": 1,
+          "beat_baseline_rate": 1.0,
+          "geomean_ratio_successful": 1.5976,
+          "failures": {
+            "wrong_rtl": 0,
+            "infrastructure": 0,
+            "submission_failure": 0
+          },
+          "repetitions": 2,
+          "outcomes": {
+            "correct": 1
+          }
+        }
+      }
+    },
+    "opencode-go/kimi-k3 [agent-assisted-v2]": {
+      "attempts": 1,
+      "correct": 1,
+      "correctness_rate": 1.0,
+      "beating_baseline": 1,
+      "beat_baseline_rate": 1.0,
+      "geomean_ratio_successful": 3.444,
+      "failures": {
+        "wrong_rtl": 0,
+        "infrastructure": 0,
+        "submission_failure": 0
+      },
+      "repetitions": 2,
+      "outcomes": {
+        "correct": 1
+      },
+      "per_problem": {
+        "001_dot_product": {
+          "attempts": 1,
+          "correct": 1,
+          "correctness_rate": 1.0,
+          "beating_baseline": 1,
+          "beat_baseline_rate": 1.0,
+          "geomean_ratio_successful": 3.444,
+          "failures": {
+            "wrong_rtl": 0,
+            "infrastructure": 0,
+            "submission_failure": 0
+          },
+          "repetitions": 2,
+          "outcomes": {
+            "correct": 1
+          }
+        }
+      }
+    }
+  },
+  "totals": {
+    "attempts": 2,
+    "correct": 2,
+    "correctness_rate": 1.0,
+    "beating_baseline": 2,
+    "beat_baseline_rate": 1.0,
+    "geomean_ratio_successful": 2.3456,
+    "failures": {
+      "wrong_rtl": 0,
+      "infrastructure": 0,
+      "submission_failure": 0
+    },
+    "repetitions": 2,
+    "outcomes": {
+      "correct": 2
+    }
+  }
+}
