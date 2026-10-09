@@ -125,6 +125,15 @@ listed on models.dev with the plan's output limits, so the `-t2` rerun was
 selected again with a third window from 2026-10-05 01:15 UTC for its last 22
 slots.
 
+On 2026-10-09 Go listed two free models: LongCat 2.5 Preview and a new one,
+Step 5 Preview (`step-5-preview-free`, StepFun, effort `high`, 65,536 output
+tokens). Space Bunny Free was gone, with only the paid `space-bunny` left, so its
+round 1 result is its only record. [`go-agent-v2-step5-free.json`](go-agent-v2-step5-free.json)
+plans Step 5's four slots under the same protocol, with generation off until the
+paid round 2 no longer holds the workflow's `PLAN`. The free canary now tests it;
+one-token probes that day answered once in three tries, with the rest returning
+"Endpoint is unavailable".
+
 ## Reasoning
 
 Every model requests "high" where it offers it, or the nearest setting
