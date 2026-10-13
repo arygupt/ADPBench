@@ -1,5 +1,4 @@
-/* The base palette matches aryamangupta.me. Type is Martian Mono at its
-   condensed width (87.5), which keeps the dense tables readable. */
+/* Typography and base palette match aryamangupta.me. */
 :root {
   color-scheme: dark;
   --bg: #1a1a1a;
@@ -17,11 +16,14 @@
   --bar-best: #f97316;
   --status-bg: #252321;
   --status-text: #d6d3d1;
+  --wrong: #f87171;
+  --wrong-soft: rgba(248, 113, 113, 0.08);
+  --wrong-border: rgba(248, 113, 113, 0.35);
   --weight-normal: 500;
   --weight-strong: 600;
   --radius: 8px;
   --radius-lg: 12px;
-  --font: "Martian Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  --font: "Lucida Console", monospace;
 }
 * {
   box-sizing: border-box;
@@ -643,6 +645,10 @@ dialog::backdrop {
   background: var(--surface);
   color: var(--muted);
 }
+.rc-status.wrong {
+  color: var(--wrong);
+  background: var(--wrong-soft);
+}
 .rc-status.infra {
   background: var(--status-bg);
   color: var(--status-text);
@@ -891,6 +897,7 @@ dialog::backdrop {
 .workspace .site-header nav a span { display: none; }
 .page-intro { display: flex; justify-content: space-between; align-items: center; gap: 24px; padding: 34px 0 23px; }
 .page-intro .eyebrow { font-size: 9px; letter-spacing: 1.5px; margin-bottom: 10px; }
+.page-summary { color: var(--muted); font-size: 12px; margin-top: 6px; }
 .page-intro h1 { font-size: 30px; line-height: 1.25; letter-spacing: -1px; font-weight: var(--weight-strong); }
 .download-link { display: flex; align-items: center; gap: 18px; border: 1px solid var(--border-strong); padding: 9px 13px; border-radius: var(--radius); font-size: 11px; white-space: nowrap; }
 .download-link span { color: var(--accent); font-size: 17px; }
@@ -907,10 +914,9 @@ dialog::backdrop {
 .ranking-table .model-col { width: 235px; }
 .ranking-table .score-col { width: 120px; }
 .ranking-table .stat-col { width: 85px; }
-.ranking-table .attempt-col { width: 75px; }
 .ranking-table .reasoning-col { width: 150px; }
 .reasoning-stat strong { display: block; color: var(--text); font-weight: var(--weight-normal); }
-.reasoning-stat span { display: block; margin-top: 2px; font-size: 10px; color: var(--faint); }
+.reasoning-stat span { display: block; margin-top: 2px; font-size: 10px; color: var(--faint); white-space: nowrap; }
 .ranking-table thead th { text-transform: uppercase; font-size: 10px; letter-spacing: .6px; color: var(--muted); font-weight: var(--weight-strong); text-align: right; padding: 17px 8px; border-bottom: 1px solid var(--border-strong); }
 .ranking-table thead th:first-child, .ranking-table thead .chart-heading { text-align: left; }
 .ranking-table .chart-heading span { text-transform: none; letter-spacing: 0; color: var(--faint); font-size: 9px; }
@@ -934,12 +940,23 @@ dialog::backdrop {
 .workspace .matrix-table th:first-child { width: 245px; }
 .workspace .matrix-table td { padding: 5px 5px; vertical-align: middle; }
 .workspace .result-bar { min-height: 36px; border-radius: var(--radius); background: var(--surface); color: var(--text); border: 1px solid var(--border); }
-.workspace .result-bar:before { inset: auto auto 0 0; height: 3px; }
+/* Correct cells are shaded by how close they come to the best result on that problem. */
+.workspace .result-bar:before { inset: 0; width: 100%; border-radius: 0; background: var(--accent); opacity: calc(var(--strength, 0) * 0.32); }
+.workspace .result-bar.best { border-color: var(--accent); }
 .workspace .result-bar.best { box-shadow: none; color: var(--accent); }
 .workspace .result-bar.best .star { color: var(--accent); }
 .workspace .result-bar.fail, .workspace .result-bar.infra { color: var(--muted); }
+.workspace .result-bar.wrong { color: var(--wrong); background: var(--wrong-soft); border-color: var(--wrong-border); }
+.workspace .result-bar.wrong:hover { border-color: var(--wrong); }
 .workspace .result-bar.infra { border-style: dashed; }
 .workspace .site-footer { border-top: 1px solid var(--border); padding-top: 20px; margin-top: 30px; }
+.matrix-caption { align-items: center; flex-wrap: wrap; }
+.matrix-legend { display: flex; flex-wrap: wrap; gap: 6px 16px; margin: 0; padding: 0; list-style: none; }
+.matrix-legend li { display: flex; align-items: center; gap: 6px; }
+.matrix-legend i { width: 12px; height: 12px; border-radius: 3px; border: 1px solid var(--border); background: var(--surface); }
+.matrix-legend i.correct { width: 28px; background: linear-gradient(90deg, var(--surface), color-mix(in srgb, var(--accent) 32%, var(--surface))); }
+.matrix-legend i.wrong { background: var(--wrong-soft); border-color: var(--wrong-border); }
+.matrix-legend i.infra { border-style: dashed; border-color: var(--border-strong); }
 .library-toolbar { display: flex; justify-content: flex-end; padding-top: 24px; }
 @media (max-width: 1000px) {
   .scroll-hint { display: block; }
@@ -947,7 +964,6 @@ dialog::backdrop {
   .ranking-table .model-col { width: 210px; }
   .ranking-table .score-col { width: 105px; }
   .ranking-table .stat-col { width: 75px; }
-  .ranking-table .attempt-col { width: 65px; }
 }
 @media (max-width: 620px) {
   .workspace .wrap, .workspace .header-inner, .workspace .site-footer { padding-inline: 16px; }
@@ -970,7 +986,7 @@ dialog::backdrop {
   .ranking-scroll { padding-inline: 14px; }
   .ranking-table, .ranking-table tbody, .ranking-table tr, .ranking-table tbody th, .ranking-table tbody td { display: block; }
   .ranking-table { min-width: 0; }
-  .ranking-table colgroup, .ranking-table thead, .ranking-table tfoot, .ranking-table tbody td:nth-child(7) { display: none; }
+  .ranking-table colgroup, .ranking-table thead, .ranking-table tfoot { display: none; }
   .ranking-table tbody tr { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); grid-template-areas: "model model score" "bar bar bar" "correct gain reasoning"; column-gap: 12px; padding: 14px 0; border-bottom: 1px solid var(--border); }
   .ranking-table tbody tr:last-child { border-bottom: 0; }
   .ranking-table tbody th, .ranking-table tbody td { height: auto; padding: 0; border: 0; }
@@ -992,7 +1008,6 @@ dialog::backdrop {
   .workspace .matrix-table { min-width: calc(var(--problems, 4) * 84px + 150px); }
   .workspace .matrix-table th:first-child { width: 120px; }
   .workspace .matrix-table th.correct-heading { width: 56px; }
-  .workspace .matrix-table th { font-size: 10px; padding-inline: 4px; }
   .matrix-table .model-label { white-space: normal; }
 }
 @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } * { transition: none !important; } }
