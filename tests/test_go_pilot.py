@@ -286,6 +286,15 @@ class RoundPlanTest(unittest.TestCase):
     def setUp(self):
         self.plan = read_plan(Path(__file__).resolve().parent.parent / "pilot/go-agent-v2-r1.json")
 
+    def test_new_problems_fit_a_separate_bounded_round(self):
+        problems = ["005_argmax", "006_topk", "007_histogram", "008_maxpool2d"]
+        plan = {**self.plan, "generation_enabled": False, "problems": problems}
+        validate_plan(plan)
+        self.assertEqual(len(plan_slots(plan)), 56)
+        self.assertEqual({problem for _, problem in plan_slots(plan)}, set(problems))
+        with self.assertRaises(ValueError):
+            validate_plan({**plan, "problems": self.plan["problems"] + problems})
+
     def test_reviewed_round_is_problem_major(self):
         slots = plan_slots(self.plan)
         self.assertEqual(len(slots), 56)

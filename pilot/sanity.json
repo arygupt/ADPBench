@@ -26,5 +26,33 @@
     "cycles": 1018,
     "adp": 8131784.0,
     "ratio": 2.8169919417436566
+  },
+  "005_argmax": {
+    "correct": true,
+    "cells": 572,
+    "cycles": 144,
+    "adp": 82368.0,
+    "ratio": 4.0130147630147635
+  },
+  "006_topk": {
+    "correct": true,
+    "cells": 1001,
+    "cycles": 160,
+    "adp": 160160.0,
+    "ratio": 11.887912087912088
+  },
+  "007_histogram": {
+    "correct": true,
+    "cells": 2067,
+    "cycles": 96,
+    "adp": 198432.0,
+    "ratio": 2.083534913723593
+  },
+  "008_maxpool2d": {
+    "correct": true,
+    "cells": 1043,
+    "cycles": 968,
+    "adp": 1009624.0,
+    "ratio": 17.4572078318265
   }
 }

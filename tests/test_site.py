@@ -8,6 +8,7 @@ import unittest
 from pathlib import Path
 
 from adpbench.site import export_site
+from adpbench.problem import discover_problems
 
 REPO = Path(__file__).resolve().parent.parent
 
@@ -80,11 +81,12 @@ class ExportSiteTest(unittest.TestCase):
             runs = {run["problem"]: run for run in model["runs"]}
             self.assertEqual(runs["001_dot_product"]["ratio"], 3.39)
             self.assertEqual(runs["002_gemv"]["stage"], "incorrect")
-            self.assertEqual(len(leaderboard["problems"]), 4)
+            expected = {root.name for root in discover_problems()}
+            self.assertEqual({p["name"] for p in leaderboard["problems"]}, expected)
             self.assertIn("title", leaderboard["problems"][0])
 
             problems = json.loads((out / "problems.json").read_text())
-            self.assertEqual(len(problems["problems"]), 4)
+            self.assertEqual({p["name"] for p in problems["problems"]}, expected)
 
 
 if __name__ == "__main__":
