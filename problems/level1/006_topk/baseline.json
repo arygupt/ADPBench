@@ -1,0 +1,35 @@
+{
+  "problem": "006_topk",
+  "seeds": [
+    1000,
+    1001,
+    1002
+  ],
+  "directed": [
+    "all_equal",
+    "ordered",
+    "duplicates",
+    "negative_only",
+    "extreme_signs"
+  ],
+  "transactions": 2,
+  "params": {
+    "LEN": 64,
+    "K": 8,
+    "LANES": 8,
+    "DATA_W": 8,
+    "ACC_W": 32
+  },
+  "input_lens": {
+    "in_x_flat": 64
+  },
+  "flow_sha256": "8864f13cd77efe923ff82e77b4573a29ae4da7008af77dbb387b3d0d39555776",
+  "tools": {
+    "yosys": "Yosys 0.69+post (git sha1 143eb14f9cc55d6f8927e68523b0c9d2166ed02c, Release, AppleClang clang++ 21.0.0.21000101)",
+    "iverilog": "Icarus Verilog version 13.0 (stable) (v13_0)"
+  },
+  "cells": 1803,
+  "cycles": 1056,
+  "adp": 1903968.0,
+  "source": "baseline.v"
+}
