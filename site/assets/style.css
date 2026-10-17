@@ -1,5 +1,4 @@
-/* The base palette matches aryamangupta.me. Type is Martian Mono at its
-   condensed width (87.5), which keeps the dense tables readable. */
+/* Typography and base palette match aryamangupta.me. */
 :root {
   color-scheme: dark;
   --bg: #1a1a1a;
@@ -21,7 +20,7 @@
   --weight-strong: 600;
   --radius: 8px;
   --radius-lg: 12px;
-  --font: "Martian Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  --font: "Lucida Console", monospace;
 }
 * {
   box-sizing: border-box;
@@ -889,6 +888,12 @@ dialog::backdrop {
 .workspace .site-header nav a { padding: 10px 0; }
 .workspace .site-header nav a[aria-current="page"] { color: var(--accent); }
 .workspace .site-header nav a span { display: none; }
+/* Request for frontier-model access, above the sticky header so it scrolls away. */
+.access-banner { background: var(--accent-soft); border-bottom: 1px solid rgba(249, 115, 22, 0.35); font-size: 11px; line-height: 1.6; }
+.access-inner { width: min(1440px, 100%); margin-inline: auto; padding: 10px 36px; display: flex; align-items: center; justify-content: space-between; gap: 24px; }
+.access-banner strong { color: var(--accent); font-weight: var(--weight-strong); }
+.access-banner a { flex: none; border: 1px solid var(--accent); padding: 6px 12px; color: var(--heading); white-space: nowrap; }
+.access-banner a:hover { background: var(--accent); color: var(--bg); }
 .page-intro { display: flex; justify-content: space-between; align-items: center; gap: 24px; padding: 34px 0 23px; }
 .page-intro .eyebrow { font-size: 9px; letter-spacing: 1.5px; margin-bottom: 10px; }
 .page-intro h1 { font-size: 30px; line-height: 1.25; letter-spacing: -1px; font-weight: var(--weight-strong); }
@@ -944,6 +949,7 @@ dialog::backdrop {
 @media (max-width: 1000px) {
   .scroll-hint { display: block; }
   .workspace .wrap, .workspace .header-inner, .workspace .site-footer { padding-inline: 24px; }
+  .access-inner { padding-inline: 24px; }
   .ranking-table .model-col { width: 210px; }
   .ranking-table .score-col { width: 105px; }
   .ranking-table .stat-col { width: 75px; }
@@ -951,6 +957,7 @@ dialog::backdrop {
 }
 @media (max-width: 620px) {
   .workspace .wrap, .workspace .header-inner, .workspace .site-footer { padding-inline: 16px; }
+  .access-inner { padding-inline: 16px; flex-direction: column; align-items: flex-start; gap: 10px; }
   .workspace .site-header { height: 58px; }
   .workspace .brand { font-size: 16px; gap: 7px; }
   .workspace .brand svg { width: 22px; height: 22px; }
