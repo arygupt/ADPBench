@@ -4,7 +4,7 @@
 // outcome -> [CSS class, label, short value]
 const STATES = {
   correct: ["correct", "Correct", "pass"],
-  incorrect: ["fail", "Incorrect RTL", "wrong"],
+  incorrect: ["fail wrong", "Incorrect RTL", "wrong"],
   invalid_submission: ["fail", "Invalid submission", "invalid"],
   audit_rejected: ["fail", "Submission rejected by audit", "rejected"],
   turn_limit: ["fail", "Agent turn limit reached", "turn limit"],
