@@ -7,7 +7,8 @@ import unittest
 from pathlib import Path
 
 from adpbench.durable import atomic_json
-from scripts.go_pilot import read_plan
+from scripts.go_pilot import generation_settings, read_plan, slot_dir
+from scripts.providers import run_label
 from scripts.publish_agent import WORKFLOW, job_name, publish_agent
 from scripts.publish_go import REPOSITORY
 from scripts.publish_results import latest_jobs, validate_source, validate_records, stage_publication, strict_json
@@ -17,6 +18,7 @@ class AgentPublicationTest(unittest.TestCase):
     PROTOCOL = "agent-assisted-v1"
     PLAN_FIELDS = {}
     RECEIPT_FIELDS = {}
+    MODEL_FIELDS = {}  # a subclass names a direct provider here
 
     def setUp(self):
         PROTOCOL = self.PROTOCOL
@@ -25,7 +27,7 @@ class AgentPublicationTest(unittest.TestCase):
         self.root = Path(self.tmp.name)
         self.plan = read_plan(Path(__file__).resolve().parent.parent / "pilot/go-core-20260922.json")
         self.plan.update(name="agent-test", protocol=PROTOCOL, max_turns=8, max_checks=3, **self.PLAN_FIELDS)
-        self.plan["models"] = self.plan["models"][:1]
+        self.plan["models"] = [{**self.plan["models"][0], **self.MODEL_FIELDS}]
         self.run = {"id":123, "run_attempt":1, "head_sha":"a"*40, "status":"completed", "event":"workflow_dispatch",
                     "path":WORKFLOW, "repository":{"full_name":REPOSITORY}, "head_repository":{"full_name":REPOSITORY},
                     "head_branch":"main", "html_url":f"https://github.com/{REPOSITORY}/actions/runs/123"}
@@ -39,18 +41,18 @@ class AgentPublicationTest(unittest.TestCase):
             model = self.plan["models"][0]
             artifact = self.root / "artifacts" / f"go-agent-records-{model['id']}-{problem}-123"
             atomic_json(artifact / "plan.json", self.plan)
-            dest = artifact / f"opencode-go-{model['id']}" / problem / rep
+            dest = slot_dir(artifact, model, problem, self.plan.get("attempt", 1))
             source = dest.parent / f"{rep}_frozen/dut.v"
             source.parent.mkdir(parents=True)
             source.write_text("module dut; endmodule\n")
             generation = {"model":model["id"], "problem":problem, "protocol":PROTOCOL, "outcome":"submitted",
                 "turns":3, "max_turns":8, "checks":1, "max_checks":3, "max_output_tokens":8192,
                 "submission_sha256":hashlib.sha256(source.read_bytes()).hexdigest(),
-                "generation_settings":{"reasoning":{"enabled":False}, "token_limit_key":"max_completion_tokens"},
+                "generation_settings":generation_settings(model),
                 "usage":{"input_tokens":40, "output_tokens":30}, "error":"",
                 "github":{"GITHUB_REPOSITORY":REPOSITORY, "GITHUB_RUN_ID":"123", "GITHUB_RUN_ATTEMPT":"1", "GITHUB_SHA":"a"*40},
                 **self.RECEIPT_FIELDS}
-            record = {"problem":problem, "label":f"opencode-go/{model['id']} [{PROTOCOL}]", "attempt":self.plan.get("attempt", 1),
+            record = {"problem":problem, "label":run_label(model, PROTOCOL), "attempt":self.plan.get("attempt", 1),
                 "group":"agent-test", "outcome":"correct", "execution_health":"completed", "audit":{"ok":True},
                 "result":{"correct":True, "ratio":1.2, "cells":10, "cycles":20, "adp":200, "metadata":{"stage":"ok"}},
                 "manifest":{"generation":generation, "submission_sha256":hashlib.sha256(source.read_bytes()).hexdigest()}}
@@ -214,6 +216,52 @@ class AgentV2PublicationTest(AgentPublicationTest):
         rerun = {**self.plan, "try": 2, "slots": [{"model": self.plan["models"][0]["id"], "problem": self.plan["problems"][0]}]}
         with self.assertRaisesRegex(ValueError, "wave_slots"):
             publish_agent(self.root / "artifacts", rerun, self.run, self.jobs, self.root / "published", self.root / "site")
+
+
+class DirectProviderPublicationTest(AgentV2PublicationTest):
+    """Every v2 publication rule, for a model called through a direct provider."""
+
+    MODEL_FIELDS = {"provider": "openai"}
+    RECEIPT_FIELDS = {**AgentV2PublicationTest.RECEIPT_FIELDS,
+                      "billable_tokens": {"input": 10, "cache_read": 30, "cache_write": 0, "output": 30}}
+
+    def test_results_are_filed_under_the_provider_with_their_cost(self):
+        board = self.publish()
+        model = self.plan["models"][0]["id"]
+        self.assertEqual(board["models"][0]["label"], f"openai/{model} [agent-assisted-v2]")
+        self.assertEqual(len(list((self.root / "published" / f"openai-{model}").glob("*/rep1/record.json"))), 2)
+        self.assertFalse((self.root / "published" / f"opencode-go-{model}").exists())
+        receipt = strict_json(next((self.root / "published").glob("**/generation.json")).read_bytes())
+        self.assertEqual(receipt["generation_settings"]["provider"], "openai")
+        self.assertEqual(receipt["billable_tokens"]["cache_read"], 30)
+
+    def test_a_refusal_publishes_as_a_model_outcome(self):
+        dest = self.paths[0]
+        self.set_generation(dest, outcome="refused", refusal_category="frontier_llm",
+                            error="model declined the request; no retry or fallback")
+        (dest.parent / "rep1_frozen/dut.v").unlink()  # Owned temporary fixture only.
+        record = strict_json((dest / "record.json").read_bytes())
+        record.update(outcome="refused", execution_health="completed", result=None, audit={"ok": False})
+        record["manifest"]["submission_sha256"] = ""
+        atomic_json(dest / "record.json", record)
+        board = self.publish()
+        model = board["models"][0]
+        self.assertEqual((model["infra"], model["wrong_rtl"]), (0, 0))
+        run = next(r for r in model["runs"] if r["problem"] == "001_dot_product")
+        self.assertEqual(run["outcome"], "refused")
+        self.assertIsNone(run["correct"])
+
+    def test_rejects_a_tampered_cost_or_refusal_receipt(self):
+        dest = self.paths[0]
+        for delta in ({"billable_tokens": {"input": -1}}, {"billable_tokens": {"input": 1.5}},
+                      {"billable_tokens": "free"}, {"refusal_category": "frontier_llm"},
+                      {"generation_settings": {"reasoning": {"enabled": False}, "token_limit_key": "max_completion_tokens"}}):
+            original = strict_json((dest / "generation.json").read_bytes())
+            self.set_generation(dest, **delta)
+            with self.subTest(delta=delta), self.assertRaises(ValueError):
+                validate_records(self.root / "artifacts", self.plan, self.run)
+            atomic_json(dest / "generation.json", original)
+            self.set_generation(dest)
 
 
 class AgentRerunPublicationTest(unittest.TestCase):

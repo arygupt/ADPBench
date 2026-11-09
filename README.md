@@ -73,6 +73,6 @@ flows/           pinned synthesis and simulation
 sandbox/         Docker agent images
 pilot/           configs and published results
 site/            static leaderboard
-scripts/         OpenCode Go tracks
+scripts/         OpenCode Go and direct-provider tracks
 tests/           python -m unittest discover -s tests
 ```

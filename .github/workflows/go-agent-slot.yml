@@ -16,9 +16,22 @@ on:
       subscription_only:
         required: true
         type: boolean
-    secrets:
-      OPENCODE_GO_API_KEY:
+      metered:
+        description: "The plan calls pay-as-you-go providers; every request is billed per token"
         required: true
+        type: boolean
+    secrets:
+      # Each slot uses only the key of its model's provider (scripts/providers.py).
+      OPENCODE_GO_API_KEY:
+        required: false
+      ANTHROPIC_API_KEY:
+        required: false
+      OPENAI_API_KEY:
+        required: false
+      XAI_API_KEY:
+        required: false
+      MOONSHOT_API_KEY:
+        required: false
 
 permissions:
   contents: read
@@ -27,11 +40,13 @@ env:
   PLAN: ${{ inputs.plan }}
   MODEL: ${{ inputs.model }}
   PROBLEM: ${{ inputs.problem }}
+  # How the dispatch said the plan is paid for; go_agent checks it against the plan.
+  ACK: ${{ inputs.subscription_only && '--subscription-only' || '' }} ${{ inputs.metered && '--metered' || '' }}
 
 jobs:
   generate:
     name: "Generate ${{ inputs.model }} · ${{ inputs.problem }} · agent-assisted-v2"
-    if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main' && inputs.subscription_only
+    if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main' && (inputs.subscription_only || inputs.metered)
     runs-on: ubuntu-latest
     timeout-minutes: 135 # A <=120-minute agent session, including transport retries, plus setup and upload.
     permissions:
@@ -49,7 +64,7 @@ jobs:
       - run: python -m pip install 'numpy>=1.24,<3'
       - name: Validate the reviewed slot before claiming it
         run: |
-          python -m scripts.go_agent validate --plan "$PLAN"
+          python -m scripts.go_agent validate --plan "$PLAN" $ACK
           python - <<'PY'
           import os
           from pathlib import Path
@@ -62,6 +77,19 @@ jobs:
           assert (model['id'], os.environ['PROBLEM']) in plan_slots(plan), 'Unreviewed slot'
           assert plan['generation_enabled'] and due(plan, model, now_utc()), 'Slot is outside its authorization window'
           PY
+      - name: Find this model's result directory and provider key
+        id: slot
+        run: python -m scripts.go_schedule slot --model "$MODEL" >> "$GITHUB_OUTPUT"
+      - name: Check the provider key is configured before claiming
+        env:
+          # Only this model's provider key reaches the step; the others stay empty.
+          OPENCODE_GO_API_KEY: ${{ steps.slot.outputs.key_env == 'OPENCODE_GO_API_KEY' && secrets.OPENCODE_GO_API_KEY || '' }}
+          ANTHROPIC_API_KEY: ${{ steps.slot.outputs.key_env == 'ANTHROPIC_API_KEY' && secrets.ANTHROPIC_API_KEY || '' }}
+          OPENAI_API_KEY: ${{ steps.slot.outputs.key_env == 'OPENAI_API_KEY' && secrets.OPENAI_API_KEY || '' }}
+          XAI_API_KEY: ${{ steps.slot.outputs.key_env == 'XAI_API_KEY' && secrets.XAI_API_KEY || '' }}
+          MOONSHOT_API_KEY: ${{ steps.slot.outputs.key_env == 'MOONSHOT_API_KEY' && secrets.MOONSHOT_API_KEY || '' }}
+          KEY_ENV: ${{ steps.slot.outputs.key_env }}
+        run: python -c 'import os, sys; sys.exit(0 if os.environ.get(os.environ["KEY_ENV"]) else "Missing repository secret " + os.environ["KEY_ENV"])'
       - uses: docker/setup-buildx-action@v3
       - name: Restore the pinned development-check toolchain
         uses: docker/build-push-action@v6
@@ -94,10 +122,15 @@ jobs:
       - name: Run standardized agent
         if: steps.claim.outputs.claimed == 'true'
         env:
-          OPENCODE_GO_API_KEY: ${{ secrets.OPENCODE_GO_API_KEY }}
+          # Only this model's provider key reaches the step; the others stay empty.
+          OPENCODE_GO_API_KEY: ${{ steps.slot.outputs.key_env == 'OPENCODE_GO_API_KEY' && secrets.OPENCODE_GO_API_KEY || '' }}
+          ANTHROPIC_API_KEY: ${{ steps.slot.outputs.key_env == 'ANTHROPIC_API_KEY' && secrets.ANTHROPIC_API_KEY || '' }}
+          OPENAI_API_KEY: ${{ steps.slot.outputs.key_env == 'OPENAI_API_KEY' && secrets.OPENAI_API_KEY || '' }}
+          XAI_API_KEY: ${{ steps.slot.outputs.key_env == 'XAI_API_KEY' && secrets.XAI_API_KEY || '' }}
+          MOONSHOT_API_KEY: ${{ steps.slot.outputs.key_env == 'MOONSHOT_API_KEY' && secrets.MOONSHOT_API_KEY || '' }}
         run: |
           python -m scripts.go_agent generate --plan "$PLAN" --model "$MODEL" \
-            --problem "$PROBLEM" --out runs/model --image adpbench-go:ci --subscription-only
+            --problem "$PROBLEM" --out runs/model --image adpbench-go:ci $ACK
       - name: Preserve the canonical submission and generation receipt
         id: evidence
         if: always() && steps.claim.outputs.claimed == 'true'
@@ -108,10 +141,10 @@ jobs:
             runs/model/plan.json
             runs/model/REPORT.md
             runs/model/usage.json
-            runs/model/opencode-go-${{ inputs.model }}/${{ inputs.problem }}/rep*/generation.json
-            runs/model/opencode-go-${{ inputs.model }}/${{ inputs.problem }}/rep*/dut.v
-            runs/model/opencode-go-${{ inputs.model }}/${{ inputs.problem }}/rep*/manifest.json
-            runs/model/opencode-go-${{ inputs.model }}/${{ inputs.problem }}/rep*/record.json
+            runs/model/${{ steps.slot.outputs.dir }}/${{ inputs.problem }}/rep*/generation.json
+            runs/model/${{ steps.slot.outputs.dir }}/${{ inputs.problem }}/rep*/dut.v
+            runs/model/${{ steps.slot.outputs.dir }}/${{ inputs.problem }}/rep*/manifest.json
+            runs/model/${{ steps.slot.outputs.dir }}/${{ inputs.problem }}/rep*/record.json
           if-no-files-found: error
           retention-days: 90
       - name: Preserve private transcript, development workspace, and transport evidence
@@ -130,10 +163,11 @@ jobs:
         if: always() && steps.claim.outputs.claimed == 'true'
         env:
           GH_TOKEN: ${{ github.token }}
+          SLOT_DIR: ${{ steps.slot.outputs.dir }}
         run: |
           set -euo pipefail
           read -r claim pause release <<< "$(python -m scripts.go_schedule names --model "$MODEL" --problem "$PROBLEM" --run-id "$GITHUB_RUN_ID")"
-          outcome=$(python -c 'import json, os, pathlib; r = list(pathlib.Path("runs/model", "opencode-go-" + os.environ["MODEL"], os.environ["PROBLEM"]).glob("rep*/generation.json")); print(json.loads(r[0].read_text())["outcome"] if len(r) == 1 else "")')
+          outcome=$(python -c 'import json, os, pathlib; r = list(pathlib.Path("runs/model", os.environ["SLOT_DIR"], os.environ["PROBLEM"]).glob("rep*/generation.json")); print(json.loads(r[0].read_text())["outcome"] if len(r) == 1 else "")')
           if [ "$release" = true ] && [ "$outcome" = quota_exhausted ]; then
             # Pause the rest of this run first, then free this slot for the next wave.
             gh api --method POST "repos/$GITHUB_REPOSITORY/git/refs" -f ref="refs/tags/$pause" -f sha="$GITHUB_SHA" >/dev/null 2>&1 || true
@@ -145,16 +179,18 @@ jobs:
           fi
       - name: Explain this slot's generation outcome
         if: always()
+        env:
+          SLOT_DIR: ${{ steps.slot.outputs.dir }}
         run: |
           {
             echo "## $MODEL · $PROBLEM · agent-assisted-v2"
-            echo 'Shared read/write/check/submit tools; at most 20 model turns and 3 development checks. No hidden-test feedback or balance fallback. A request the provider drops is resent unchanged at most twice.'
+            echo 'Shared read/write/check/submit tools; at most 20 model turns and 3 development checks. No hidden-test feedback, and no fallback to another model or balance. A request the provider drops is resent unchanged at most twice.'
             echo 'Green execution means the attempt was recorded, not that its RTL is correct. Incorrect, missing, and invalid submissions remain failed benchmark outcomes. Provider/transport/harness faults fail execution.'
           } >> "$GITHUB_STEP_SUMMARY"
           python - <<'PY'
           import json, os
           from pathlib import Path
-          receipts = list((Path('runs/model') / ('opencode-go-' + os.environ['MODEL']) / os.environ['PROBLEM']).glob('rep*/generation.json'))
+          receipts = list((Path('runs/model') / os.environ['SLOT_DIR'] / os.environ['PROBLEM']).glob('rep*/generation.json')) if os.environ['SLOT_DIR'] else []
           with open(os.environ['GITHUB_STEP_SUMMARY'], 'a') as summary:
               if len(receipts) == 1:
                   data = json.loads(receipts[0].read_text())
@@ -185,6 +221,9 @@ jobs:
         with:
           python-version: "3.12"
       - run: python -m pip install 'numpy>=1.24,<3'
+      - name: Find this model's result directory
+        id: slot
+        run: python -m scripts.go_schedule slot --model "$MODEL" >> "$GITHUB_OUTPUT"
       - name: Download the immutable generation receipt (no model credentials)
         uses: actions/download-artifact@v4
         with:
@@ -212,12 +251,12 @@ jobs:
             runs/model/plan.json
             runs/model/REPORT.md
             runs/model/usage.json
-            runs/model/opencode-go-${{ inputs.model }}/${{ inputs.problem }}/rep*/generation.json
-            runs/model/opencode-go-${{ inputs.model }}/${{ inputs.problem }}/rep*/dut.v
-            runs/model/opencode-go-${{ inputs.model }}/${{ inputs.problem }}/rep*/manifest.json
-            runs/model/opencode-go-${{ inputs.model }}/${{ inputs.problem }}/rep*/record.json
-            runs/model/opencode-go-${{ inputs.model }}/${{ inputs.problem }}/rep*/scoring-state.json
-            runs/model/opencode-go-${{ inputs.model }}/${{ inputs.problem }}/rep*_frozen/dut.v
+            runs/model/${{ steps.slot.outputs.dir }}/${{ inputs.problem }}/rep*/generation.json
+            runs/model/${{ steps.slot.outputs.dir }}/${{ inputs.problem }}/rep*/dut.v
+            runs/model/${{ steps.slot.outputs.dir }}/${{ inputs.problem }}/rep*/manifest.json
+            runs/model/${{ steps.slot.outputs.dir }}/${{ inputs.problem }}/rep*/record.json
+            runs/model/${{ steps.slot.outputs.dir }}/${{ inputs.problem }}/rep*/scoring-state.json
+            runs/model/${{ steps.slot.outputs.dir }}/${{ inputs.problem }}/rep*_frozen/dut.v
           if-no-files-found: error
           retention-days: 90
       - name: Preserve private scoring logs and recovery checkpoints

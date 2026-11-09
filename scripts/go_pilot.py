@@ -46,9 +46,9 @@ from adpbench.process import is_infrastructure_failure
 from adpbench.report import write_report
 from adpbench.seeds import EVAL_SEEDS
 from scripts.go_stream import StreamFailure, call_streaming
+from scripts.providers import auth_headers, provider_key, provider_of, run_label, slot_name
 
 PLAN = repo_root() / "pilot/go-20260921.json"
-BASE_URL = "https://opencode.ai/zen/go/v1/"
 USER_AGENT = "adpbench-coding-agent/0.0.1"
 SCORING_IMAGE = "adpbench-go:ci"
 AGENT_PROTOCOLS = ("agent-assisted-v1", "agent-assisted-v2")
@@ -63,12 +63,17 @@ SYSTEM = (
 )
 
 # Model settings that are sent with each request and recorded with each result.
-SETTING_KEYS = ("thinking", "reasoning_effort", "reasoning", "token_limit_key")
-REQUEST_SETTING_KEYS = ("thinking", "reasoning_effort", "reasoning")
+# `provider` is recorded but never sent; a model without one is an OpenCode Go model.
+SETTING_KEYS = (
+    "provider", "thinking", "reasoning_effort", "reasoning", "output_config", "cache_control",
+    "token_limit_key",
+)
+REQUEST_SETTING_KEYS = ("thinking", "reasoning_effort", "reasoning", "output_config", "cache_control")
 GITHUB_KEYS = ("GITHUB_REPOSITORY", "GITHUB_RUN_ID", "GITHUB_RUN_ATTEMPT", "GITHUB_SHA")
 
 ERROR_BODY_LIMIT = 16384
 RESPONSES_EFFORTS = {"none", "low", "medium", "high", "xhigh", "max"}
+ANTHROPIC_EFFORTS = {"low", "medium", "high", "xhigh", "max"}
 CAP_FINISHES = {"length", "max_tokens"}
 COMPLETE_FINISHES = {"stop", "end_turn", "stop_sequence"}
 
@@ -114,9 +119,13 @@ def now_utc() -> datetime:
     return datetime.now(timezone.utc)
 
 
-def slot_dir(out: Path, model_id: str, problem_id: str, attempt: int = 1) -> Path:
-    """Where one model's attempt at one problem is recorded."""
-    return out / f"opencode-go-{model_id}" / problem_id / f"rep{attempt}"
+def slot_dir(out: Path, model: dict | str, problem_id: str, attempt: int = 1) -> Path:
+    """Where one model's attempt at one problem is recorded.
+
+    `model` is the plan's model entry, whose provider prefixes the directory.
+    A bare model ID is an OpenCode Go model.
+    """
+    return out / slot_name(model) / problem_id / f"rep{attempt}"
 
 
 def frozen_path(dest: Path) -> Path:
@@ -185,7 +194,7 @@ def redact_credentials(text: str, key: str) -> str:
     if key:
         text = text.replace(key, "[REDACTED]")
     text = re.sub(r"(?i)(bearer\s+)[A-Za-z0-9._~+/-]+=*", r"\1[REDACTED]", text)
-    text = re.sub(r"\b(?:sk-|gh[pousr]_)[A-Za-z0-9_-]{12,}\b", "[REDACTED]", text)
+    text = re.sub(r"\b(?:sk-|xai-|gh[pousr]_)[A-Za-z0-9_-]{12,}\b", "[REDACTED]", text)
     return text
 
 
@@ -316,7 +325,7 @@ def _validate_round(plan: dict) -> None:
     if len(plan_slots(plan)) > MAX_ROUND_SLOTS:
         raise ValueError("a round may contain at most sixty-four slots")
 
-    # Pacing under OpenCode Go's shared 5-hour account limit.
+    # Pacing under a shared account limit (OpenCode Go's 5-hour window, or a provider's rate limit).
     if not _is_positive_int(plan.get("max_parallel", MAX_PARALLEL), MAX_PARALLEL):
         raise ValueError("max_parallel must be 1-14")
     if type(plan.get("release_on_quota", False)) is not bool:
@@ -346,6 +355,10 @@ def _validate_model(model: dict, expires: datetime) -> None:
         raise ValueError("invalid model ID")
     if model["api"] not in {"chat/completions", "messages", "responses"}:
         raise ValueError("unsupported Go endpoint")
+    provider = provider_of(model)
+    if model["api"] not in provider.apis:
+        raise ValueError("the model's provider does not serve this API")
+    _validate_anthropic_settings(model, provider.id == "anthropic")
     if model["api"] == "responses":
         if model.get("token_limit_key") != "max_output_tokens":
             raise ValueError("responses models must set max_output_tokens")
@@ -363,6 +376,22 @@ def _validate_model(model: dict, expires: datetime) -> None:
     window = (expires - starts).total_seconds()
     if starts.tzinfo is None or not 0 < window <= MAX_AUTHORIZATION_WINDOW_S:
         raise ValueError("authorization window must be positive and at most two days")
+
+
+def _validate_anthropic_settings(model: dict, is_anthropic: bool) -> None:
+    """`output_config` (effort) and `cache_control` are sent only to Anthropic itself.
+
+    Prompt caching changes what a request costs, never what the model sees.
+    """
+    if not is_anthropic:
+        if {"output_config", "cache_control"} & set(model):
+            raise ValueError("output_config and cache_control are Anthropic request settings")
+        return
+    effort = model.get("output_config", {"effort": "high"})
+    if not isinstance(effort, dict) or set(effort) != {"effort"} or effort["effort"] not in ANTHROPIC_EFFORTS:
+        raise ValueError("output_config may only set a reviewed effort")
+    if model.get("cache_control", {"type": "ephemeral"}) != {"type": "ephemeral"}:
+        raise ValueError("cache_control may only enable ephemeral prompt caching")
 
 
 # --------------------------------------------------------------------------
@@ -473,6 +502,38 @@ def valid_usage(usage: dict, api: str, cap: int) -> bool:
     return inputs_ok and outputs_ok
 
 
+def billable_tokens(usage: dict, api: str) -> dict:
+    """One response's usage as the four token classes providers price separately.
+
+    messages reports uncached input, cache reads and cache writes as separate
+    counts. responses and chat/completions report total input, with the cached
+    part in a detail field; a provider that reports no detail is counted as
+    uncached. Output is the provider's own count (reasoning included wherever
+    the provider includes it).
+    """
+    def count(value) -> int:
+        return value if type(value) is int and value >= 0 else 0
+
+    if api == "messages":
+        return {
+            "input": count(usage.get("input_tokens")),
+            "cache_read": count(usage.get("cache_read_input_tokens")),
+            "cache_write": count(usage.get("cache_creation_input_tokens")),
+            "output": count(usage.get("output_tokens")),
+        }
+    if api == "responses":
+        total = count(usage.get("input_tokens"))
+        details = usage.get("input_tokens_details")
+        output = count(usage.get("output_tokens"))
+    else:
+        total = count(usage.get("prompt_tokens"))
+        details = usage.get("prompt_tokens_details")
+        output = count(usage.get("completion_tokens"))
+    cached = count(details.get("cached_tokens")) if isinstance(details, dict) else 0
+    cached = min(cached or count(usage.get("cached_tokens")), total)
+    return {"input": total - cached, "cache_read": cached, "cache_write": 0, "output": output}
+
+
 def extract_rtl(text: str) -> str:
     """The single complete `module dut ... endmodule` in a response, or ValueError."""
     blocks = re.findall(r"```(?:verilog|systemverilog|sv)?\s*\n(.*?)```", text, re.S | re.I)
@@ -502,27 +563,28 @@ def call_model(
     evidence: Path | None = None,
     wall_timeout: int = 600,
 ) -> dict:
-    """Send one request to OpenCode Go and return the parsed response. Never retries.
+    """Send one request to the model's provider and return the parsed response. Never retries.
 
     Streaming requests save partial output under `evidence` as it arrives.
     """
+    provider = provider_of(model)
     headers = {
-        "Authorization": "Bearer " + key,
         "Content-Type": "application/json",
         "User-Agent": USER_AGENT,
-        "x-opencode-session": session,
+        **auth_headers(provider, model["api"], key, session),
     }
-    if model["api"] == "messages":
-        headers["x-api-key"] = key
-        headers["anthropic-version"] = "2023-06-01"
 
     if body.get("stream"):
         if evidence is None:
             raise ValueError("streaming requires a durable evidence directory")
-        return call_streaming(model["api"], body, headers, evidence, key, timeout, wall_timeout)
+        return call_streaming(
+            model["api"], body, headers, evidence, key, timeout, wall_timeout,
+            host=provider.host, base_path=provider.path,
+        )
 
     # urllib does not retry. Headers and raw provider errors are never logged.
-    request = urllib.request.Request(BASE_URL + model["api"], json.dumps(body).encode(), headers)
+    url = f"https://{provider.host}{provider.path}{model['api']}"
+    request = urllib.request.Request(url, json.dumps(body).encode(), headers)
     with urllib.request.build_opener(NoRedirect).open(request, timeout=timeout) as response:
         return json.load(response)
 
@@ -565,9 +627,9 @@ def generate(plan: dict, model: dict, out: Path) -> None:
         raise ValueError("model must match the reviewed plan")
     if not due(plan, model, now_utc()):
         raise RuntimeError("outside the model's authorized schedule window")
-    key = os.environ.get("OPENCODE_GO_API_KEY", "")
+    key = provider_key(model)
     if not key:
-        raise RuntimeError("OPENCODE_GO_API_KEY is missing")
+        raise RuntimeError(f"{provider_of(model).key_env} is missing")
 
     out.mkdir(parents=True, exist_ok=True)
     # Never generate twice into one directory. This local guard complements
@@ -580,11 +642,11 @@ def generate(plan: dict, model: dict, out: Path) -> None:
         pending = _new_generation_record(plan, model, problem_id)
         pending["generation_state"] = "pending"
         pending["error"] = "not requested: generation job stopped before this request"
-        atomic_json(slot_dir(out, model["id"], problem_id) / "generation.json", pending)
+        atomic_json(slot_dir(out, model, problem_id) / "generation.json", pending)
 
     stop_reason = ""
     for problem_id in plan["problems"]:
-        dest = slot_dir(out, model["id"], problem_id)
+        dest = slot_dir(out, model, problem_id)
         dest.mkdir(parents=True, exist_ok=True)
         record = _new_generation_record(plan, model, problem_id)
         if stop_reason:
@@ -753,7 +815,7 @@ def _score_slot(
     resume: bool,
     deadline_s: float | None,
 ) -> None:
-    dest = slot_dir(out, model["id"], problem_id, plan_attempt(plan))
+    dest = slot_dir(out, model, problem_id, plan_attempt(plan))
     generation_path = dest / "generation.json"
     if not generation_path.exists():
         return
@@ -771,7 +833,7 @@ def _score_slot(
     record = RunRecord(
         problem=problem_id,
         agent_cmd=agent_cmd,
-        label=_run_label(model["id"], generation),
+        label=_run_label(model, generation),
         attempt=plan_attempt(plan),
         group=plan["name"],
         started=generation["started"],
@@ -848,12 +910,12 @@ def _score_slot(
     )
 
 
-def _run_label(model_id: str, generation: dict) -> str:
+def _run_label(model: dict, generation: dict) -> str:
     protocol = generation.get("protocol")
     if protocol == "fixture":
         return "scripted/baseline-fixture"
     track = protocol if protocol in AGENT_PROTOCOLS else "single-shot"
-    return f"opencode-go/{model_id} [{track}]"
+    return run_label(model, track)
 
 
 def _freeze(source: Path, frozen: Path) -> Path:
@@ -929,7 +991,7 @@ def agent_outcome(record: dict, generation: dict) -> dict:
 
 def save_scoring_failure(plan: dict, model: dict, out: Path, problem_id: str, reason: str) -> None:
     """Record that scoring crashed. The score is unknown: never claim a pass or a DUT failure."""
-    dest = slot_dir(out, model["id"], problem_id, plan_attempt(plan))
+    dest = slot_dir(out, model, problem_id, plan_attempt(plan))
     record_path = dest / "record.json"
     if record_path.exists():
         record = json.loads(record_path.read_text())
@@ -956,7 +1018,7 @@ def _unscored_record(plan: dict, model: dict, problem_id: str, dest: Path) -> di
     record = RunRecord(
         problem=problem_id,
         agent_cmd=f"adpbench Go API {track}",
-        label=f"opencode-go/{model['id']} [{track}]",
+        label=run_label(model, track),
         attempt=plan_attempt(plan),
         group=plan["name"],
         started=generation["started"],
@@ -988,7 +1050,7 @@ def summarize(plan: dict, model: dict, out: Path) -> None:
     total_output = 0
     incomplete_usage = False
     for problem_id in plan["problems"]:
-        path = slot_dir(out, model["id"], problem_id, plan_attempt(plan)) / "generation.json"
+        path = slot_dir(out, model, problem_id, plan_attempt(plan)) / "generation.json"
         if not path.exists():
             # Each agent-track job scores one problem, so a sibling slot that
             # belongs to another job is not missing usage.
@@ -1066,7 +1128,7 @@ def summarize(plan: dict, model: dict, out: Path) -> None:
 def run_fixture(plan: dict, model: dict, out: Path) -> None:
     """Exercise the full scoring path with each problem's known-good baseline. No HTTP calls."""
     for problem_id in plan["problems"]:
-        dest = slot_dir(out, model["id"], problem_id, plan_attempt(plan))
+        dest = slot_dir(out, model, problem_id, plan_attempt(plan))
         generation = {"started": now_utc().isoformat(), "protocol": "fixture", "error": ""}
         atomic_json(dest / "generation.json", generation)
         (dest / "dut.v").write_bytes((problem_dir(problem_id) / "baseline.v").read_bytes())

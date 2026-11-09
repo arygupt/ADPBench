@@ -115,7 +115,7 @@ def supervise(
     for problem in plan["problems"]:
         if problem_id is not None and problem != problem_id:
             continue
-        if not (slot_dir(out, model_id, problem, plan_attempt(plan)) / "generation.json").is_file():
+        if not (slot_dir(out, model, problem, plan_attempt(plan)) / "generation.json").is_file():
             raise ValueError("missing scheduled generation slot")
 
         name = "adpbench-score-" + uuid4().hex
@@ -217,7 +217,7 @@ def _container_state(name: str) -> dict:
 
 
 def _record_is_healthy(plan: dict, model: dict, out: Path, problem: str) -> bool:
-    record_path = slot_dir(out, model["id"], problem, plan_attempt(plan)) / "record.json"
+    record_path = slot_dir(out, model, problem, plan_attempt(plan)) / "record.json"
     if not record_path.exists():
         save_scoring_failure(plan, model, out, problem, "missing_final_record")
         return False

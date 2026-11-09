@@ -13,7 +13,11 @@ on:
         type: boolean
         default: false
       subscription_only:
-        description: "Go Use balance is OFF; no Zen balance fallback"
+        description: "The plan has OpenCode Go models, and Go Use balance is OFF; no Zen balance fallback"
+        type: boolean
+        default: false
+      metered:
+        description: "The plan has pay-as-you-go models (Anthropic, OpenAI, xAI, Moonshot); every request is billed per token"
         type: boolean
         default: false
   pull_request:
@@ -25,6 +29,7 @@ on:
       - "scripts/go_pilot.py"
       - "scripts/go_score.py"
       - "scripts/go_schedule.py"
+      - "scripts/providers.py"
       - "pilot/go-agent*.json"
       - "pilot/go-canary-v2*.json"
       - "adpbench/**"
@@ -33,6 +38,7 @@ on:
       - "tests/test_go_tools.py"
       - "tests/test_go_stream.py"
       - "tests/test_go_pilot.py"
+      - "tests/test_providers.py"
       - "tests/test_go_scoring_integration.py"
       - "tests/test_reliability.py"
 
@@ -66,12 +72,26 @@ jobs:
         if: inputs.run_models || inputs.run_canary
         env:
           SUBSCRIPTION_ONLY: ${{ inputs.subscription_only }}
+          METERED: ${{ inputs.metered }}
+          RUN_CANARY: ${{ inputs.run_canary }}
           BOTH: ${{ inputs.run_models && inputs.run_canary }}
         run: |
           test "$GITHUB_EVENT_NAME" = workflow_dispatch
           test "$GITHUB_REF" = refs/heads/main
-          test "$SUBSCRIPTION_ONLY" = true
           test "$BOTH" = false
+          # The dispatch must say how the plan it runs is paid for, before anything is claimed.
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          from scripts.go_agent import validate_canary
+          from scripts.go_pilot import read_plan
+          from scripts.providers import check_billing
+          if os.environ['RUN_CANARY'] == 'true':
+              plan = validate_canary(json.loads(Path(os.environ['CANARY']).read_text()))
+          else:
+              plan = read_plan(Path(os.environ['PLAN']))
+          check_billing(plan, subscription_only=os.environ['SUBSCRIPTION_ONLY'] == 'true', metered=os.environ['METERED'] == 'true')
+          PY
       - run: python -m scripts.go_agent validate --plan "$PLAN"
       - name: List the canary's models
         id: canary
@@ -83,7 +103,7 @@ jobs:
           plan = validate_canary(json.loads(Path(os.environ['CANARY']).read_text()))
           print('models=' + json.dumps([model['id'] for model in plan['models']]))
           PY
-      - run: python -m unittest tests.test_go_agent tests.test_go_tools tests.test_go_stream tests.test_go_pilot tests.test_go_schedule tests.test_reliability -v
+      - run: python -m unittest tests.test_go_agent tests.test_go_tools tests.test_go_stream tests.test_go_pilot tests.test_providers tests.test_go_schedule tests.test_reliability -v
 
   integration:
     name: Pinned agent sandbox and held-out scorer checks (no model calls)
@@ -122,9 +142,9 @@ jobs:
   prepare:
     name: Prepare pinned toolchain and validate the baselines (no model calls)
     needs: checks
-    if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main' && inputs.run_models && !inputs.run_canary && inputs.subscription_only
+    if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main' && inputs.run_models && !inputs.run_canary && (inputs.subscription_only || inputs.metered)
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 45 # Up to eight baselines are scored before any model call.
     outputs:
       matrix: ${{ steps.round.outputs.matrix }}
       slots: ${{ steps.round.outputs.slots }}
@@ -200,8 +220,8 @@ jobs:
     if: needs.prepare.outputs.slots != '0'
     strategy:
       fail-fast: false
-      # OpenCode Go's 5-hour usage limit is shared by the whole account, so
-      # the plan sets how many slots may spend at once.
+      # A usage or rate limit is shared by the whole provider account, so the
+      # plan sets how many slots may spend at once.
       max-parallel: ${{ fromJSON(needs.prepare.outputs.parallel) }}
       matrix: ${{ fromJSON(needs.prepare.outputs.matrix) }}
     uses: ./.github/workflows/go-agent-slot.yml
@@ -210,13 +230,18 @@ jobs:
       model: ${{ matrix.model }}
       problem: ${{ matrix.problem }}
       subscription_only: ${{ inputs.subscription_only }}
+      metered: ${{ inputs.metered }}
     secrets:
       OPENCODE_GO_API_KEY: ${{ secrets.OPENCODE_GO_API_KEY }}
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+      XAI_API_KEY: ${{ secrets.XAI_API_KEY }}
+      MOONSHOT_API_KEY: ${{ secrets.MOONSHOT_API_KEY }}
 
   canary:
     name: "Canary ${{ matrix.model }} · one tool round trip, never scored"
     needs: checks
-    if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main' && inputs.run_canary && !inputs.run_models && inputs.subscription_only
+    if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main' && inputs.run_canary && !inputs.run_models && (inputs.subscription_only || inputs.metered)
     runs-on: ubuntu-latest
     timeout-minutes: 50 # At most four 10-minute requests plus setup and upload.
     permissions:
@@ -228,6 +253,7 @@ jobs:
         model: ${{ fromJSON(needs.checks.outputs.canary_models) }}
     env:
       MODEL: ${{ matrix.model }}
+      ACK: ${{ inputs.subscription_only && '--subscription-only' || '' }} ${{ inputs.metered && '--metered' || '' }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -250,6 +276,19 @@ jobs:
           now = now_utc()
           assert datetime.fromisoformat(config['not_before']) <= now < datetime.fromisoformat(config['expires_at']), 'Canary is outside its window'
           PY
+      - name: Find this model's provider key
+        id: slot
+        run: python -m scripts.go_schedule slot --canary "$CANARY" --model "$MODEL" >> "$GITHUB_OUTPUT"
+      - name: Check the provider key is configured before claiming
+        env:
+          # Only this model's provider key reaches the step; the others stay empty.
+          OPENCODE_GO_API_KEY: ${{ steps.slot.outputs.key_env == 'OPENCODE_GO_API_KEY' && secrets.OPENCODE_GO_API_KEY || '' }}
+          ANTHROPIC_API_KEY: ${{ steps.slot.outputs.key_env == 'ANTHROPIC_API_KEY' && secrets.ANTHROPIC_API_KEY || '' }}
+          OPENAI_API_KEY: ${{ steps.slot.outputs.key_env == 'OPENAI_API_KEY' && secrets.OPENAI_API_KEY || '' }}
+          XAI_API_KEY: ${{ steps.slot.outputs.key_env == 'XAI_API_KEY' && secrets.XAI_API_KEY || '' }}
+          MOONSHOT_API_KEY: ${{ steps.slot.outputs.key_env == 'MOONSHOT_API_KEY' && secrets.MOONSHOT_API_KEY || '' }}
+          KEY_ENV: ${{ steps.slot.outputs.key_env }}
+        run: python -c 'import os, sys; sys.exit(0 if os.environ.get(os.environ["KEY_ENV"]) else "Missing repository secret " + os.environ["KEY_ENV"])'
       - name: Claim this model's canary once, including interrupted attempts
         id: claim
         env:
@@ -268,8 +307,13 @@ jobs:
       - name: One tiny write, check and submit round trip
         if: steps.claim.outputs.claimed == 'true'
         env:
-          OPENCODE_GO_API_KEY: ${{ secrets.OPENCODE_GO_API_KEY }}
-        run: python -m scripts.go_agent canary --config "$CANARY" --model "$MODEL" --out runs/canary --subscription-only
+          # Only this model's provider key reaches the step; the others stay empty.
+          OPENCODE_GO_API_KEY: ${{ steps.slot.outputs.key_env == 'OPENCODE_GO_API_KEY' && secrets.OPENCODE_GO_API_KEY || '' }}
+          ANTHROPIC_API_KEY: ${{ steps.slot.outputs.key_env == 'ANTHROPIC_API_KEY' && secrets.ANTHROPIC_API_KEY || '' }}
+          OPENAI_API_KEY: ${{ steps.slot.outputs.key_env == 'OPENAI_API_KEY' && secrets.OPENAI_API_KEY || '' }}
+          XAI_API_KEY: ${{ steps.slot.outputs.key_env == 'XAI_API_KEY' && secrets.XAI_API_KEY || '' }}
+          MOONSHOT_API_KEY: ${{ steps.slot.outputs.key_env == 'MOONSHOT_API_KEY' && secrets.MOONSHOT_API_KEY || '' }}
+        run: python -m scripts.go_agent canary --config "$CANARY" --model "$MODEL" --out runs/canary $ACK
       - name: Preserve canary evidence (never published as scores)
         if: always() && steps.claim.outputs.claimed == 'true'
         uses: actions/upload-artifact@v4

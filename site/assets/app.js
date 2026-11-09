@@ -26,6 +26,8 @@ const MODEL_NAMES = {
   "glm-5.3-flash": "GLM-5.3-Flash",
   "kimi-k2.6": "Kimi K2.6",
   "minimax-m2.7": "MiniMax M2.7",
+  "claude-fable-5-1": "Claude Fable 5.1",
+  "claude-fable-5-2": "Claude Fable 5.2",
 };
 
 // Provider logos, matched in order against the model id (the label without

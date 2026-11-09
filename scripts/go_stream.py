@@ -1,6 +1,7 @@
-"""Single-request OpenCode Go streaming (SSE) transport. Never reconnects.
+"""Single-request streaming (SSE) transport. Never reconnects.
 
-OpenCode Go speaks three wire formats:
+OpenCode Go speaks three wire formats, and each direct provider one or two of
+them (see scripts/providers.py):
 
   chat/completions   OpenAI-style: `data: {"choices": [{"delta": ...}]}` events,
                      ended by `data: [DONE]`
@@ -226,7 +227,13 @@ class ResponseStream:
         elif kind == "content_block_stop":
             self._on_block_stop(event)
         elif kind == "message_delta":
-            self.finish = event.get("delta", {}).get("stop_reason") or self.finish
+            delta = event.get("delta", {})
+            self.finish = delta.get("stop_reason") or self.finish
+            # Present only when the model declined (stop_reason "refusal").
+            if isinstance(delta.get("stop_details"), dict):
+                if len(json.dumps(delta["stop_details"])) > MAX_METADATA_BYTES:
+                    raise StreamFailure("invalid_stream_metadata")
+                self.data["stop_details"] = delta["stop_details"]
             # Usage in message_delta is cumulative: replace, never sum.
             self.data["usage"].update(event.get("usage", {}))
             self._check_usage_size()
@@ -688,17 +695,22 @@ def call_streaming(
     key: str,
     idle_timeout: int,
     wall_timeout: int,
+    *,
+    host: str = GO_HOST,
+    base_path: str = GO_PATH,
 ) -> dict:
-    """POST one streaming request to the fixed Go origin and read the full response.
+    """POST one streaming request to one fixed origin and read the full response.
 
+    `host` and `base_path` come from the reviewed provider registry
+    (scripts/providers.py), never from a plan; the default is OpenCode Go.
     Redirects are not followed, the request is never retried, and credentials
     never enter logs. A non-200 status raises urllib.error.HTTPError.
     """
     if api not in APIS:
         raise ValueError("unsupported Go endpoint")
     end = time.monotonic() + wall_timeout
-    path = GO_PATH + api
-    connection = http.client.HTTPSConnection(GO_HOST, timeout=min(idle_timeout, wall_timeout))
+    path = base_path + api
+    connection = http.client.HTTPSConnection(host, timeout=min(idle_timeout, wall_timeout))
     try:
         connection.connect()
         sock = connection.sock  # keep the response socket even with Connection: close
@@ -707,7 +719,7 @@ def call_streaming(
         if response.status != 200:
             raw = response.read(ERROR_BODY_LIMIT + 1)
             raise urllib.error.HTTPError(
-                f"https://{GO_HOST}{path}", response.status, "Go request rejected", {}, io.BytesIO(raw)
+                f"https://{host}{path}", response.status, "request rejected", {}, io.BytesIO(raw)
             )
         if "text/event-stream" not in response.getheader("Content-Type", ""):
             raise StreamFailure("provider_did_not_return_event_stream")

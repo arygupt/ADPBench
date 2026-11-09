@@ -28,7 +28,7 @@ from adpbench.hashing import sha256_bytes
 from adpbench.problem import repo_root
 from adpbench.report import write_report
 from adpbench.site import export_site
-from scripts.go_pilot import frozen_path, read_plan, slot_dir
+from scripts.go_pilot import frozen_path, read_plan, select_model, slot_dir
 
 REPOSITORY = "arygupt/ADPBench"
 WORKFLOW = ".github/workflows/go-core.yml"
@@ -74,7 +74,7 @@ def write_published_records(output: Path, plan: dict, slots: list[dict]) -> None
     output.mkdir(parents=True)
     atomic_json(output / "plan.json", plan)
     for slot in slots:
-        dest = slot_dir(output, slot["model_id"], slot["problem"], slot.get("attempt", 1))
+        dest = slot_dir(output, select_model(plan, slot["model_id"]), slot["problem"], slot.get("attempt", 1))
         atomic_json(dest / "generation.json", slot["generation"])
         atomic_json(dest / "record.json", slot["record"])
         atomic_json(dest / "manifest.json", slot["record"]["manifest"])
