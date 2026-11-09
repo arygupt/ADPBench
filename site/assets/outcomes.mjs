@@ -9,6 +9,7 @@ const STATES = {
   audit_rejected: ["fail", "Submission rejected by audit", "rejected"],
   turn_limit: ["fail", "Agent turn limit reached", "turn limit"],
   truncated: ["fail", "Provider output truncated", "truncated"],
+  refused: ["fail", "Model declined the task", "declined"],
   wall_timeout: ["fail", "Agent time limit reached", "time limit"],
   provider_error: ["infra", "Provider request failed · not scored", "provider"],
   quota_exhausted: ["infra", "Provider quota exhausted · not scored", "quota"],

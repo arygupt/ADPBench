@@ -134,6 +134,78 @@ paid round 2 no longer holds the workflow's `PLAN`. The free canary now tests it
 one-token probes that day answered once in three tries, with the rest returning
 "Endpoint is unavailable".
 
+## Direct providers
+
+A plan model may name a `provider`. Without one it is an OpenCode Go model, so
+every earlier plan and receipt reads as before. The providers are a fixed list
+in [`scripts/providers.py`](../scripts/providers.py): a plan chooses among
+them, and can never send a key to a host that is not in that file.
+
+| `provider` | Host | Repository secret | APIs |
+|---|---|---|---|
+| (none) | opencode.ai | `OPENCODE_GO_API_KEY` | chat/completions, messages, responses |
+| `anthropic` | api.anthropic.com | `ANTHROPIC_API_KEY` | messages |
+| `openai` | api.openai.com | `OPENAI_API_KEY` | responses, chat/completions |
+| `xai` | api.x.ai | `XAI_API_KEY` | responses, chat/completions |
+| `moonshot` | api.moonshot.ai | `MOONSHOT_API_KEY` | chat/completions |
+
+The protocol is the same: the same tools, prompt, 20 turns, 3 checks, retries
+and held-out scoring. What differs is where the request goes and how it is
+paid for:
+
+- **Labels and directories** carry the provider: `anthropic/claude-fable-5-2
+  [agent-assisted-v2]`, filed under `anthropic-claude-fable-5-2/`.
+- **Billing.** Direct providers bill every request per token, so a dispatch
+  confirms `metered` where a Go dispatch confirms `subscription_only`. The
+  harness checks the confirmation against the plan before any slot is claimed.
+- **Keys.** Each slot's generation step receives only its own provider's key.
+  A slot whose key is not configured stops before it claims its tag.
+- **Cost.** A direct model's receipt records `billable_tokens`: uncached
+  input, cache reads, cache writes and output.
+
+Three things are specific to Anthropic:
+
+- Requests set adaptive thinking, `output_config.effort: high`, and prompt
+  caching (`cache_control`). Caching changes what a request costs, not what
+  the model sees.
+- HTTP 529 (overloaded) is resent like a 5xx.
+- A response that ends with `stop_reason: refusal` ends the slot as `refused`,
+  with the refusal category in the receipt. That is a model outcome: it is
+  never rerun, and no fallback model is requested, since another model's
+  answer would not be this model's result.
+
+A 429 that persists after both retries is still `quota_exhausted`.
+
+### Fable and comparison rounds
+
+Nine plans run the same experiment, all eight problems for three rounds, 24
+slots per model. Each is committed with `generation_enabled: false`.
+
+| Plans | Models | Slots per round |
+|---|---|---:|
+| `go-agent-v2-fable51-r1` … `-r3` | Claude Fable 5.1 | 8 |
+| `go-agent-v2-direct-r1` … `-r3` | GPT-6 Luna (OpenAI), Grok 4.7 (xAI), Kimi K3 (Moonshot) | 24 |
+| `go-agent-v2-fable52-r1` … `-r3` | Claude Fable 5.2 | 8 |
+
+The two Fable families differ only in the model ID, and the comparison models
+keep round 1's request settings and output limits (Kimi K3 stays at the
+131,072 tokens Go allowed, below Moonshot's own limit). A test holds all nine
+plans to the same protocol fields. Each has a canary:
+`go-canary-v2-fable51.json`, `-direct.json` and `-fable52.json`.
+
+Run order:
+
+1. The Fable 5.1 canary, which proves the Anthropic path.
+2. `go-agent-v2-fable51-r1`: one slot per problem, which measures the real
+   cost per slot before anything larger runs.
+3. The other two Fable 5.1 rounds and the three comparison rounds.
+4. The three Fable 5.2 rounds.
+
+Each step is a reviewed change that selects the plan (and canary) in
+`go-agent.yml`, sets `generation_enabled: true` and gives it a current window.
+These plans set `release_on_quota`, so a slot that a rate limit cuts off is
+released for a later dispatch and each wave publishes into its round.
+
 ## Reasoning
 
 Every model requests "high" where it offers it, or the nearest setting
@@ -172,6 +244,7 @@ Enabling either needs a reviewed authorization window.
 
 Both dispatches of [OpenCode Go agent runs](https://github.com/arygupt/ADPBench/actions/workflows/go-agent.yml)
 must select `main` and confirm `subscription_only`. Keep Go **Use balance** off.
+A plan of [direct providers](#direct-providers) confirms `metered` instead.
 
 1. **Canary.** Set `generation_enabled: true` and a current window (at most
    one day) in `go-canary-v2.json`, merge, then dispatch with `run_canary`.

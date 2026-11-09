@@ -4,6 +4,10 @@
     python -m scripts.go_agent generate --plan <plan> --model <id> --problem <id> --subscription-only
     python -m scripts.go_agent canary --config <canary config> --model <id> --subscription-only
 
+A plan whose models call pay-as-you-go providers (scripts/providers.py) takes
+`--metered` in place of `--subscription-only`; each is an explicit
+acknowledgment of how the plan's requests are paid for.
+
 The model works through native tool calls only (see go_tools.py): it can read
 the task files, rewrite dut.v, run a development check, and submit. There are
 no arbitrary commands and no final-score feedback. Only an explicit submit
@@ -16,8 +20,8 @@ pilot/agent-assisted-v2.md). The model never sees a failed attempt.
 
 Output, next to `--out` (N is the plan's attempt):
 
-    <out>/opencode-go-<model>/<problem>/repN/generation.json   public receipt (no model text)
-    <out>/opencode-go-<model>/<problem>/repN/dut.v             the submitted file
+    <out>/<provider>-<model>/<problem>/repN/generation.json   public receipt (no model text)
+    <out>/<provider>-<model>/<problem>/repN/dut.v             the submitted file
     <out>-private/turn-NN/{request,response,tools}.json         private transcript
     <out>-private/turn-NN/retry-K/                              evidence of each resent request
     <out>-private/revision-NN.v, check-NN/                      every write and check
@@ -28,7 +32,6 @@ from __future__ import annotations
 
 import argparse
 import json
-import os
 import re
 import time
 import traceback
@@ -46,6 +49,7 @@ from adpbench.process import run_logged
 from scripts.go_pilot import (
     AGENT_PROTOCOLS,
     CAP_FINISHES,
+    billable_tokens,
     call_model,
     due,
     execution_health,
@@ -67,6 +71,7 @@ from scripts.go_pilot import (
 )
 from scripts.go_score import docker, isolated_container_flags
 from scripts.go_stream import StreamFailure
+from scripts.providers import check_billing, provider_key, provider_of
 from scripts.go_tools import (
     add_reasoning_counts,
     empty_reasoning_totals,
@@ -119,6 +124,9 @@ TOOL_ARGUMENTS = {
 }
 
 TOOL_FINISHES = {"tool_calls", "tool_use", "stop", "end_turn", "stop_sequence"}
+# The model declined the task (Anthropic's safety classifiers). A model outcome: never rerun.
+REFUSAL_FINISH = "refusal"
+REFUSAL_CATEGORY = re.compile(r"[a-z0-9_]{1,64}")
 
 SYSTEM = """You are an RTL coding agent in ADPBench's {protocol} track.
 Use only the native read_file, write_file, check, and submit tools provided.
@@ -409,7 +417,7 @@ def generate(plan: dict, model: dict, problem_id: str, out: Path, image: str) ->
         json.dump({"started": now_utc().isoformat()}, handle)
     atomic_json(out / "plan.json", plan)
 
-    dest = slot_dir(out, model["id"], problem_id, plan_attempt(plan))
+    dest = slot_dir(out, model, problem_id, plan_attempt(plan))
     private = out.with_name(out.name + "-private")
     private.mkdir(parents=True, exist_ok=True)
     started = time.monotonic()
@@ -417,14 +425,14 @@ def generate(plan: dict, model: dict, problem_id: str, out: Path, image: str) ->
     record = _new_receipt(plan, model, problem_id)
     atomic_json(dest / "generation.json", record)
 
-    key = os.environ.get("OPENCODE_GO_API_KEY", "")
+    key = provider_key(model)
     controller = None
     try:
         if not due(plan, model, now_utc()):
             record.update(outcome="not_requested", error="authorization expired before any model request")
             return record
         if not key:
-            raise RuntimeError("missing Go secret")
+            raise RuntimeError("missing provider secret")
         problem = load_problem(problem_dir(problem_id))
         workspace = out.with_name(out.name + "-workspace")
         controller = Controller(problem, workspace, private, dest, plan, image, deadline)
@@ -493,6 +501,9 @@ def _new_receipt(plan: dict, model: dict, problem_id: str) -> dict:
         "reasoning_measured": empty_reasoning_totals(),
         "github": github_context(),
     }
+    if "provider" in model:
+        # Token counts by price class, so a report can price the run.
+        receipt["billable_tokens"] = {"input": 0, "cache_read": 0, "cache_write": 0, "output": 0}
     if "transport_retries" in plan:
         receipt.update({"attempt": plan["attempt"], "try": plan["try"], "transport_retries": []})
     return receipt
@@ -562,6 +573,8 @@ def _run_turns(controller: Controller, model: dict, problem_id: str, record: dic
             record.update(outcome="provider_error", error="invalid provider token accounting")
             return
         _add_usage(record["usage"], usage)
+        if "billable_tokens" in record:
+            _add_usage(record["billable_tokens"], billable_tokens(usage, api))
         # A stream that broke before its usage arrived may still have been billed.
         unaccounted = any(not retry["usage_known"] for retry in record.get("transport_retries", []))
         record.update(incomplete_usage=unaccounted, finish_reason=finish)
@@ -569,6 +582,13 @@ def _run_turns(controller: Controller, model: dict, problem_id: str, record: dic
             record.update(
                 outcome="truncated",
                 error="provider output maximum reached; partial actions not executed",
+            )
+            return
+        if finish == REFUSAL_FINISH:
+            record.update(
+                outcome="refused",
+                error="model declined the request; no retry or fallback",
+                refusal_category=_refusal_category(data),
             )
             return
         if finish not in TOOL_FINISHES:
@@ -654,7 +674,7 @@ def _call_with_retries(
             atomic_json(evidence / "provider_error.json", provider_error_evidence(exc, key))
             # A rejected request produced no output, so its usage is known: none.
             failure, reason, usage_known = ProviderRejected(exc.code), f"http_{exc.code}", True
-            retryable = exc.code in RETRY_HTTP_STATUSES
+            retryable = exc.code in RETRY_HTTP_STATUSES | provider_of(model).retry_statuses
         except StreamFailure as exc:
             failure, reason, usage_known = exc, str(exc), False
             retryable = reason in RETRY_STREAM_FAILURES
@@ -671,6 +691,13 @@ def _call_with_retries(
         print(f"{model['id']}: turn {turn} {reason}; resending in {wait}s", flush=True)
         time.sleep(wait)
     raise AssertionError("unreachable")
+
+
+def _refusal_category(data: dict) -> str:
+    """The provider's category for a refusal ("" if absent or malformed). Never its explanation."""
+    details = data.get("stop_details")
+    category = details.get("category") if isinstance(details, dict) else None
+    return category if isinstance(category, str) and REFUSAL_CATEGORY.fullmatch(category) else ""
 
 
 def _add_usage(totals: dict, usage: dict) -> None:
@@ -777,13 +804,13 @@ def canary(config: dict, model_id: str, out: Path) -> dict:
     with (dest / "canary-started.json").open("x") as handle:
         json.dump({"started": now_utc().isoformat()}, handle)
 
-    key = os.environ.get("OPENCODE_GO_API_KEY", "")
+    key = provider_key(model)
     try:
         if not config["generation_enabled"] or not starts <= now_utc() < expires:
             record["error"] = "canary is disabled or outside its authorization window"
             return record
         if not key:
-            raise RuntimeError("missing Go secret")
+            raise RuntimeError("missing provider secret")
         _canary_turns(config, plan, model, record, private, key)
     except urllib.error.HTTPError as exc:
         record.update(status="provider_error", error=f"provider HTTP {exc.code}; no retry")
@@ -828,6 +855,9 @@ def _canary_turns(config: dict, plan: dict, model: dict, record: dict, private: 
             record["tool_results_accepted"] = True
         if finish in CAP_FINISHES:
             record.update(status="output_cap", error="canary output cap reached before submit")
+            return
+        if finish == REFUSAL_FINISH:
+            record.update(status="refused", error="model declined the canary task", refusal_category=_refusal_category(data))
             return
         if finish not in TOOL_FINISHES:
             record.update(status="provider_error", error="unexpected provider stop reason")
@@ -875,13 +905,26 @@ def main():
     parser.add_argument("--problem")
     parser.add_argument("--out", type=Path, default=Path("runs/agent"))
     parser.add_argument("--image", default="adpbench-go:ci")
-    parser.add_argument("--subscription-only", action="store_true")
+    parser.add_argument(
+        "--subscription-only", action="store_true",
+        help="the plan has OpenCode Go models, and Go Use balance is OFF",
+    )
+    parser.add_argument(
+        "--metered", action="store_true",
+        help="the plan has pay-as-you-go models; every request is billed per token",
+    )
     args = parser.parse_args()
 
+    def acknowledge(plan: dict) -> None:
+        """Before any request or claim: the dispatch must say how the plan is paid for."""
+        try:
+            check_billing(plan, subscription_only=args.subscription_only, metered=args.metered)
+        except ValueError as exc:
+            parser.error(str(exc))
+
     if args.mode == "canary":
-        if not args.subscription_only:
-            parser.error("--subscription-only requires Use balance to remain OFF")
         config = json.loads(args.config.read_text())
+        acknowledge(validate_canary(config))
         record = canary(config, args.model, args.out)
         if record["status"] not in {"completed", "not_requested"}:
             raise SystemExit(1)
@@ -890,12 +933,14 @@ def main():
     plan = read_plan(args.plan)
     validate(plan)
     if args.mode == "validate":
+        # With either flag, also check it is the right acknowledgment for a live dispatch.
+        if args.subscription_only or args.metered:
+            acknowledge(plan)
         slots = len(plan_slots(plan))
         print(f"{plan['name']}: {slots} slots; protocol={plan['protocol']}; no model calls")
         return
 
-    if not args.subscription_only:
-        parser.error("--subscription-only requires Use balance to remain OFF")
+    acknowledge(plan)
     record = generate(plan, select_model(plan, args.model), args.problem, args.out, args.image)
     if record["execution_health"] != "completed":
         raise SystemExit(1)

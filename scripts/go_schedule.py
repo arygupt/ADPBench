@@ -3,6 +3,8 @@
     python -m scripts.go_schedule check [--dispatch]   # decide; dispatch the next wave and publication if due
     python -m scripts.go_schedule names --model <id> --problem <id> --run-id <id>
                                                      # "<claim tag> <pause tag> <release?>"
+    python -m scripts.go_schedule slot --model <id> [--canary <config>]
+                                                     # dir=, key_env= and billing= lines for $GITHUB_OUTPUT
 
 Run by .github/workflows/go-agent-schedule.yml. It never calls a model. It
 dispatches the agent workflow (the same reviewed plan, claim tags and limits
@@ -16,7 +18,8 @@ as a manual dispatch) only when:
 OpenCode Go's 5-hour usage limit is shared by the whole account. A slot that
 the limit cuts off releases its claim (see go-agent-slot.yml), so a later
 hourly check picks it up once the limit resets. Committing a scheduled plan
-is the authorization, including the confirmation that Go "Use balance" is off.
+is the authorization, including the confirmation that Go "Use balance" is off
+(or, for a plan of pay-as-you-go providers, that its requests are billed per token).
 
 A wave dispatched with the workflow token never triggers publish-results.yml,
 so the same check dispatches it for the oldest finished wave of the plan that
@@ -34,8 +37,9 @@ import subprocess
 from datetime import datetime
 from pathlib import Path
 
-from scripts.go_agent import validate
+from scripts.go_agent import validate, validate_canary
 from scripts.go_pilot import claim_name, due, now_utc, pause_name, plan_slots, read_plan, select_model
+from scripts.providers import billing_modes, provider_of, slot_name
 
 REPOSITORY = "arygupt/ADPBench"
 AGENT_WORKFLOW = Path(".github/workflows/go-agent.yml")
@@ -95,6 +99,24 @@ def to_publish(plan: dict, waves: list[dict], publications: list[dict], open_bra
     return waiting[0], f"{len(waiting)} finished wave(s) to publish"
 
 
+def dispatch_inputs(plan: dict) -> list[str]:
+    """The agent workflow's inputs for one wave, acknowledging how the plan is paid for."""
+    modes = billing_modes(plan)
+    inputs = {
+        "run_models": "true",
+        "run_canary": "false",
+        "subscription_only": str("subscription" in modes).lower(),
+        "metered": str("metered" in modes).lower(),
+    }
+    return [argument for name, value in inputs.items() for argument in ("-f", f"{name}={value}")]
+
+
+def slot_outputs(model: dict) -> dict:
+    """What the workflows need to know about a model's provider: never the key itself."""
+    provider = provider_of(model)
+    return {"dir": slot_name(model), "key_env": provider.key_env, "billing": provider.billing}
+
+
 def gh(*args: str) -> str:
     return subprocess.run(["gh", *args], check=True, capture_output=True, text=True).stdout
 
@@ -120,7 +142,19 @@ def main() -> None:
     names.add_argument("--model", required=True)
     names.add_argument("--problem", required=True)
     names.add_argument("--run-id", required=True)
+    slot = commands.add_parser("slot", help="one model's result directory and credential variable name")
+    slot.add_argument("--model", required=True)
+    slot.add_argument("--canary", type=Path, help="look the model up in this canary config's source plan")
     args = parser.parse_args()
+
+    if args.command == "slot":
+        if args.canary:
+            plan = validate_canary(json.loads(args.canary.read_text()))
+        else:
+            plan = read_plan(Path(os.environ["PLAN"]))
+        for name, value in slot_outputs(select_model(plan, args.model)).items():
+            print(f"{name}={value}")
+        return
 
     if args.command == "names":
         plan = read_plan(Path(os.environ["PLAN"]))
@@ -136,10 +170,7 @@ def main() -> None:
     run, reason = decide(plan, claimed_tags(plan), active_agent_runs(), now_utc())
     print(f"{plan['name']} try {plan.get('try', 1)}: {'dispatch' if run else 'wait'} - {reason}")
     if run and args.dispatch:
-        gh(
-            "workflow", "run", AGENT_WORKFLOW.name, "--repo", REPOSITORY, "--ref", "main",
-            "-f", "run_models=true", "-f", "run_canary=false", "-f", "subscription_only=true",
-        )
+        gh("workflow", "run", AGENT_WORKFLOW.name, "--repo", REPOSITORY, "--ref", "main", *dispatch_inputs(plan))
         print("Dispatched the agent workflow; each slot still claims its own tag before any request.")
 
     fields = "databaseId,status,event,headBranch,displayTitle,createdAt"

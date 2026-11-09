@@ -43,6 +43,7 @@ from scripts.go_pilot import (
     slot_dir,
     validate_plan,
 )
+from scripts.providers import KEY_ENVS, source_name
 from scripts.publish_agent import AGENT_GENERATION_STEP, GITHUB_TIMESTAMP
 from scripts.publish_agent import OUTCOMES as AGENT_OUTCOMES
 from scripts.publish_agent import WORKFLOW as AGENT_WORKFLOW
@@ -74,7 +75,7 @@ PUBLISHED_FILES = {"record.json", "generation.json", "manifest.json", "dut.v", "
 WAVE_WINDOW_FIELDS = {"generation_enabled", "expires_at", "schedule", "max_parallel"}
 
 # Published records must never contain these fields.
-CREDENTIAL_FIELD = re.compile(r'"(?:authorization|api_key|x-api-key|OPENCODE_GO_API_KEY)"\s*:', re.I)
+CREDENTIAL_FIELD = re.compile(r'"(?:authorization|api_key|x-api-key|' + "|".join(KEY_ENVS) + r')"\s*:', re.I)
 TRANSCRIPT_FIELD = re.compile(
     r'"(?:messages|reasoning_content|raw_response|response_text|tool_calls|tool_results)"\s*:', re.I
 )
@@ -357,7 +358,7 @@ def validate_records(artifacts: Path, plan: dict, run: dict) -> None:
     for model, problem, artifact in planned:
         if not artifact.exists():
             continue  # publish() distinguishes missing evidence from failed jobs
-        dest = slot_dir(artifact, model["id"], problem, plan_attempt(plan))
+        dest = slot_dir(artifact, model, problem, plan_attempt(plan))
 
         generation = strict_json((dest / "generation.json").read_bytes())
         if agent_track:
@@ -462,7 +463,7 @@ def register(catalog: dict, plan: dict) -> dict:
 
     entry = {
         "id": name,
-        "label": f"OpenCode Go · {name} · {protocol}",
+        "label": f"{source_name(plan)} · {name} · {protocol}",
         "path": f"data/{name}/leaderboard.json",
         "protocol": protocol,
     }

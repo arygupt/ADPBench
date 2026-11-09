@@ -21,8 +21,10 @@ from scripts.go_pilot import (
     output_limit,
     plan_attempt,
     plan_slots,
+    select_model,
     slot_dir,
 )
+from scripts.providers import KEY_ENVS, run_label
 from scripts.publish_go import (
     FINISHED_JOB_CONCLUSIONS,
     REPOSITORY,
@@ -48,6 +50,7 @@ OUTCOMES = {
     "quota_exhausted",
     "transport_interrupted",
     "truncated",
+    "refused",
     "invalid_submission",
     "audit_rejected",
     "not_requested",
@@ -64,7 +67,7 @@ OUTCOMES = {
 # reasoning, tool contents, or credentials. Receipts record only counts.
 PRIVATE_FIELDS = re.compile(
     r'"(?:messages|reasoning_content|raw_response|response_text|tool_calls|tool_results'
-    r'|authorization|api_key|x-api-key|OPENCODE_GO_API_KEY)"\s*:',
+    r'|authorization|api_key|x-api-key|' + "|".join(KEY_ENVS) + r')"\s*:',
     re.I,
 )
 
@@ -84,7 +87,7 @@ def in_waves(plan: dict) -> bool:
 
 def wave_dir(out: Path, model_id: str, problem: str, plan: dict) -> Path:
     """Where a wave publishes a slot: `rep<N>` for a first try, or next to the try it replaces (`rep<N>-t2`)."""
-    first = slot_dir(out, model_id, problem, plan_attempt(plan))
+    first = slot_dir(out, select_model(plan, model_id), problem, plan_attempt(plan))
     return first if plan.get("try", 1) == 1 else first.with_name(f"{first.name}-t{plan['try']}")
 
 
@@ -159,6 +162,14 @@ def validate_generation(generation: dict, model: dict, problem: str, plan: dict)
         checks = generation["checks"]
         if type(checks) is not int or not 0 <= checks <= plan.get("max_checks", 3):
             raise ValueError("invalid agent development check count")
+
+    if "refusal_category" in generation:
+        category = generation["refusal_category"]
+        if generation.get("outcome") != "refused" or not re.fullmatch(r"[a-z0-9_]{0,64}", str(category)):
+            raise ValueError("invalid agent refusal receipt")
+    billable = generation.get("billable_tokens", {})
+    if not isinstance(billable, dict) or any(type(value) is not int or value < 0 for value in billable.values()):
+        raise ValueError("invalid agent billable token receipt")
 
     if PRIVATE_FIELDS.search(json.dumps(generation)):
         raise ValueError("private field in agent generation receipt")
@@ -257,7 +268,7 @@ def wave_slots(artifacts: Path, plan: dict, run: dict, jobs: list[dict], round_d
         # attempt of that run scores it without generating again.
         if not artifact.exists() and not any(step_ran(job, AGENT_GENERATION_STEP) for job in generate):
             continue  # not in this wave, or paused before any model call
-        receipt = slot_dir(artifact, model["id"], problem, plan_attempt(plan)) / "generation.json"
+        receipt = slot_dir(artifact, model, problem, plan_attempt(plan)) / "generation.json"
         if (
             plan.get("release_on_quota")
             and receipt.is_file()
@@ -266,7 +277,7 @@ def wave_slots(artifacts: Path, plan: dict, run: dict, jobs: list[dict], round_d
             continue
 
         if rerun:
-            first = slot_dir(round_dir, model["id"], problem, plan_attempt(plan)) / "record.json"
+            first = slot_dir(round_dir, model, problem, plan_attempt(plan)) / "record.json"
             if not first.is_file():
                 raise ValueError("a rerun needs its round's published first try")
             voided = json.loads(first.read_text())
@@ -309,7 +320,7 @@ def _scoring_job(jobs: list[dict], model_id: str, problem: str, protocol: str) -
 def _prepare_slot(artifact: Path, plan: dict, run: dict, job: dict, model: dict, problem: str) -> dict:
     """The record, receipt and frozen RTL to publish for one slot, after every check."""
     model_id = model["id"]
-    label = f"opencode-go/{model_id} [{plan['protocol']}]"
+    label = run_label(model, plan["protocol"])
     attempt = plan_attempt(plan)
 
     if not artifact.exists():
@@ -336,7 +347,7 @@ def _prepare_slot(artifact: Path, plan: dict, run: dict, job: dict, model: dict,
 
     if json.loads((artifact / "plan.json").read_text()) != plan:
         raise ValueError("agent artifact plan differs from source plan")
-    dest = slot_dir(artifact, model_id, problem, attempt)
+    dest = slot_dir(artifact, model, problem, attempt)
     generation = json.loads((dest / "generation.json").read_text())
     validate_generation(generation, model, problem, plan)
     _check_provenance(generation.get("github", {}), run)
