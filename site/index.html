@@ -9,7 +9,7 @@
       content="AI-generated RTL benchmark results. Compare area-delay product, correctness, and individual hardware agent runs."
     />
     <link rel="icon" href="favicon.svg" type="image/svg+xml" />
-    <link rel="stylesheet" href="assets/style.css?v=access" />
+    <link rel="stylesheet" href="assets/style.css?v=polish" />
   </head>
   <body class="workspace">
     <a class="skip-link" href="#main">Skip to results</a>
@@ -31,7 +31,10 @@
     </header>
     <main id="main" class="wrap">
       <div class="page-intro">
-        <h1>Results</h1>
+        <div>
+          <h1>Results</h1>
+          <p class="page-summary" id="page-summary"></p>
+        </div>
         <a class="download-link" data-results-download href="data/evaluations.json" download>Download results <span aria-hidden="true">↓</span></a>
       </div>
       <section class="benchmark-section" id="models" aria-labelledby="model-view-title">
@@ -45,8 +48,8 @@
         </div>
         <div class="board-scroll ranking-scroll" tabindex="0" role="region" aria-label="Model ranking table">
           <table class="ranking-table">
-            <colgroup><col class="model-col"><col class="chart-col"><col class="score-col"><col class="stat-col"><col class="stat-col"><col class="reasoning-col"><col class="attempt-col"></colgroup>
-            <thead><tr><th scope="col">Model</th><th scope="col" class="chart-heading">Performance <span id="interval-label"></span></th><th scope="col" id="rank-metric-label">Beat baseline</th><th scope="col">Correct</th><th scope="col">ADP gain</th><th scope="col">Reasoning</th><th scope="col" id="attempt-heading">Attempts</th></tr></thead>
+            <colgroup><col class="model-col"><col class="chart-col"><col class="score-col"><col class="stat-col"><col class="stat-col"><col class="reasoning-col"></colgroup>
+            <thead><tr><th scope="col">Model</th><th scope="col" class="chart-heading">Performance <span id="interval-label"></span></th><th scope="col" id="rank-metric-label">Beat baseline</th><th scope="col">Correct</th><th scope="col">ADP gain</th><th scope="col">Reasoning</th></tr></thead>
             <tbody id="leaderboard-rows"></tbody>
             <tfoot><tr><td></td><td><div id="chart-axis" class="chart-axis" aria-hidden="true"></div></td><td colspan="4"></td></tr></tfoot>
           </table>
@@ -65,7 +68,15 @@
         </div>
         <div class="board-scroll" id="heatmap" tabindex="0" role="region" aria-label="Operator results table"></div>
         <p class="scroll-hint">Scroll for all operators →</p>
-        <p class="board-caption" id="matrix-note"></p>
+        <div class="board-caption matrix-caption">
+          <span id="matrix-note"></span>
+          <ul class="matrix-legend" aria-label="Cell legend">
+            <li><i class="correct"></i>Correct · shaded toward the best</li>
+            <li><i class="wrong"></i>Incorrect RTL</li>
+            <li><i class="fail"></i>Agent stopped</li>
+            <li><i class="infra"></i>Not scored</li>
+          </ul>
+        </div>
       </section>
       <details class="evaluation-notes">
         <summary>Metric definitions &amp; evaluation notes</summary>
@@ -82,6 +93,6 @@
         <code id="meta-commit">—</code>
       </p>
     </footer>
-    <script type="module" src="assets/app.js?v=mobile"></script>
+    <script type="module" src="assets/app.js?v=polish"></script>
   </body>
 </html>

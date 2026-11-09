@@ -11,6 +11,7 @@ import { agentState } from "./outcomes.mjs";
 // ---------------------------------------------------------------------------
 
 let data = null; // the loaded leaderboard: { meta, problems, models }
+let catalogProblems = []; // every problem in the library, run or not
 let datasets = {}; // dataset id -> path of its leaderboard.json
 let datasetKey = ""; // the dataset being shown
 let dialog = null; // the run-details <dialog>
@@ -125,7 +126,7 @@ function runState(run) {
     if (run.ratio > 1) return { cls: "beat", label: "Beat baseline", value: formatRatio(run.ratio) };
     return { cls: "correct", label: "Correct, ≤ 1×", value: formatRatio(run.ratio) };
   }
-  return agentState(run) || { cls: "fail", label: "Incorrect RTL", value: "wrong" };
+  return agentState(run) || { cls: "fail wrong", label: "Incorrect RTL", value: "wrong" };
 }
 
 // ---------------------------------------------------------------------------
@@ -147,6 +148,13 @@ function modelButton(model) {
     `<span class="model-label">${name}</span>` +
     `</button>`
   );
+}
+
+/** "agent-assisted-v1" -> "Agent-assisted v1" */
+function protocolName(protocol) {
+  const match = /^(.*)-(v\d+)$/.exec(protocol || "");
+  const name = match ? `${match[1]} ${match[2]}` : protocol || "";
+  return name.charAt(0).toUpperCase() + name.slice(1);
 }
 
 /** The reasoning setting the harness asked for, in words. */
@@ -238,7 +246,7 @@ function rankingRow(model, best, isRate) {
   }
 
   const barClass = value === best && value > 0 ? "best" : "";
-  const asked = reasoning.asked ? `<span>asked: ${escapeHtml(reasoning.asked)}</span>` : "";
+  const asked = reasoning.asked ? `<span>requested ${escapeHtml(reasoning.asked)}</span>` : "";
   return (
     `<tr>` +
     `<th scope="row">${modelButton(model)}</th>` +
@@ -249,7 +257,6 @@ function rankingRow(model, best, isRate) {
     `<td class="numeric-stat">${model.correct}/${model.attempts}</td>` +
     `<td class="numeric-stat">${formatRatio(model.geomean)}</td>` +
     `<td class="numeric-stat reasoning-stat" title="${escapeHtml(reasoning.detail)}"><strong>${reasoning.text}</strong>${asked}</td>` +
-    `<td class="numeric-stat">${model.attempts}</td>` +
     `</tr>`
   );
 }
@@ -267,11 +274,19 @@ function renderOperatorMatrix(models) {
     `<tbody>${rows}</tbody>` +
     `</table>`;
 
-  let note = "ADP ratio = baseline / design · higher is better.";
+  let note = "ADP ratio = baseline / design · higher is better. Shading is relative to the best correct result.";
   if (operatorMetric !== "ratio") {
-    note = `${operatorMetric === "cells" ? "Cell count" : "Cycle count"} · lower is better.`;
+    note = `${operatorMetric === "cells" ? "Cell count" : "Cycle count"} · lower is better. Shading is relative to the best correct result.`;
   }
+  const unrun = unrunProblems().map((problem) => problem.title);
+  if (unrun.length) note += ` Not in this run: ${unrun.join(", ")}.`;
   fill("#matrix-note", note);
+}
+
+/** Library problems this dataset did not include. */
+function unrunProblems() {
+  const shown = new Set(data.problems.map((problem) => problem.name));
+  return catalogProblems.filter((problem) => !shown.has(problem.name));
 }
 
 /** The best correct value of the operator metric on a problem, across all models (0 if none). */
@@ -308,8 +323,8 @@ function resultBar(model, problem, run, runCount, best) {
   const valid = run.correct && value > 0;
   const isBest = valid && value === best;
 
-  let width = 0;
-  if (valid && best > 0) width = (operatorMetric === "ratio" ? value / best : best / value) * 100;
+  let strength = 0;
+  if (valid && best > 0) strength = operatorMetric === "ratio" ? value / best : best / value;
 
   let text;
   if (valid) text = operatorMetric === "ratio" ? formatRatio(value) : formatInteger(value);
@@ -320,7 +335,7 @@ function resultBar(model, problem, run, runCount, best) {
   const attempt = runCount > 1 ? ` <small> · #${run.attempt}</small>` : "";
   const star = isBest ? '<span class="star" aria-hidden="true">★</span>' : "";
   return (
-    `<button class="result-bar ${state.cls} ${isBest ? "best" : ""}" style="--fill:${width}%" ` +
+    `<button class="result-bar ${state.cls} ${isBest ? "best" : ""}" style="--strength:${strength.toFixed(3)}" ` +
     `data-model="${escapeHtml(model.label)}" data-problem="${escapeHtml(problem.name)}" data-attempt="${run.attempt}" ` +
     `title="${escapeHtml(tooltip)}" aria-label="${escapeHtml(tooltip)}">${text}${attempt}${star}</button>`
   );
@@ -330,11 +345,27 @@ function renderMeta() {
   const meta = data.meta;
   fill("#meta-generated", meta.generated?.slice(0, 10) || "—");
   fill("#meta-commit", meta.git_commit?.slice(0, 10) || "—");
-  fill("#attempt-heading", "Slots");
+  const slots = data.models.reduce((total, model) => total + model.runs.length, 0);
+  const problemCount = catalogProblems.length
+    ? `${data.problems.length} of ${catalogProblems.length} problems`
+    : `${data.problems.length} problems`;
+  fill(
+    "#page-summary",
+    [
+      meta.pilot,
+      protocolName(meta.protocol),
+      `${data.models.length} models`,
+      problemCount,
+      `${slots} slots`,
+      meta.generated ? `published ${meta.generated.slice(0, 10)}` : "",
+    ]
+      .filter(Boolean)
+      .join(" · "),
+  );
   for (const link of $$("a[data-results-download]")) link.href = datasets[datasetKey];
   fill(
     "#pilot-note",
-    `Agent-assisted v1 · shared read/write/check/submit operations · up to ${meta.max_turns} model turns per slot · ` +
+    `${protocolName(meta.protocol)} · shared read/write/check/submit operations · up to ${meta.max_turns} model turns per slot · ` +
       `${budgetSummary(meta)} · development checks only during generation, then frozen held-out scoring. ` +
       "Incorrect RTL remains a failed measurement; provider, submission and interrupted outcomes are shown separately. " +
       "Rates use all scheduled slots, not only completed scores. " +
@@ -438,7 +469,7 @@ function runEvidence(run) {
 
   return (
     `<section class="run-evidence" aria-label="Original GitHub agent run">` +
-    `<p class="evidence-title">Agent-assisted v1 · ${escapeHtml(run.outcome)}</p>` +
+    `<p class="evidence-title">${escapeHtml(protocolName(generation.protocol))} · ${escapeHtml(run.outcome)}</p>` +
     `<p class="rc-meta">${formatInteger(generation.turns)} / ${formatInteger(generation.max_turns)} model turns · ` +
     `${formatInteger(generation.dev_checks)} development checks. ${submission} Development feedback is not a benchmark pass.</p>` +
     `<div class="evidence-links">` +
@@ -609,7 +640,7 @@ async function loadData() {
   const leaderboardPath = datasets[datasetKey];
   const [leaderboard, problems, reasoningFile] = await Promise.all([
     getJSON(leaderboardPath),
-    onProblemPage ? getJSON("data/problems.json").catch(() => null) : null,
+    getJSON("data/problems.json").catch(() => null),
     // Reasoning counts backfilled for batches published before receipts recorded them.
     onProblemPage ? null : getJSON(leaderboardPath.replace(/leaderboard\.json$/, "reasoning.json")).catch(() => null),
   ]);
@@ -617,6 +648,7 @@ async function loadData() {
     throw new Error("Invalid published dataset");
   }
 
+  catalogProblems = Array.isArray(problems?.problems) ? problems.problems : [];
   data = {
     ...leaderboard,
     meta: leaderboard.meta || {},
