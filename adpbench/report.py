@@ -9,6 +9,10 @@ A published ranking has to answer three questions, not one:
 Failures are split into wrong RTL and infrastructure failures, attempts are
 counted rather than silently averaged away, and the correct-only geometric
 mean is reported as a secondary statistic, never alone.
+
+Runs of pay-as-you-go models also carry a list-price cost (adpbench/pricing.py),
+reported as a total and as dollars per baseline-beating design. The total
+counts every attempt, since a failed attempt was paid for too.
 """
 
 from __future__ import annotations
@@ -19,6 +23,8 @@ import re
 from collections import Counter
 from dataclasses import dataclass
 from pathlib import Path
+
+from adpbench.pricing import PRICES_CHECKED_AT, run_cost
 
 INFRASTRUCTURE_STAGES = {"no result", "no_result"}
 # `rep1` is a round's first try; `rep1-t2` is its rerun after an infrastructure failure.
@@ -40,6 +46,11 @@ class RunSummary:
     # Only set for the agent-assisted track, which records a typed outcome.
     outcome: str = ""
     execution_health: str = ""
+    # List-price cost in USD; None when the model has no per-token price or
+    # the run has no token receipt.
+    cost_usd: float | None = None
+    # Some usage went unreported (a dropped stream), so the cost is a lower bound.
+    cost_incomplete: bool = False
 
     @property
     def kind(self) -> str:
@@ -133,10 +144,12 @@ def _summary_from_record(path: Path) -> RunSummary:
     result = record.get("result") or {}
     metadata = result.get("metadata") or {}
     error = record.get("error") or result.get("error") or ""
+    label = record.get("label") or record.get("agent_cmd", "unknown")
+    generation = (record.get("manifest") or {}).get("generation") or {}
     return RunSummary(
         path=str(path),
         problem=record.get("problem", path.parent.name),
-        label=record.get("label") or record.get("agent_cmd", "unknown"),
+        label=label,
         attempt=int(record.get("attempt", 1)),
         correct=bool(result.get("correct")),
         ratio=float(result.get("ratio", -1.0) or -1.0),
@@ -146,6 +159,8 @@ def _summary_from_record(path: Path) -> RunSummary:
         group=record.get("group", ""),
         outcome=record.get("outcome", ""),
         execution_health=record.get("execution_health", ""),
+        cost_usd=run_cost(label, generation),
+        cost_incomplete=bool(generation.get("incomplete_usage")),
     )
 
 
@@ -199,6 +214,14 @@ def _bucket(runs: list[RunSummary]) -> dict:
     if any(run.outcome for run in runs):
         bucket["outcomes"] = dict(Counter(run.outcome for run in runs))
         bucket["failures"]["submission_failure"] = kinds.get("submission_failure", 0)
+
+    costs = [run.cost_usd for run in runs if run.cost_usd is not None]
+    if costs:
+        total = sum(costs)
+        bucket["cost_usd"] = round(total, 4)
+        bucket["cost_incomplete"] = len(costs) < attempts or any(run.cost_incomplete for run in runs)
+        # Every attempt's cost, failed ones included, over the designs that beat the baseline.
+        bucket["usd_per_baseline_beating"] = round(total / len(beating), 4) if beating else None
     return bucket
 
 
@@ -219,15 +242,24 @@ def _geomean(values: list[float]) -> float:
 
 
 def markdown(report: dict) -> str:
+    totals = report["totals"]
+    # Cost columns appear only when some run has a per-token price.
+    priced = "cost_usd" in totals
     lines = [
         "| evaluated system | attempts | correct | correctness | beat baseline | beat rate "
-        "| geomean (successful) | wrong RTL | infra |",
-        "|---|---:|---:|---:|---:|---:|---:|---:|---:|",
+        "| geomean (successful) | wrong RTL | infra |" + (" cost | $ per baseline-beating design |" if priced else ""),
+        "|---|---:|---:|---:|---:|---:|---:|---:|---:|" + ("---:|---:|" if priced else ""),
     ]
     for label, bucket in report["labels"].items():
-        lines.append(_table_row(f"`{label}`", bucket))
-    totals = report["totals"]
-    lines.append(_table_row("**all**", totals))
+        lines.append(_table_row(f"`{label}`", bucket, priced))
+    lines.append(_table_row("**all**", totals, priced))
+    if priced:
+        lines += [
+            "",
+            f"Cost is provider-reported tokens at list prices (checked {PRICES_CHECKED_AT}; "
+            "see adpbench/pricing.py), over every attempt including failed ones. "
+            "`≥` marks a total with unreported usage or unpriced runs.",
+        ]
 
     if totals.get("outcomes"):
         lines += ["", "Agent-assisted outcomes (separate from execution health):", ""]
@@ -241,7 +273,7 @@ def markdown(report: dict) -> str:
     return "\n".join(lines) + "\n"
 
 
-def _table_row(name: str, bucket: dict) -> str:
+def _table_row(name: str, bucket: dict, priced: bool = False) -> str:
     cells = [
         name,
         str(bucket["attempts"]),
@@ -253,7 +285,16 @@ def _table_row(name: str, bucket: dict) -> str:
         str(bucket["failures"]["wrong_rtl"]),
         str(bucket["failures"]["infrastructure"]),
     ]
+    if priced:
+        cells += [_dollars(bucket, "cost_usd"), _dollars(bucket, "usd_per_baseline_beating")]
     return "| " + " | ".join(cells) + " |"
+
+
+def _dollars(bucket: dict, key: str) -> str:
+    value = bucket.get(key)
+    if value is None:
+        return "—"
+    return f"{'≥' if bucket.get('cost_incomplete') else ''}${value:,.2f}"
 
 
 def write_report(runs_root: str | Path, out_dir: str | Path | None = None) -> dict:

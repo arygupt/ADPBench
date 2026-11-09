@@ -161,7 +161,11 @@ paid for:
 - **Keys.** Each slot's generation step receives only its own provider's key.
   A slot whose key is not configured stops before it claims its tag.
 - **Cost.** A direct model's receipt records `billable_tokens`: uncached
-  input, cache reads, cache writes and output.
+  input, cache reads, cache writes and output. Reports multiply them by the
+  list prices in [`adpbench/pricing.py`](../adpbench/pricing.py) and add two
+  columns: total cost, and dollars per baseline-beating design (every
+  attempt's cost, failed ones included, over the designs that beat the
+  baseline).
 
 Three things are specific to Anthropic:
 

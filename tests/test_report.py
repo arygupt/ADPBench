@@ -11,6 +11,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
+from adpbench.pricing import PRICES, run_cost
 from adpbench.report import RunSummary, load_runs, markdown, summarize
 
 
@@ -141,6 +142,84 @@ class LoadRunsTest(unittest.TestCase):
             self.assertEqual(len(runs), 1)
             self.assertEqual(runs[0].label, "model-a")
             self.assertTrue(runs[0].correct)
+
+
+FABLE = "anthropic/claude-fable-5-2 [agent-assisted-v2]"
+
+
+def _priced_record(root: Path, problem: str, *, correct: bool, ratio: float, tokens: dict | None,
+                   label: str = FABLE, incomplete: bool = False) -> None:
+    run_dir = root / "anthropic-claude-fable-5-2" / problem / "rep1"
+    if label != FABLE:
+        run_dir = root / "other" / problem / "rep1"
+    run_dir.mkdir(parents=True)
+    generation = {"incomplete_usage": incomplete}
+    if tokens is not None:
+        generation["billable_tokens"] = tokens
+    record = {
+        "problem": problem,
+        "label": label,
+        "outcome": "correct" if correct else "incorrect",
+        "execution_health": "completed",
+        "result": {"correct": correct, "ratio": ratio, "metadata": {"stage": "ok"}},
+        "manifest": {"generation": generation},
+    }
+    (run_dir / "record.json").write_text(json.dumps(record))
+
+
+class CostTest(unittest.TestCase):
+    """Dollars per baseline-beating design: every attempt is paid for, only wins count."""
+
+    def test_cost_is_tokens_at_list_price_by_class(self) -> None:
+        tokens = {"input": 1_000_000, "cache_read": 2_000_000, "cache_write": 100_000, "output": 500_000}
+        # 8 + 2 x 0.20 + 0.1 x 10 + 0.5 x 40
+        self.assertAlmostEqual(run_cost(FABLE, {"billable_tokens": tokens}), 29.4)
+        self.assertEqual(run_cost(FABLE, {"billable_tokens": {name: 0 for name in tokens}}), 0.0)
+        # No receipt, a malformed receipt, or a subscription model: unknown, never zero.
+        self.assertIsNone(run_cost(FABLE, {}))
+        self.assertIsNone(run_cost(FABLE, {"billable_tokens": {**tokens, "output": -1}}))
+        self.assertIsNone(run_cost(FABLE, {"billable_tokens": {**tokens, "output": 1.5}}))
+        self.assertIsNone(run_cost("opencode-go/kimi-k3 [agent-assisted-v2]", {"billable_tokens": tokens}))
+        for key, price in PRICES.items():
+            self.assertEqual(set(price), {"input", "cache_read", "cache_write", "output"}, key)
+            self.assertLess(price["cache_read"], price["input"], key)
+
+    def test_failed_attempts_count_toward_the_cost_of_each_win(self) -> None:
+        million = {"input": 0, "cache_read": 0, "cache_write": 0, "output": 100_000}  # $4.00 each
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            _priced_record(root, "005_argmax", correct=True, ratio=2.0, tokens=million)
+            _priced_record(root, "006_topk", correct=True, ratio=0.9, tokens=million)
+            _priced_record(root, "007_histogram", correct=False, ratio=-1.0, tokens=million)
+            report = summarize(load_runs(root))
+        bucket = report["labels"][FABLE]
+        self.assertEqual((bucket["attempts"], bucket["beating_baseline"]), (3, 1))
+        self.assertEqual((bucket["cost_usd"], bucket["usd_per_baseline_beating"], bucket["cost_incomplete"]),
+                         (12.0, 12.0, False))
+        text = markdown(report)
+        self.assertIn("$ per baseline-beating design", text)
+        self.assertIn("| $12.00 | $12.00 |", text)
+
+    def test_unknown_spend_is_marked_as_a_lower_bound_and_no_win_has_no_ratio(self) -> None:
+        tokens = {"input": 0, "cache_read": 0, "cache_write": 0, "output": 100_000}
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            _priced_record(root, "005_argmax", correct=False, ratio=-1.0, tokens=tokens, incomplete=True)
+            _priced_record(root, "006_topk", correct=True, ratio=3.0, tokens=None, label="other [single-shot]")
+            report = summarize(load_runs(root))
+        fable = report["labels"][FABLE]
+        self.assertEqual((fable["cost_usd"], fable["usd_per_baseline_beating"], fable["cost_incomplete"]),
+                         (4.0, None, True))
+        self.assertNotIn("cost_usd", report["labels"]["other [single-shot]"])
+        self.assertTrue(report["totals"]["cost_incomplete"])  # one run has no price at all
+        rows = markdown(report).splitlines()
+        self.assertTrue(any(FABLE in row and row.endswith("| ≥$4.00 | — |") for row in rows), rows)
+        self.assertTrue(any("other [single-shot]" in row and row.endswith("| — | — |") for row in rows), rows)
+
+    def test_reports_without_priced_runs_are_unchanged(self) -> None:
+        report = summarize([_run(correct=True, ratio=2.0, stage="ok")])
+        self.assertNotIn("cost_usd", report["totals"])
+        self.assertNotIn("cost", markdown(report).replace("correct", ""))
 
 
 if __name__ == "__main__":
