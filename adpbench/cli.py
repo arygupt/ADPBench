@@ -8,7 +8,7 @@ import sys
 from pathlib import Path
 
 from . import sim, synth
-from .agent import DEFAULT_IMAGE, run_agent
+from .agent import DEFAULT_IMAGE, Mount, run_agent
 from .environment import build_environment, snapshot
 from .evaluate import evaluate, evaluate_multi, record_baseline
 from .hashing import sha256_file
@@ -134,6 +134,8 @@ def cmd_agent(args: argparse.Namespace) -> int:
         sandbox=args.sandbox,
         image=args.image,
         network=args.network,
+        env_names=args.env,
+        mounts=[Mount.parse(spec) for spec in args.mount],
     )
 
     timed_out = " (TIMED OUT)" if record.timed_out else ""
@@ -248,6 +250,7 @@ def cmd_pilot(args: argparse.Namespace) -> int:
         runs_root=Path(args.runs).resolve() if args.runs else None,
         jobs=args.jobs,
         publish=Path(args.publish) if args.publish else None,
+        resume=Path(args.resume).resolve() if args.resume else None,
     )
     return 0
 
@@ -327,6 +330,10 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--sandbox", choices=("none", "docker"), default="none")
     p.add_argument("--image", default=DEFAULT_IMAGE)
     p.add_argument("--network", default="bridge")
+    p.add_argument("--env", action="append", default=[], metavar="NAME",
+                   help="pass a host environment variable into the sandbox by name")
+    p.add_argument("--mount", action="append", default=[], metavar="HOST:CONTAINER[:ro]",
+                   help="extra host directory for the sandbox, such as a CLI login")
     p.set_defaults(func=cmd_agent)
 
     p = commands.add_parser("report", help="aggregate run records into a scoreboard")
@@ -346,6 +353,8 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--repetitions", type=int)
     p.add_argument("--jobs", type=int, default=1, help="parallel run cells")
     p.add_argument("--publish", help="copy plan and report files here")
+    p.add_argument("--resume", metavar="PILOT_DIR",
+                   help="continue a pilot directory: run missing cells, retry infrastructure failures")
     p.set_defaults(func=cmd_pilot)
 
     p = commands.add_parser("seeds", help="publish the evaluation seed manifest")

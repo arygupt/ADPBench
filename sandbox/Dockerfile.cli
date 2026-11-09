@@ -1,0 +1,44 @@
+# syntax=docker/dockerfile:1
+#
+# The pinned ADPBench substrate plus the Claude Code and Codex CLIs, for the
+# cli-agent-v1 track (pilot/cli-agent-v1.md). Each CLI signs in with its own
+# subscription login, passed in at run time, never baked into the image:
+#
+#   Claude Code  CLAUDE_CODE_OAUTH_TOKEN from `claude setup-token`, by name
+#   Codex        a dedicated CODEX_HOME mounted at /home/agent/.codex
+#
+#   docker build -t adpbench-agent sandbox/
+#   docker build -f sandbox/Dockerfile.cli -t adpbench-agent-cli sandbox/
+FROM adpbench-agent
+
+ARG NODE_VERSION=24.11.0
+ARG CLAUDE_CODE_VERSION=2.1.321
+ARG CODEX_VERSION=0.167.0
+
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends ca-certificates curl xz-utils git ripgrep \
+ && rm -rf /var/lib/apt/lists/*
+
+RUN arch="$(dpkg --print-architecture)"; \
+    case "$arch" in \
+      arm64) node_arch=arm64 ;; \
+      amd64) node_arch=x64 ;; \
+      *) echo "unsupported architecture $arch" >&2; exit 1 ;; \
+    esac; \
+    curl -fsSL --retry 5 "https://nodejs.org/dist/v${NODE_VERSION}/node-v${NODE_VERSION}-linux-${node_arch}.tar.xz" \
+      | tar -xJ -C /usr/local --strip-components=1 --exclude CHANGELOG.md --exclude LICENSE --exclude README.md
+
+RUN npm install -g "@anthropic-ai/claude-code@${CLAUDE_CODE_VERSION}" "@openai/codex@${CODEX_VERSION}" \
+ && npm cache clean --force
+
+# Claude Code refuses to skip permission prompts as root, and neither agent
+# needs root: the container is the sandbox.
+RUN useradd --create-home --uid 1000 --shell /bin/bash agent \
+ && mkdir -p /home/agent/.codex \
+ && chown agent:agent /home/agent/.codex
+USER agent
+ENV HOME=/home/agent \
+    DISABLE_AUTOUPDATER=1 \
+    CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC=1
+
+RUN claude --version && codex --version

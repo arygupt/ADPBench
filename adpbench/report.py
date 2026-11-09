@@ -40,6 +40,8 @@ class RunSummary:
     # Only set for the agent-assisted track, which records a typed outcome.
     outcome: str = ""
     execution_health: str = ""
+    # Set by the harness when the log shows a failure outside the model.
+    infra_failure: str = ""
 
     @property
     def kind(self) -> str:
@@ -51,6 +53,8 @@ class RunSummary:
         """
         if self.correct:
             return "ok"
+        if self.infra_failure:
+            return "infrastructure"
 
         if self.outcome:
             # Agent-assisted track: trust the typed outcome.
@@ -146,6 +150,7 @@ def _summary_from_record(path: Path) -> RunSummary:
         group=record.get("group", ""),
         outcome=record.get("outcome", ""),
         execution_health=record.get("execution_health", ""),
+        infra_failure=str(record.get("infra_failure") or ""),
     )
 
 
