@@ -90,6 +90,7 @@ def export_leaderboard(output: Path, site_output: Path, plan: dict) -> dict:
     export_site(output, site_output, repo_root() / "pilot/sanity.json")
     board = json.loads((site_output / "leaderboard.json").read_text())
     board["problems"] = [problem for problem in board["problems"] if problem["name"] in plan["problems"]]
+    atomic_json(site_output / "problems.json", {"problems": board["problems"]})
     return board
 
 

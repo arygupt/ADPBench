@@ -12,9 +12,9 @@ REPO = Path(__file__).resolve().parent.parent
 
 
 class ProblemCatalogTest(unittest.TestCase):
-    def test_catalog_has_four_problems_with_baselines(self) -> None:
+    def test_catalog_has_eight_problems_with_baselines(self) -> None:
         roots = sorted((REPO / "problems").glob("*/*"))
-        self.assertGreaterEqual(len(roots), 4)
+        self.assertGreaterEqual(len(roots), 8)
         for root in roots:
             problem = load_problem(root)
             self.assertTrue(problem.baseline_rtl.is_file(), problem.name)

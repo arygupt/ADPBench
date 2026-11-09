@@ -84,7 +84,10 @@ INFRASTRUCTURE_OUTCOMES = {
 }
 
 # Plan limits. A plan outside these bounds is rejected before any request.
-ALLOWED_PROBLEMS = {"001_dot_product", "002_gemv", "003_matmul", "004_conv1d"}
+ALLOWED_PROBLEMS = {
+    "001_dot_product", "002_gemv", "003_matmul", "004_conv1d",
+    "005_argmax", "006_topk", "007_histogram", "008_maxpool2d",
+}
 MAX_MODELS = 6
 MAX_REQUESTS = 12
 # agent-assisted-v2 dispatches one round (attempt) of every model on every problem.

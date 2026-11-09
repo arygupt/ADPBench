@@ -1,152 +1,78 @@
 # ADPBench
 
-AI agents write synthesizable Verilog. ADPBench checks whether the result is
-correct, synthesizes the exact design to gates, simulates it at gate level, and
-scores the area–delay product: `cells × cycles`.
+AI agents write Verilog. ADPBench checks it's correct, synthesizes it to gates,
+simulates it at gate level, and scores the area–delay product (`cells × cycles`).
+It's a proxy, not physical area, timing, or power.
 
-Given a numeric operator and an executable reference, can an agent produce
-hardware that is both correct and cheap? ADPBench measures this with an
-area–delay proxy. It does not claim physical area, timing closure, or power
-signoff.
+Results: [adpbench.vercel.app](https://adpbench.vercel.app)
 
-Live results: [adpbench.vercel.app](https://adpbench.vercel.app) · source in [`site/`](site/) · preview with `python3 -m http.server 8000 --directory site`
+## Problems
 
-## Benchmarks
+| problem | path |
+|---|---|
+| dot product | `problems/level1/001_dot_product/` |
+| GEMV | `problems/level1/002_gemv/` |
+| matrix multiply | `problems/level1/003_matmul/` |
+| 1-D convolution | `problems/level1/004_conv1d/` |
+| row-wise argmax | `problems/level1/005_argmax/` |
+| top-K selection | `problems/level1/006_topk/` |
+| 16-bin histogram | `problems/level1/007_histogram/` |
+| 2-D max pooling | `problems/level1/008_maxpool2d/` |
 
-| bench | path | what | published view |
-|---|---|---|---|
-| dot product | `problems/level1/001_dot_product/` | lane-parallel vector reduction | leaderboard |
-| GEMV | `problems/level1/002_gemv/` | matrix–vector multiply | leaderboard |
-| matrix multiply | `problems/level1/003_matmul/` | tiled integer matmul | leaderboard |
-| 1-D convolution | `problems/level1/004_conv1d/` | streaming convolution | leaderboard |
+Each problem's spec is `dut.py`: a NumPy reference (`Model.forward`), input
+generator, `INTERFACE`, `QUANT` widths, and `DIRECTED` edge cases. Submissions
+are a Verilog module `dut` with `valid`/`ready` streams.
 
-Each problem owns its executable spec, baseline, directed cases, and verified
-solutions. The spec is `dut.py`, not a prose prompt:
+Argmax returns the first maximum's column index for each of eight 64-element
+rows. Top-K returns the largest eight of 64 signed values in descending order,
+retaining duplicates. Histogram counts 256 bin IDs in `[0, 15]`, including
+same-beat collisions. Max pooling uses 3×3 windows, stride one, and no padding
+on a 16×16 signed image, producing a 14×14 result.
 
-- `Model.forward(...)` — NumPy golden reference
-- `get_inputs()` — seeded input generation
-- `INTERFACE` — module name, parameters, ports, stream lengths, transactions
-- `QUANT` — exact integer widths and arithmetic contract
-- `DIRECTED` — named edge cases such as zeros and extreme signed values
+Each new task includes `baseline.v`, measured `baseline.json`, and an optimized
+`solutions/parallel.v` reference within its problem directory. The catalog has
+eight tasks; existing published rounds retain their original problem sets.
 
-The submission is a Verilog module named `dut`. Input streams use independent
-`valid`/`ready` handshakes; transactions run back-to-back without reset. A DUT
-must hold output data stable while stalled and clear all transaction state
-before the next transaction.
-
-## Evaluation
-
-```text
-submission.v
-  → audit         reject reward-hacking constructs and untouched skeletons
-  → synthesize    pinned Yosys flow       → gate netlist + cell count
-  → vectors       NumPy reference         → inputs + expected outputs
-  → simulate      Icarus, gate level       → cycles + exact pass/fail
-  → score         baseline_adp / adp       → published ratio
-```
-
-Every case runs twice: a score run with back-to-back inputs and ready output,
-and a protocol run with seeded input gaps, output backpressure, and hold-stable
-checks. A design must pass both. Synthesis parameters and simulation use the
-same netlist, so the counted artifact is the checked artifact.
-
-## Scoring and records
+## Scoring
 
 ```text
+audit → synthesize (Yosys) → simulate gate-level (Icarus) → score
 adp   = cells × cycles
 score = baseline_adp / submission_adp     # higher is better
 ```
 
-The primary published number is beat-baseline rate: correct, faster-than-
-baseline attempts divided by all planned attempts. Correctness rate, successful
-geometric mean, wrong RTL, infrastructure failures, repetitions, hashes, tool
-versions, and case manifests remain visible. `adpbench replay` re-scores a
-frozen submission and verifies the recorded ratio.
+Every case runs with and without input gaps and output backpressure; both must
+pass. The headline number is beat-baseline rate. `adpbench replay` re-scores a
+frozen submission.
 
-The current pilot is a 20-run matrix across four operators and five free-tier
-agent configurations. Results are committed under `pilot/results/` and rendered
-into `site/data/` from frozen records.
+## Usage
 
-The OpenCode Go [agent-assisted-v1 track](pilot/agent-assisted-v1.md) adds a
-shared read/write/check/submit loop, independent per-problem Actions jobs,
-and validated results PRs. It is reported separately from single-shot runs;
-green workflow execution is not a correctness claim.
-
-## Local usage
-
-Requires Python 3.10+, Yosys, and Icarus Verilog. The repository uses a local
-virtualenv; install the package with `uv`:
+Requires Python 3.10+, Yosys, and Icarus Verilog.
 
 ```bash
-uv venv
-uv pip install -e .
-.venv/bin/python -m adpbench list
-.venv/bin/python -m adpbench baseline 001_dot_product
-.venv/bin/python -m adpbench run 001_dot_product -f submission.v
-```
+uv venv && uv pip install -e .
+adpbench list
+adpbench run 001_dot_product -f submission.v
 
-Run an agent through the sandbox and record its trajectory:
+adpbench agent 001_dot_product --label my-model --sandbox docker \
+  --cmd "opencode run -m opencode/mimo-v2.5-free 'Read PROBLEM.md and write dut.v.'"
 
-```bash
-adpbench agent 001_dot_product --label "my-model" \
-  --cmd "opencode run -m opencode/mimo-v2.5-free 'Read PROBLEM.md and write dut.v.'" \
-  --sandbox docker
-```
-
-Pilot and reporting commands:
-
-```bash
 adpbench pilot --config pilot/pilot_free_models.json --jobs 4
 adpbench report --runs runs/
-adpbench replay runs/<pilot>/<model>/<problem>/rep1
 ```
 
-The agent-writable directory is not trusted. Submissions are copied
-symlink-free, hashed, audited, and scored in a host-only directory. Docker is
-recommended for untrusted agents; host mode executes the supplied command
-directly.
+Use `--sandbox docker` for untrusted agents.
 
 ## Layout
 
 ```text
-adpbench/                 Python harness, scoring, agents, reports, site export
-problems/level1/          executable operator problems and baselines
-solutions/                reference implementations used for sanity checks
-flows/                    pinned synthesis and simulation substrate
-sandbox/                  Docker boundary and agent image definitions
-pilot/                    configs plus published pilot results
-site/                     zero-dependency static leaderboard
-tests/                    pipeline, protocol, audit, report, and site tests
-scripts/                  OpenCode Go tracks: generation, scoring, publication
+adpbench/        harness, scoring, agents, reports
+problems/        problem specs and baselines
+solutions/       reference implementations
+flows/           pinned synthesis and simulation
+sandbox/         Docker agent images
+pilot/           configs and published results
+site/            static leaderboard
+scripts/         OpenCode Go tracks
+tests/           python -m unittest discover -s tests
 ```
-
-Inside `adpbench/`, in pipeline order:
-
-```text
-problem.py       load and validate a problem's dut.py spec
-seeds.py         development seeds vs held-out evaluation seeds
-synth.py         yosys synthesis and cell count
-vectors.py       NumPy reference -> hex test vectors, and output comparison
-sim.py           generated testbenches and iverilog gate-level simulation
-evaluate.py      synth -> vectors -> sim -> score, with resumable checkpoints
-audit.py         static checks that reject simulation-only or cheating constructs
-environment.py   the agent's task directory and the read-only sandbox bundle
-agent.py         run an agent CLI, freeze and audit its dut.v, score, record
-pilot.py         agent x problem x repetition matrix
-report.py        aggregate run records into a scoreboard
-site.py          export site/data JSON from frozen records
-cli.py           the `adpbench` command
-```
-
-Methodology lives with the implementation in the problem specs and harness
-modules. The published site is a static copy of frozen records; it never runs
-the toolchain in the browser.
-
-## Tests
-
-```bash
-.venv/bin/python -m unittest discover -s tests -v
-```
-
-The integration tests exercise real synthesis and gate-level simulation when
-Yosys and Icarus are available.

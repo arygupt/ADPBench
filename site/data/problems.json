@@ -168,6 +168,173 @@
         "adp": 8131784.0,
         "ratio": 2.8169919417436566
       }
+    },
+    {
+      "name": "005_argmax",
+      "title": "Row-wise argmax",
+      "level": 1,
+      "params": {
+        "ROWS": 8,
+        "COLS": 64,
+        "LANES": 8,
+        "DATA_W": 8,
+        "ACC_W": 32
+      },
+      "input_lens": {
+        "in_x_flat": 512
+      },
+      "out_len": 8,
+      "transactions": 2,
+      "directed": [
+        "all_equal",
+        "negative_only",
+        "tied_maxima",
+        "edge_winners",
+        "ordered"
+      ],
+      "quant": {
+        "in_x_flat": "signed int8 two's complement, row-major ROWS x COLS",
+        "out_c": "int32 column index, zero-based; first (lowest) index wins ties",
+        "tolerance": "none - bit exact"
+      },
+      "baseline": {
+        "cells": 283,
+        "cycles": 1168,
+        "adp": 330544.0
+      },
+      "sanity": {
+        "correct": true,
+        "cells": 572,
+        "cycles": 144,
+        "adp": 82368.0,
+        "ratio": 4.0130147630147635
+      }
+    },
+    {
+      "name": "006_topk",
+      "title": "Top-K selection",
+      "level": 1,
+      "params": {
+        "LEN": 64,
+        "K": 8,
+        "LANES": 8,
+        "DATA_W": 8,
+        "ACC_W": 32
+      },
+      "input_lens": {
+        "in_x_flat": 64
+      },
+      "out_len": 8,
+      "transactions": 2,
+      "directed": [
+        "all_equal",
+        "ordered",
+        "duplicates",
+        "negative_only",
+        "extreme_signs"
+      ],
+      "quant": {
+        "in_x_flat": "signed int8 two's complement",
+        "out_c": "K int32 values, sign-extended, descending; duplicates retained",
+        "tolerance": "none - bit exact"
+      },
+      "baseline": {
+        "cells": 1803,
+        "cycles": 1056,
+        "adp": 1903968.0
+      },
+      "sanity": {
+        "correct": true,
+        "cells": 1001,
+        "cycles": 160,
+        "adp": 160160.0,
+        "ratio": 11.887912087912088
+      }
+    },
+    {
+      "name": "007_histogram",
+      "title": "16-bin histogram",
+      "level": 1,
+      "params": {
+        "LEN": 256,
+        "BINS": 16,
+        "LANES": 8,
+        "DATA_W": 8,
+        "ACC_W": 32
+      },
+      "input_lens": {
+        "in_x_flat": 256
+      },
+      "out_len": 16,
+      "transactions": 2,
+      "directed": [
+        "same_bin",
+        "uniform",
+        "beat_collisions",
+        "skewed",
+        "sparse"
+      ],
+      "quant": {
+        "in_x_flat": "8-bit bin IDs, restricted to 0 <= x < BINS (0..15)",
+        "out_c": "BINS exact nonnegative int32 counts, ascending bin order",
+        "accumulator": "counts include all LEN inputs; no saturation or wraparound",
+        "tolerance": "none - bit exact"
+      },
+      "baseline": {
+        "cells": 680,
+        "cycles": 608,
+        "adp": 413440.0
+      },
+      "sanity": {
+        "correct": true,
+        "cells": 2067,
+        "cycles": 96,
+        "adp": 198432.0,
+        "ratio": 2.083534913723593
+      }
+    },
+    {
+      "name": "008_maxpool2d",
+      "title": "2-D max pooling",
+      "level": 1,
+      "params": {
+        "HEIGHT": 16,
+        "WIDTH": 16,
+        "K": 3,
+        "LANES": 8,
+        "DATA_W": 8,
+        "ACC_W": 32
+      },
+      "input_lens": {
+        "in_x_flat": 256
+      },
+      "out_len": 196,
+      "transactions": 2,
+      "directed": [
+        "all_equal",
+        "negative_only",
+        "ramp",
+        "checkerboard",
+        "impulses"
+      ],
+      "quant": {
+        "in_x_flat": "signed int8 image, row-major HEIGHT x WIDTH",
+        "out_c": "int32 sign-extended maxima, row-major (HEIGHT-K+1) x (WIDTH-K+1)",
+        "pooling": "K x K maximum, stride 1, valid windows only (no padding)",
+        "tolerance": "none - bit exact"
+      },
+      "baseline": {
+        "cells": 4424,
+        "cycles": 3984,
+        "adp": 17625216.0
+      },
+      "sanity": {
+        "correct": true,
+        "cells": 1043,
+        "cycles": 968,
+        "adp": 1009624.0,
+        "ratio": 17.4572078318265
+      }
     }
   ]
 }

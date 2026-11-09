@@ -41,6 +41,8 @@ class PublishGoTest(unittest.TestCase):
         self.assertEqual(board["meta"]["protocol"], "single-shot")
         self.assertEqual(board["meta"]["output_tokens"], 60)
         self.assertEqual(len(board["problems"]), 2)
+        problems = json.loads((self.root / "site/problems.json").read_text())["problems"]
+        self.assertEqual([problem["name"] for problem in problems], self.plan["problems"])
         self.assertEqual(board["models"][0]["correct"], 2)
         self.assertEqual(board["models"][0]["runs"][0]["execution"]["job_id"], 456)
         self.assertEqual(len(list((self.root / "published").glob("**/dut.v"))), 2)
