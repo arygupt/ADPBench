@@ -11,7 +11,7 @@ budget.
 | Agent loop | ours: `read_file`, `write_file`, `check`, `submit` | the vendor CLI's own tools and shell |
 | Budget | 20 turns, 3 checks, 2 hours | 2 hours wall clock, unlimited `./check.sh` |
 | Billing | OpenCode Go | Claude and ChatGPT subscriptions |
-| Token usage | recorded per request | not reported by subscriptions |
+| Token usage | recorded per request | in each run's event stream; not totalled yet |
 
 ## What runs
 
@@ -107,8 +107,11 @@ retried.
 
 ## Limits of the comparison
 
-- A subscription does not report tokens or cost per run, so this track has no
-  cost column.
+- A subscription is not billed per run. Both CLIs still report token usage in
+  their event streams (Claude Code's final `result` event also carries an
+  API-equivalent `total_cost_usd`), and every run keeps that stream in
+  `agent.log`, but the report does not total it yet, so this track has no cost
+  column.
 - The vendor may serve a different model build behind the same name over
   time. Each run records the CLI version and the requested model.
 - The agent has a shell and network access for its model API. Web tools are
