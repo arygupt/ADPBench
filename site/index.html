@@ -3,10 +3,10 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width,initial-scale=1" />
-    <title>Hardware agent results — ADPBench</title>
+    <title>ADPBench — LLM agents against reference RTL</title>
     <meta
       name="description"
-      content="AI-generated RTL benchmark results. Compare area-delay product, correctness, and individual hardware agent runs."
+      content="Language-model agents write Verilog arithmetic blocks. Each design is checked bit for bit, synthesized and simulated, then judged on gate cells × clock cycles against a reference design."
     />
     <link rel="icon" href="favicon.svg" type="image/svg+xml" />
     <link rel="preload" href="assets/fonts/InterVariable.woff2" as="font" type="font/woff2" crossorigin />
@@ -43,13 +43,13 @@
         </header>
         <section class="board" id="models" aria-labelledby="model-view-title">
           <div class="tabs" role="group" aria-label="Rank models by">
-            <button data-score="beat_rate" aria-pressed="true">Beat baseline</button>
-            <button data-score="correctness_rate" aria-pressed="false">Correctness</button>
+            <button data-score="beat_rate" aria-pressed="true">Beats reference</button>
+            <button data-score="correctness_rate" aria-pressed="false">Bit-exact</button>
             <button data-score="geomean" aria-pressed="false">ADP gain</button>
           </div>
-          <h2 id="model-view-title">Performance comparison</h2>
+          <h2 id="model-view-title">Model standings</h2>
           <ol class="board-list" id="leaderboard-rows"></ol>
-          <p class="board-note"><span id="score-note"></span> Select a model to see its runs.</p>
+          <p class="board-note"><span id="score-note"></span> Open a model for its frozen run records.</p>
         </section>
         <article class="about-body">
           <h2>How a run is scored</h2>
@@ -59,11 +59,11 @@
             <li><strong>Check.</strong> It must match the reference bit for bit on held-out cases.</li>
             <li><strong>Synthesize.</strong> Gate cells are counted.</li>
             <li><strong>Simulate.</strong> Clock cycles are counted.</li>
-            <li><strong>Score.</strong> Cells × cycles is the area–delay product (ADP). Lower than the baseline's wins.</li>
+            <li><strong>Score.</strong> Cells × cycles is the area–delay product (ADP). A design wins by coming in under the reference design's ADP.</li>
           </ol>
           <figure class="plane-figure" id="plane-figure">
             <figcaption>
-              <strong>Every correct design, against its baseline</strong>
+              <strong>Every bit-exact design, placed against its reference</strong>
               <span>Left is fewer cycles, down is fewer cells. Dashed lines join designs with equal ADP.</span>
             </figcaption>
             <div class="plane" id="plane"></div>
@@ -87,23 +87,23 @@
         <div class="board-scroll" id="heatmap" tabindex="0" role="region" aria-label="Operator results table"></div>
         <p class="scroll-hint">Scroll sideways for every operator</p>
         <ul class="key" aria-label="Cell key">
-          <li><i class="swatch correct"></i>Correct, shaded toward the best</li>
-          <li><i class="swatch best"></i>Best on that operator</li>
-          <li><i class="swatch wrong"></i>Incorrect RTL</li>
-          <li><i class="swatch fail"></i>Agent stopped</li>
-          <li><i class="swatch infra"></i>Not scored</li>
+          <li><i class="swatch correct"></i>Bit-exact; darker is closer to the top design</li>
+          <li><i class="swatch best"></i>Smallest ADP on this operator</li>
+          <li><i class="swatch wrong"></i>Mismatched the reference</li>
+          <li><i class="swatch fail"></i>No usable submission</li>
+          <li><i class="swatch infra"></i>Lost to provider or harness</li>
         </ul>
         <p class="unrun-note" id="unrun-note"></p>
       </section>
       <details class="evaluation-notes" id="methodology">
         <summary>Methodology</summary>
         <dl class="method-list">
-          <dt>Beat baseline</dt>
-          <dd>Runs that are correct and have a lower ADP than the baseline, out of every scheduled run. Ties go to correctness, then ADP gain.</dd>
-          <dt>Correctness</dt>
+          <dt>Beats reference</dt>
+          <dd>Bit-exact runs whose ADP is below the reference design's, out of every scheduled run. Ties are broken by bit-exact rate, then ADP gain.</dd>
+          <dt>Bit-exact</dt>
           <dd>Runs that pass every check, out of every scheduled run.</dd>
           <dt>ADP gain</dt>
-          <dd>Geometric mean of baseline ADP ÷ design ADP, over correct runs only.</dd>
+          <dd>Geometric mean of reference ADP ÷ design ADP, over bit-exact runs only.</dd>
           <dt>Failures</dt>
           <dd>Incorrect RTL counts as a failed run. Runs lost to the provider or the harness are shown as not scored but still count against the rate.</dd>
           <dt>Protocol</dt>
