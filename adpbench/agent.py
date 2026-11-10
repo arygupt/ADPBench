@@ -30,9 +30,10 @@ import re
 import signal
 import subprocess
 import time
+from collections.abc import Sequence
 from dataclasses import asdict, dataclass, field
 from datetime import datetime
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 from shutil import which
 from uuid import uuid4
 
@@ -59,6 +60,32 @@ ANSI_ESCAPE = re.compile(r"\x1b\[[0-9;?]*[ -/]*[@-~]|\x1b\][^\x07]*\x07?")
 SECRET_ASSIGNMENT = re.compile(
     r"(?i)\b([A-Z0-9_]*(?:KEY|TOKEN|SECRET|PASSWORD)[A-Z0-9_]*)\s*=\s*\S+"
 )
+ENV_NAME = re.compile(r"[A-Za-z_][A-Za-z0-9_]*")
+
+
+@dataclass(frozen=True)
+class Mount:
+    """An extra host directory for the sandbox, such as an agent CLI's login.
+
+    It must not overlap the task directory or the harness bundle.
+    """
+
+    host: str
+    container: str
+    read_only: bool = False
+
+    def resolved_host(self) -> Path:
+        return Path(self.host).expanduser().resolve()
+
+    @classmethod
+    def parse(cls, spec: str) -> "Mount":
+        """`HOST:CONTAINER` or `HOST:CONTAINER:ro`, as on the command line."""
+        parts = spec.split(":")
+        if len(parts) == 3 and parts[2] == "ro":
+            return cls(parts[0], parts[1], read_only=True)
+        if len(parts) == 2:
+            return cls(parts[0], parts[1])
+        raise ValueError(f"mount must be HOST:CONTAINER[:ro], got {spec!r}")
 
 
 @dataclass
@@ -79,6 +106,9 @@ class RunRecord:
     frozen: str = ""
     manifest: dict = field(default_factory=dict)
     history: list[str] = field(default_factory=list)
+    # Set when the run failed for a reason outside the model (a usage limit,
+    # an expired login). Such a run may be retried; see `adpbench pilot --resume`.
+    infra_failure: str = ""
 
     def score(self) -> float:
         """Baseline-relative score. Zero unless the submission passed the gate."""
@@ -184,13 +214,20 @@ def docker_command(
     memory: str = "4g",
     pids_limit: int = 1024,
     name: str = "",
+    env_names: Sequence[str] = (),
+    mounts: Sequence[Mount] = (),
 ) -> list[str]:
     """The `docker run` command that runs an agent inside the sandbox.
 
-    Only the task directory is writable. The harness bundle is mounted
-    read-only and contains no evaluation seeds. `argv` is the in-container
-    command, usually the terminal recorder wrapping the agent CLI.
+    The task directory is writable. The harness bundle is mounted read-only
+    and contains no evaluation seeds. `argv` is the in-container command,
+    usually the terminal recorder wrapping the agent CLI.
+
+    `env_names` are passed through by name only (`-e NAME`), so docker reads
+    each value from the host environment and no secret appears in the command
+    or the logs. `mounts` add host directories, such as an agent CLI's login.
     """
+    check_sandbox_access(env_names, mounts)
     command = [
         "docker", "run", "--rm",
         "-e", f"PYTHONPATH={SANDBOX_MOUNT}",
@@ -202,9 +239,54 @@ def docker_command(
         "--cpus", str(cpus),
         "--pids-limit", str(pids_limit),
     ]
+    for env_name in env_names:
+        command += ["-e", env_name]
+    for mount in mounts:
+        suffix = ":ro" if mount.read_only else ""
+        command += ["-v", f"{mount.resolved_host()}:{mount.container}{suffix}"]
     if name:
         command += ["--name", name]
     return command + [image] + list(argv)
+
+
+def check_sandbox_access(env_names: Sequence[str], mounts: Sequence[Mount]) -> None:
+    """Refuse malformed variable names and mounts over the harness paths."""
+    for env_name in env_names:
+        if not ENV_NAME.fullmatch(env_name):
+            raise ValueError(f"not an environment variable name: {env_name!r}")
+    reserved = (PurePosixPath(WORK_MOUNT), PurePosixPath(SANDBOX_MOUNT))
+    for mount in mounts:
+        target = PurePosixPath(mount.container)
+        if not target.is_absolute():
+            raise ValueError(f"mount target must be absolute: {mount.container}")
+        for path in reserved:
+            if target == path or path in target.parents or target in path.parents:
+                raise ValueError(f"mount target {target} overlaps {path}")
+
+
+def check_host_access(env_names: Sequence[str], mounts: Sequence[Mount]) -> None:
+    """Fail before a run starts if a credential it needs is missing on the host."""
+    check_sandbox_access(env_names, mounts)
+    missing = [env_name for env_name in env_names if not os.environ.get(env_name)]
+    if missing:
+        raise ValueError(f"environment variable(s) not set: {', '.join(missing)}")
+    for mount in mounts:
+        if not mount.resolved_host().is_dir():
+            raise ValueError(f"mount source is not a directory: {mount.host}")
+
+
+def match_infra_failure(log: str, patterns: Sequence[str]) -> str:
+    """The first line of the log matching a failure-outside-the-model pattern."""
+    for pattern in patterns:
+        found = re.search(pattern, log, flags=re.IGNORECASE | re.MULTILINE)
+        if found:
+            start = log.rfind("\n", 0, found.start()) + 1
+            end = log.find("\n", found.end())
+            line = log[start : end if end != -1 else len(log)]
+            # Terminal recorders leave `^D` and backspaces in the session.
+            line = re.sub(r"[\x00-\x08\x0b-\x1f\x7f]", "", line.replace("^D", "")).strip()
+            return redact_secrets(line)[:300]
+    return ""
 
 
 # --------------------------------------------------------------------------
@@ -257,7 +339,10 @@ def build_manifest(
             "mode": sandbox,
             "image": image if sandbox == "docker" else "",
             "network": network if sandbox == "docker" else "",
+            "env_names": list(record.manifest.get("env_names", [])),
+            "mounts": list(record.manifest.get("mounts", [])),
         },
+        "infra_failure": record.infra_failure,
         "result": {
             "correct": bool(result.get("correct")),
             "ratio": result.get("ratio", -1.0),
@@ -303,6 +388,8 @@ def render_trajectory(record: RunRecord, run_dir: Path) -> str:
         lines.append("- result: not scored")
     if record.error:
         lines.append(f"- harness error: {record.error}")
+    if record.infra_failure:
+        lines.append(f"- infrastructure failure: {record.infra_failure}")
 
     lines += [
         "",
@@ -349,15 +436,25 @@ def run_agent(
     sandbox: str = "none",
     image: str = DEFAULT_IMAGE,
     network: str = "bridge",
+    env_names: Sequence[str] = (),
+    mounts: Sequence[Mount] = (),
+    infra_patterns: Sequence[str] = (),
 ) -> RunRecord:
     """Run an agent CLI in a fresh task directory, then audit and score its dut.v.
 
     With `sandbox="docker"` the agent runs in a container that mounts the task
     directory read-write and a sanitized harness bundle read-only. Final
     scoring always happens on the host, outside the container.
+
+    `env_names` and `mounts` give a sandboxed agent its login (see
+    `docker_command`). An incorrect run whose log matches one of
+    `infra_patterns` is marked as an infrastructure failure.
     """
     if sandbox not in ("none", "docker"):
         raise ValueError(f"unknown sandbox {sandbox!r}")
+    if sandbox != "docker" and (env_names or mounts):
+        raise ValueError("env passthrough and mounts need --sandbox docker")
+    check_host_access(env_names, mounts)
 
     if dest:
         dest = Path(dest).resolve()
@@ -380,8 +477,17 @@ def run_agent(
         sandbox=sandbox,
         started=datetime.now().isoformat(timespec="seconds"),
     )
+    # Names and paths only, never values: build_manifest copies these.
+    record.manifest = {
+        "env_names": list(env_names),
+        "mounts": [
+            {"container": mount.container, "read_only": mount.read_only} for mount in mounts
+        ],
+    }
 
-    log = _run_agent_process(record, agent_cmd, dest, timeout_s, sandbox, image, network)
+    log = _run_agent_process(
+        record, agent_cmd, dest, timeout_s, sandbox, image, network, env_names, mounts
+    )
     _write_host_file(dest / "agent.log", log)
     record.history = [path.name for path in sorted((dest / ".history").glob("*_dut.v"))]
 
@@ -398,6 +504,11 @@ def run_agent(
         except Exception as exc:  # noqa: BLE001 - the record must survive scorer bugs
             record.error = f"{type(exc).__name__}: {exc}"
             record.result = {"error": record.error}
+
+    if not (record.result or {}).get("correct"):
+        # The log opens with the command line, which is not agent output.
+        output = log.split("\n", 1)[1] if log.startswith("$ ") else log
+        record.infra_failure = match_infra_failure(output, infra_patterns)
 
     try:
         record.manifest = build_manifest(problem, record, frozen, timeout_s, sandbox, image, network)
@@ -418,6 +529,8 @@ def _run_agent_process(
     sandbox: str,
     image: str,
     network: str,
+    env_names: Sequence[str] = (),
+    mounts: Sequence[Mount] = (),
 ) -> str:
     """Run the agent to completion or timeout. Fills in exit/timing fields on
     `record` and returns the text for agent.log."""
@@ -427,7 +540,16 @@ def _run_agent_process(
     if sandbox == "docker":
         container = f"adpbench_{uuid4().hex[:10]}"
         recorder = script_argv(agent_cmd, f"{WORK_MOUNT}/{TERMINAL_LOG}", sandbox="docker")
-        command = docker_command(dest, bundle_path(dest), image, network, recorder, name=container)
+        command = docker_command(
+            dest,
+            bundle_path(dest),
+            image,
+            network,
+            recorder,
+            name=container,
+            env_names=env_names,
+            mounts=mounts,
+        )
         cwd = None
         shown = " ".join(command)
     elif which("script"):

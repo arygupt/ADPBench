@@ -32,3 +32,24 @@ an agent, any shell command works:
 adpbench agent 001_dot_product --sandbox docker --image adpbench-agent \
   --cmd "cp /adpbench/problems/level1/001_dot_product/baseline.v dut.v"
 ```
+
+## Subscription CLIs
+
+[`Dockerfile.cli`](Dockerfile.cli) adds Claude Code and Codex for the
+[cli-agent-v1](../pilot/cli-agent-v1.md) track. A sandboxed agent gets its
+login through two options, both recorded by name or target only:
+
+- `--env NAME` passes a host environment variable into the container by name
+  (`docker run -e NAME`), so its value never appears in a command or log.
+- `--mount HOST:CONTAINER[:ro]` mounts a host directory, such as a dedicated
+  CLI login. It may not cover `/work` or `/adpbench`.
+
+```bash
+adpbench agent 001_dot_product --sandbox docker --image adpbench-agent-cli \
+  --label claude-code/claude-fable-5-2 --env CLAUDE_CODE_OAUTH_TOKEN \
+  --cmd "claude -p 'Read PROBLEM.md and write dut.v.' --dangerously-skip-permissions"
+```
+
+Pilot configs take the same as per-agent `env` and `mounts` lists. Both are
+checked on the host before a run starts, so a missing login fails the cell
+instead of spending a run.
