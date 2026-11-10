@@ -16,20 +16,21 @@ budget.
 ## What runs
 
 [`cli-agent-v1.json`](cli-agent-v1.json): every problem in the catalog, three
-repetitions, four agents on two subscriptions. 96 runs, 24 per agent.
+repetitions, five agents on two subscriptions. 120 runs, 24 per agent.
 
 | Label | CLI | Model and reasoning |
 |---|---|---|
 | `claude-code/claude-fable-5-1` | Claude Code 2.1.321 | `--model claude-fable-5-1 --effort high` |
 | `claude-code/claude-fable-5-2` | Claude Code 2.1.321 | `--model claude-fable-5-2 --effort high` |
+| `claude-code/claude-opus-5-5` | Claude Code 2.1.321 | `--model claude-opus-5-5 --effort high` |
 | `codex/gpt-6.1-sol` | Codex 0.167.0 | `--model gpt-6.1-sol`, `model_reasoning_effort=high` |
-| `codex/gpt-6-luna` | Codex 0.167.0 | `--model gpt-6-luna`, `model_reasoning_effort=high` |
+| `codex/gpt-6-astra` | Codex 0.167.0 | `--model gpt-6-astra`, `model_reasoning_effort=high` |
 
-GPT-6.1 Sol is Codex's default model, and GPT-6 Luna is the OpenAI model in the
-agent-assisted-v2 rounds. Grok and Kimi have no subscription CLI, so they are
+GPT-6.1 Sol is Codex's default model and GPT-6 Astra is OpenAI's largest; Opus
+5.5 is the Claude model a step below Fable. Grok and Kimi have no subscription CLI, so they are
 not in this track; they need API keys and an agent-assisted-v2 plan.
 
-Reasoning is "high" for all four, matching v2's high-or-nearest policy. All get
+Reasoning is "high" for all five, matching v2's high-or-nearest policy. All get
 the same prompt as the [free-model pilot](pilot_free_models.json). Web search
 and fetch are off: Claude Code with `--disallowedTools WebSearch WebFetch`,
 Codex with `web_search=disabled`. The network stays on for the model API.

@@ -132,14 +132,14 @@ class ReviewedConfigTest(unittest.TestCase):
     """The committed cli-agent-v1 plan: four agents, one prompt, the same limits."""
 
     ROOT = Path(__file__).resolve().parent.parent / "pilot"
-    LABELS = ["claude-code/claude-fable-5-1", "claude-code/claude-fable-5-2",
-              "codex/gpt-6.1-sol", "codex/gpt-6-luna"]
+    LABELS = ["claude-code/claude-fable-5-1", "claude-code/claude-fable-5-2", "claude-code/claude-opus-5-5",
+              "codex/gpt-6.1-sol", "codex/gpt-6-astra"]
 
     def test_every_agent_runs_the_same_experiment(self) -> None:
         config = load_pilot(self.ROOT / "cli-agent-v1.json")
         self.assertEqual([agent.label for agent in config.agents], self.LABELS)
         self.assertEqual((len(config.problems), config.repetitions, config.order), (8, 3, "round"))
-        self.assertEqual(config.planned_runs, 96)
+        self.assertEqual(config.planned_runs, 120)
         self.assertEqual((config.sandbox, config.image), ("docker", "adpbench-agent-cli"))
         prompts = set()
         for agent in config.agents:
