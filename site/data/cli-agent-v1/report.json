@@ -1,0 +1,374 @@
+{
+  "labels": {
+    "codex/gpt-6-astra": {
+      "attempts": 24,
+      "correct": 24,
+      "correctness_rate": 1.0,
+      "beating_baseline": 24,
+      "beat_baseline_rate": 1.0,
+      "geomean_ratio_successful": 5.4538,
+      "failures": {
+        "wrong_rtl": 0,
+        "infrastructure": 0
+      },
+      "repetitions": 3,
+      "per_problem": {
+        "001_dot_product": {
+          "attempts": 3,
+          "correct": 3,
+          "correctness_rate": 1.0,
+          "beating_baseline": 3,
+          "beat_baseline_rate": 1.0,
+          "geomean_ratio_successful": 2.6523,
+          "failures": {
+            "wrong_rtl": 0,
+            "infrastructure": 0
+          },
+          "repetitions": 3
+        },
+        "002_gemv": {
+          "attempts": 3,
+          "correct": 3,
+          "correctness_rate": 1.0,
+          "beating_baseline": 3,
+          "beat_baseline_rate": 1.0,
+          "geomean_ratio_successful": 4.812,
+          "failures": {
+            "wrong_rtl": 0,
+            "infrastructure": 0
+          },
+          "repetitions": 3
+        },
+        "003_matmul": {
+          "attempts": 3,
+          "correct": 3,
+          "correctness_rate": 1.0,
+          "beating_baseline": 3,
+          "beat_baseline_rate": 1.0,
+          "geomean_ratio_successful": 3.6953,
+          "failures": {
+            "wrong_rtl": 0,
+            "infrastructure": 0
+          },
+          "repetitions": 3
+        },
+        "004_conv1d": {
+          "attempts": 3,
+          "correct": 3,
+          "correctness_rate": 1.0,
+          "beating_baseline": 3,
+          "beat_baseline_rate": 1.0,
+          "geomean_ratio_successful": 4.0509,
+          "failures": {
+            "wrong_rtl": 0,
+            "infrastructure": 0
+          },
+          "repetitions": 3
+        },
+        "005_argmax": {
+          "attempts": 3,
+          "correct": 3,
+          "correctness_rate": 1.0,
+          "beating_baseline": 3,
+          "beat_baseline_rate": 1.0,
+          "geomean_ratio_successful": 3.9902,
+          "failures": {
+            "wrong_rtl": 0,
+            "infrastructure": 0
+          },
+          "repetitions": 3
+        },
+        "006_topk": {
+          "attempts": 3,
+          "correct": 3,
+          "correctness_rate": 1.0,
+          "beating_baseline": 3,
+          "beat_baseline_rate": 1.0,
+          "geomean_ratio_successful": 12.3577,
+          "failures": {
+            "wrong_rtl": 0,
+            "infrastructure": 0
+          },
+          "repetitions": 3
+        },
+        "007_histogram": {
+          "attempts": 3,
+          "correct": 3,
+          "correctness_rate": 1.0,
+          "beating_baseline": 3,
+          "beat_baseline_rate": 1.0,
+          "geomean_ratio_successful": 1.9676,
+          "failures": {
+            "wrong_rtl": 0,
+            "infrastructure": 0
+          },
+          "repetitions": 3
+        },
+        "008_maxpool2d": {
+          "attempts": 3,
+          "correct": 3,
+          "correctness_rate": 1.0,
+          "beating_baseline": 3,
+          "beat_baseline_rate": 1.0,
+          "geomean_ratio_successful": 42.2231,
+          "failures": {
+            "wrong_rtl": 0,
+            "infrastructure": 0
+          },
+          "repetitions": 3
+        }
+      }
+    },
+    "codex/gpt-6-luna": {
+      "attempts": 24,
+      "correct": 24,
+      "correctness_rate": 1.0,
+      "beating_baseline": 18,
+      "beat_baseline_rate": 0.75,
+      "geomean_ratio_successful": 1.8332,
+      "failures": {
+        "wrong_rtl": 0,
+        "infrastructure": 0
+      },
+      "repetitions": 3,
+      "per_problem": {
+        "001_dot_product": {
+          "attempts": 3,
+          "correct": 3,
+          "correctness_rate": 1.0,
+          "beating_baseline": 3,
+          "beat_baseline_rate": 1.0,
+          "geomean_ratio_successful": 1.4694,
+          "failures": {
+            "wrong_rtl": 0,
+            "infrastructure": 0
+          },
+          "repetitions": 3
+        },
+        "002_gemv": {
+          "attempts": 3,
+          "correct": 3,
+          "correctness_rate": 1.0,
+          "beating_baseline": 2,
+          "beat_baseline_rate": 0.6667,
+          "geomean_ratio_successful": 1.6628,
+          "failures": {
+            "wrong_rtl": 0,
+            "infrastructure": 0
+          },
+          "repetitions": 3
+        },
+        "003_matmul": {
+          "attempts": 3,
+          "correct": 3,
+          "correctness_rate": 1.0,
+          "beating_baseline": 2,
+          "beat_baseline_rate": 0.6667,
+          "geomean_ratio_successful": 1.7205,
+          "failures": {
+            "wrong_rtl": 0,
+            "infrastructure": 0
+          },
+          "repetitions": 3
+        },
+        "004_conv1d": {
+          "attempts": 3,
+          "correct": 3,
+          "correctness_rate": 1.0,
+          "beating_baseline": 1,
+          "beat_baseline_rate": 0.3333,
+          "geomean_ratio_successful": 0.883,
+          "failures": {
+            "wrong_rtl": 0,
+            "infrastructure": 0
+          },
+          "repetitions": 3
+        },
+        "005_argmax": {
+          "attempts": 3,
+          "correct": 3,
+          "correctness_rate": 1.0,
+          "beating_baseline": 3,
+          "beat_baseline_rate": 1.0,
+          "geomean_ratio_successful": 3.0966,
+          "failures": {
+            "wrong_rtl": 0,
+            "infrastructure": 0
+          },
+          "repetitions": 3
+        },
+        "006_topk": {
+          "attempts": 3,
+          "correct": 3,
+          "correctness_rate": 1.0,
+          "beating_baseline": 3,
+          "beat_baseline_rate": 1.0,
+          "geomean_ratio_successful": 8.0555,
+          "failures": {
+            "wrong_rtl": 0,
+            "infrastructure": 0
+          },
+          "repetitions": 3
+        },
+        "007_histogram": {
+          "attempts": 3,
+          "correct": 3,
+          "correctness_rate": 1.0,
+          "beating_baseline": 1,
+          "beat_baseline_rate": 0.3333,
+          "geomean_ratio_successful": 0.8166,
+          "failures": {
+            "wrong_rtl": 0,
+            "infrastructure": 0
+          },
+          "repetitions": 3
+        },
+        "008_maxpool2d": {
+          "attempts": 3,
+          "correct": 3,
+          "correctness_rate": 1.0,
+          "beating_baseline": 3,
+          "beat_baseline_rate": 1.0,
+          "geomean_ratio_successful": 1.687,
+          "failures": {
+            "wrong_rtl": 0,
+            "infrastructure": 0
+          },
+          "repetitions": 3
+        }
+      }
+    },
+    "codex/gpt-6.1-sol": {
+      "attempts": 24,
+      "correct": 24,
+      "correctness_rate": 1.0,
+      "beating_baseline": 24,
+      "beat_baseline_rate": 1.0,
+      "geomean_ratio_successful": 5.9388,
+      "failures": {
+        "wrong_rtl": 0,
+        "infrastructure": 0
+      },
+      "repetitions": 3,
+      "per_problem": {
+        "001_dot_product": {
+          "attempts": 3,
+          "correct": 3,
+          "correctness_rate": 1.0,
+          "beating_baseline": 3,
+          "beat_baseline_rate": 1.0,
+          "geomean_ratio_successful": 3.1122,
+          "failures": {
+            "wrong_rtl": 0,
+            "infrastructure": 0
+          },
+          "repetitions": 3
+        },
+        "002_gemv": {
+          "attempts": 3,
+          "correct": 3,
+          "correctness_rate": 1.0,
+          "beating_baseline": 3,
+          "beat_baseline_rate": 1.0,
+          "geomean_ratio_successful": 4.2837,
+          "failures": {
+            "wrong_rtl": 0,
+            "infrastructure": 0
+          },
+          "repetitions": 3
+        },
+        "003_matmul": {
+          "attempts": 3,
+          "correct": 3,
+          "correctness_rate": 1.0,
+          "beating_baseline": 3,
+          "beat_baseline_rate": 1.0,
+          "geomean_ratio_successful": 5.2508,
+          "failures": {
+            "wrong_rtl": 0,
+            "infrastructure": 0
+          },
+          "repetitions": 3
+        },
+        "004_conv1d": {
+          "attempts": 3,
+          "correct": 3,
+          "correctness_rate": 1.0,
+          "beating_baseline": 3,
+          "beat_baseline_rate": 1.0,
+          "geomean_ratio_successful": 3.9739,
+          "failures": {
+            "wrong_rtl": 0,
+            "infrastructure": 0
+          },
+          "repetitions": 3
+        },
+        "005_argmax": {
+          "attempts": 3,
+          "correct": 3,
+          "correctness_rate": 1.0,
+          "beating_baseline": 3,
+          "beat_baseline_rate": 1.0,
+          "geomean_ratio_successful": 4.1183,
+          "failures": {
+            "wrong_rtl": 0,
+            "infrastructure": 0
+          },
+          "repetitions": 3
+        },
+        "006_topk": {
+          "attempts": 3,
+          "correct": 3,
+          "correctness_rate": 1.0,
+          "beating_baseline": 3,
+          "beat_baseline_rate": 1.0,
+          "geomean_ratio_successful": 14.2172,
+          "failures": {
+            "wrong_rtl": 0,
+            "infrastructure": 0
+          },
+          "repetitions": 3
+        },
+        "007_histogram": {
+          "attempts": 3,
+          "correct": 3,
+          "correctness_rate": 1.0,
+          "beating_baseline": 3,
+          "beat_baseline_rate": 1.0,
+          "geomean_ratio_successful": 2.1443,
+          "failures": {
+            "wrong_rtl": 0,
+            "infrastructure": 0
+          },
+          "repetitions": 3
+        },
+        "008_maxpool2d": {
+          "attempts": 3,
+          "correct": 3,
+          "correctness_rate": 1.0,
+          "beating_baseline": 3,
+          "beat_baseline_rate": 1.0,
+          "geomean_ratio_successful": 44.3023,
+          "failures": {
+            "wrong_rtl": 0,
+            "infrastructure": 0
+          },
+          "repetitions": 3
+        }
+      }
+    }
+  },
+  "totals": {
+    "attempts": 72,
+    "correct": 72,
+    "correctness_rate": 1.0,
+    "beating_baseline": 66,
+    "beat_baseline_rate": 0.9167,
+    "geomean_ratio_successful": 3.9012,
+    "failures": {
+      "wrong_rtl": 0,
+      "infrastructure": 0
+    },
+    "repetitions": 3
+  }
+}

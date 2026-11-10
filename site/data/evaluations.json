@@ -19,6 +19,12 @@
       "label": "OpenCode Go \u00b7 go-agent-v2-r1-free \u00b7 agent-assisted-v2",
       "path": "data/go-agent-v2-r1-free/leaderboard.json",
       "protocol": "agent-assisted-v2"
+    },
+    {
+      "id": "cli-agent-v1",
+      "label": "Vendor CLIs \u00b7 cli-agent-v1 \u00b7 Claude Code and Codex on subscription logins",
+      "path": "data/cli-agent-v1/leaderboard.json",
+      "protocol": "cli-agent-v1"
     }
   ]
 }

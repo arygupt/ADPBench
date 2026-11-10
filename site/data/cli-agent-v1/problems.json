@@ -1,0 +1,292 @@
+{
+  "problems": [
+    {
+      "name": "001_dot_product",
+      "title": "Dot product",
+      "level": 1,
+      "params": {
+        "LEN": 256,
+        "LANES": 32,
+        "DATA_W": 8,
+        "ACC_W": 32
+      },
+      "input_lens": {
+        "in_a_flat": 256,
+        "in_b_flat": 256
+      },
+      "out_len": 1,
+      "transactions": 2,
+      "directed": [
+        "zeros",
+        "min_values",
+        "extreme_signs"
+      ],
+      "quant": {
+        "in_a_flat": "int8 two's complement",
+        "in_b_flat": "int8 two's complement",
+        "out_c": "int32 two's complement, exact",
+        "accumulator": "int32, no saturation, no rounding",
+        "tolerance": "none - bit exact"
+      },
+      "baseline": {
+        "cells": 2142,
+        "cycles": 546,
+        "adp": 1169532.0
+      },
+      "sanity": {}
+    },
+    {
+      "name": "002_gemv",
+      "title": "Matrix-vector (GEMV)",
+      "level": 1,
+      "params": {
+        "ROWS": 16,
+        "COLS": 64,
+        "LANES": 16,
+        "DATA_W": 8,
+        "ACC_W": 32
+      },
+      "input_lens": {
+        "in_a_flat": 1024,
+        "in_x_flat": 64
+      },
+      "out_len": 16,
+      "transactions": 2,
+      "directed": [
+        "zeros",
+        "min_values",
+        "extreme_signs"
+      ],
+      "quant": {
+        "in_a_flat": "int8 two's complement, row-major A",
+        "in_x_flat": "int8 two's complement",
+        "out_c": "int32 two's complement, exact, one word per row",
+        "accumulator": "int32, no saturation, no rounding",
+        "tolerance": "none - bit exact"
+      },
+      "baseline": {
+        "cells": 3295,
+        "cycles": 2216,
+        "adp": 7301720.0
+      },
+      "sanity": {}
+    },
+    {
+      "name": "003_matmul",
+      "title": "Matrix multiply",
+      "level": 1,
+      "params": {
+        "M": 8,
+        "N": 8,
+        "K": 16,
+        "LANES": 16,
+        "DATA_W": 8,
+        "ACC_W": 32
+      },
+      "input_lens": {
+        "in_a_flat": 128,
+        "in_b_flat": 128
+      },
+      "out_len": 64,
+      "transactions": 2,
+      "directed": [
+        "zeros",
+        "min_values",
+        "extreme_signs"
+      ],
+      "quant": {
+        "in_a_flat": "int8 two's complement, row-major A (M x K)",
+        "in_b_flat": "int8 two's complement, row-major B (K x N)",
+        "out_c": "int32 two's complement, exact, row-major C (M x N)",
+        "accumulator": "int32, no saturation, no rounding",
+        "tolerance": "none - bit exact"
+      },
+      "baseline": {
+        "cells": 6253,
+        "cycles": 2194,
+        "adp": 13719082.0
+      },
+      "sanity": {}
+    },
+    {
+      "name": "004_conv1d",
+      "title": "1-D convolution",
+      "level": 1,
+      "params": {
+        "IN_LEN": 128,
+        "F": 4,
+        "K": 4,
+        "LANES": 16,
+        "DATA_W": 8,
+        "ACC_W": 32
+      },
+      "input_lens": {
+        "in_x_flat": 128,
+        "in_w_flat": 16
+      },
+      "out_len": 500,
+      "transactions": 2,
+      "directed": [
+        "zeros",
+        "zero_weights",
+        "extreme_signs"
+      ],
+      "quant": {
+        "in_x_flat": "int8 two's complement",
+        "in_w_flat": "int8 two's complement, row-major filters (F x K)",
+        "out_c": "int32 two's complement, exact, row-major y (F x OUT_POS)",
+        "accumulator": "int32, no saturation, no rounding",
+        "tolerance": "none - bit exact"
+      },
+      "baseline": {
+        "cells": 4565,
+        "cycles": 5018,
+        "adp": 22907170.0
+      },
+      "sanity": {}
+    },
+    {
+      "name": "005_argmax",
+      "title": "Row-wise argmax",
+      "level": 1,
+      "params": {
+        "ROWS": 8,
+        "COLS": 64,
+        "LANES": 8,
+        "DATA_W": 8,
+        "ACC_W": 32
+      },
+      "input_lens": {
+        "in_x_flat": 512
+      },
+      "out_len": 8,
+      "transactions": 2,
+      "directed": [
+        "all_equal",
+        "negative_only",
+        "tied_maxima",
+        "edge_winners",
+        "ordered"
+      ],
+      "quant": {
+        "in_x_flat": "signed int8 two's complement, row-major ROWS x COLS",
+        "out_c": "int32 column index, zero-based; first (lowest) index wins ties",
+        "tolerance": "none - bit exact"
+      },
+      "baseline": {
+        "cells": 283,
+        "cycles": 1168,
+        "adp": 330544.0
+      },
+      "sanity": {}
+    },
+    {
+      "name": "006_topk",
+      "title": "Top-K selection",
+      "level": 1,
+      "params": {
+        "LEN": 64,
+        "K": 8,
+        "LANES": 8,
+        "DATA_W": 8,
+        "ACC_W": 32
+      },
+      "input_lens": {
+        "in_x_flat": 64
+      },
+      "out_len": 8,
+      "transactions": 2,
+      "directed": [
+        "all_equal",
+        "ordered",
+        "duplicates",
+        "negative_only",
+        "extreme_signs"
+      ],
+      "quant": {
+        "in_x_flat": "signed int8 two's complement",
+        "out_c": "K int32 values, sign-extended, descending; duplicates retained",
+        "tolerance": "none - bit exact"
+      },
+      "baseline": {
+        "cells": 1803,
+        "cycles": 1056,
+        "adp": 1903968.0
+      },
+      "sanity": {}
+    },
+    {
+      "name": "007_histogram",
+      "title": "16-bin histogram",
+      "level": 1,
+      "params": {
+        "LEN": 256,
+        "BINS": 16,
+        "LANES": 8,
+        "DATA_W": 8,
+        "ACC_W": 32
+      },
+      "input_lens": {
+        "in_x_flat": 256
+      },
+      "out_len": 16,
+      "transactions": 2,
+      "directed": [
+        "same_bin",
+        "uniform",
+        "beat_collisions",
+        "skewed",
+        "sparse"
+      ],
+      "quant": {
+        "in_x_flat": "8-bit bin IDs, restricted to 0 <= x < BINS (0..15)",
+        "out_c": "BINS exact nonnegative int32 counts, ascending bin order",
+        "accumulator": "counts include all LEN inputs; no saturation or wraparound",
+        "tolerance": "none - bit exact"
+      },
+      "baseline": {
+        "cells": 680,
+        "cycles": 608,
+        "adp": 413440.0
+      },
+      "sanity": {}
+    },
+    {
+      "name": "008_maxpool2d",
+      "title": "2-D max pooling",
+      "level": 1,
+      "params": {
+        "HEIGHT": 16,
+        "WIDTH": 16,
+        "K": 3,
+        "LANES": 8,
+        "DATA_W": 8,
+        "ACC_W": 32
+      },
+      "input_lens": {
+        "in_x_flat": 256
+      },
+      "out_len": 196,
+      "transactions": 2,
+      "directed": [
+        "all_equal",
+        "negative_only",
+        "ramp",
+        "checkerboard",
+        "impulses"
+      ],
+      "quant": {
+        "in_x_flat": "signed int8 image, row-major HEIGHT x WIDTH",
+        "out_c": "int32 sign-extended maxima, row-major (HEIGHT-K+1) x (WIDTH-K+1)",
+        "pooling": "K x K maximum, stride 1, valid windows only (no padding)",
+        "tolerance": "none - bit exact"
+      },
+      "baseline": {
+        "cells": 4424,
+        "cycles": 3984,
+        "adp": 17625216.0
+      },
+      "sanity": {}
+    }
+  ]
+}

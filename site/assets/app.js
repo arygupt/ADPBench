@@ -30,6 +30,11 @@ const MODEL_NAMES = {
   "grok-4.7": "Grok 4.7",
   "kimi-k3": "Kimi K3",
   "gpt-6-luna": "GPT-6 Luna",
+  "gpt-6-astra": "GPT-6 Astra",
+  "gpt-6.1-sol": "GPT-6.1 Sol",
+  "claude-fable-5-1": "Claude Fable 5.1",
+  "claude-fable-5-2": "Claude Fable 5.2",
+  "claude-opus-5-5": "Claude Opus 5.5",
   "deepseek-v4-pro": "DeepSeek V4 Pro",
   "glm-5.3": "GLM-5.3",
   "mimo-v2.6-pro": "MiMo V2.6 Pro",
@@ -130,9 +135,14 @@ function modelId(label) {
   return label.split("/").pop().replace(/\s*\[.*\]$/, "").replace(/-free$/, "");
 }
 
+// Vendor harnesses of the cli-agent board: "codex/gpt-6.1-sol" ran inside Codex.
+const HARNESS_NAMES = { codex: "Codex", "claude-code": "Claude Code" };
+
 function displayName(model) {
   const id = modelId(model.label);
-  return MODEL_NAMES[id] || id;
+  const name = MODEL_NAMES[id] || id;
+  const harness = HARNESS_NAMES[model.label.split("/")[0]];
+  return harness ? `${name} in ${harness}` : name;
 }
 
 function problemTitle(name) {
@@ -575,11 +585,50 @@ function renderMeta() {
   const published = meta.generated ? `, ${meta.generated.slice(0, 10)}` : "";
   fill("#page-summary", `${data.models.length} models, ${problemCount}, ${slots} runs${published}`);
   for (const link of $$("a[data-results-download]")) link.href = datasets[datasetKey];
-  fill(
-    "#pilot-note",
+  fill("#pilot-note", meta.protocol === "cli-agent-v1" ? cliAgentNote(meta) : agentNote(meta));
+}
+
+function agentNote(meta) {
+  return (
     `Round ${meta.pilot}, ${protocolName(meta.protocol)}. Up to ${meta.max_turns} agent turns per run, ` +
-      `${budgetSummary(meta)}. Submissions are frozen, then scored on held-out cases.`,
+    `${budgetSummary(meta)}. Submissions are frozen, then scored on held-out cases.`
   );
+}
+
+/** The vendor-CLI board: each model runs inside its own vendor's coding agent. */
+function cliAgentNote(meta) {
+  const harnesses = Object.values(meta.harnesses || {});
+  const efforts = [...new Set(harnesses.map((harness) => harness.reasoning_effort).filter(Boolean))];
+  const hours = meta.budget_s ? `${meta.budget_s / 3600} h` : "a fixed time";
+  const running = Object.keys(meta.in_progress || {}).map((label) => displayName({ label }));
+  return (
+    `${protocolName(meta.protocol)}. Each model runs in its vendor's own coding CLI (Claude Code or Codex) ` +
+    `in a network-limited Docker sandbox, ${efforts.length ? `at ${efforts.join("/")} reasoning effort, ` : ""}` +
+    `with up to ${hours} per run and the same development check script. Submissions are frozen, then scored on held-out cases. ` +
+    "Because the harness differs, this board is not pooled with the agent-assisted rounds." +
+    (running.length ? ` Still running, published when every run is scored: ${running.join(", ")}.` : "")
+  );
+}
+
+/** Links between the newest board of each protocol; hidden when there is only one. */
+function renderBoardSwitch(catalog) {
+  const nav = $("#board-switch");
+  if (!nav) return;
+  const newest = new Map();
+  for (const entry of catalog.entries) {
+    const family = entry.protocol.replace(/-v\d+$/, "");
+    if (!newest.has(family)) newest.set(family, entry);
+  }
+  if (newest.size < 2) return;
+  const titles = { "agent-assisted": "Agent-assisted", "cli-agent": "Vendor CLIs" };
+  nav.innerHTML = [...newest.entries()]
+    .map(([family, entry]) => {
+      const current = entry.id === datasetKey ? ' aria-current="page"' : "";
+      const href = entry.id === catalog.defaultBoard ? "index.html" : `index.html?board=${encodeURIComponent(entry.id)}`;
+      return `<a href="${href}"${current} title="${escapeHtml(entry.label)}">${escapeHtml(titles[family] || entry.label)}</a>`;
+    })
+    .join("");
+  nav.hidden = false;
 }
 
 // ---------------------------------------------------------------------------
@@ -844,9 +893,12 @@ async function loadData() {
   const onProblemPage = Boolean($("#problem-grid"));
   const catalog = parseCatalog(await getJSON("data/evaluations.json"));
   datasets = catalog.paths;
-  // Show the newest agent-assisted batch; the publisher prepends new batches.
+  // Show the newest agent-assisted batch unless ?board= names another; the publisher prepends new batches.
   const agentDataset = catalog.entries.find((entry) => entry.protocol.startsWith("agent-assisted-"));
-  datasetKey = agentDataset?.id || catalog.defaultId;
+  catalog.defaultBoard = agentDataset?.id || catalog.defaultId;
+  const requested = new URLSearchParams(window.location.search).get("board");
+  datasetKey = requested && Object.hasOwn(datasets, requested) ? requested : catalog.defaultBoard;
+  if (!onProblemPage) renderBoardSwitch(catalog);
 
   const leaderboardPath = datasets[datasetKey];
   const [leaderboard, problems, reasoningFile] = await Promise.all([
