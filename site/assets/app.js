@@ -86,13 +86,13 @@ function maker(model) {
 
 
 const SCORE_LABELS = {
-  beat_rate: "Correct & better than baseline",
+  beat_rate: "Bit-exact and under the reference ADP",
   correctness_rate: "Passed all correctness checks",
   geomean: "Geometric mean ADP ratio, correct runs only",
 };
 const SCORE_HEADINGS = {
-  beat_rate: "Beat baseline",
-  correctness_rate: "Correctness",
+  beat_rate: "Beats reference",
+  correctness_rate: "Bit-exact",
   geomean: "ADP gain",
 };
 
@@ -153,7 +153,7 @@ function rankModels(models) {
 /** How a run is shown: CSS class, label, and short value. */
 function runState(run) {
   if (run.correct) {
-    if (run.ratio > 1) return { cls: "beat", label: "Beat baseline", value: formatRatio(run.ratio) };
+    if (run.ratio > 1) return { cls: "beat", label: "Beats reference", value: formatRatio(run.ratio) };
     return { cls: "correct", label: "Correct, ≤ 1×", value: formatRatio(run.ratio) };
   }
   return agentState(run) || { cls: "fail wrong", label: "Incorrect RTL", value: "wrong" };
@@ -241,8 +241,8 @@ function updateScrollHints() {
 }
 
 const SCORE_NOTES = {
-  beat_rate: "Share of runs that are correct and beat the baseline.",
-  correctness_rate: "Share of runs that pass every check.",
+  beat_rate: "Share of scheduled runs that are bit-exact and under the reference ADP.",
+  correctness_rate: "Share of scheduled runs that match the reference on every held-out case.",
   geomean: "Mean ADP improvement over correct runs.",
 };
 
@@ -300,9 +300,9 @@ function renderOperatorMatrix(models) {
     `<tbody>${rows}</tbody>` +
     `</table>`;
 
-  let note = "Baseline ADP ÷ design ADP for each run. Higher is better.";
+  let note = "Reference ADP ÷ design ADP for each run; above 1 means the agent beat the reference.";
   if (operatorMetric !== "ratio") {
-    note = `${operatorMetric === "cells" ? "Gate cells after synthesis" : "Clock cycles to finish the test transactions"} for each run. Lower is better.`;
+    note = `${operatorMetric === "cells" ? "Gate cells after synthesis" : "Clock cycles to finish the test transactions"} for each run; smaller wins.`;
   }
   fill("#matrix-note", note);
   const unrun = unrunProblems().map((problem) => problem.title);
@@ -464,19 +464,19 @@ function renderPlane() {
 
   host.innerHTML =
     `<svg viewBox="0 0 ${width} ${height}" width="${width}" height="${height}" role="img" ` +
-    `aria-label="Scatter plot of ${planePoints.length} correct designs: cycles and cells relative to each problem's baseline, on logarithmic axes. The operator table below lists the same runs.">` +
+    `aria-label="Scatter plot of ${planePoints.length} correct designs: cycles and cells relative to each problem's reference design, on logarithmic axes. The operator table below lists the same runs.">` +
     `<defs><clipPath id="plane-clip"><rect x="${pad.left}" y="${pad.top}" width="${right - pad.left}" height="${bottom - pad.top}"/></clipPath></defs>` +
     `<g clip-path="url(#plane-clip)"><path class="worse" d="${worse}"/></g>` +
     grid +
     `<g clip-path="url(#plane-clip)">${iso}</g>` +
-    `<text class="region-label" x="${right - 12}" y="${pad.top + 22}" text-anchor="end">worse than the baseline</text>` +
-    `<text class="iso-label" x="${pad.left + 10}" y="${bottom - 7}">${narrow ? "better by" : "better than the baseline by"}</text>` +
+    `<text class="region-label" x="${right - 12}" y="${pad.top + 22}" text-anchor="end">worse than the reference</text>` +
+    `<text class="iso-label" x="${pad.left + 10}" y="${bottom - 7}">${narrow ? "better by" : "better than the reference by"}</text>` +
     `<rect class="frame" x="${pad.left}" y="${pad.top}" width="${right - pad.left}" height="${bottom - pad.top}"/>` +
-    `<text class="axis-title" x="${(pad.left + right) / 2}" y="${height - 6}" text-anchor="middle">cycles, relative to baseline</text>` +
-    `<text class="axis-title" transform="translate(12,${(pad.top + bottom) / 2}) rotate(-90)" text-anchor="middle">cells, relative to baseline</text>` +
+    `<text class="axis-title" x="${(pad.left + right) / 2}" y="${height - 6}" text-anchor="middle">cycles, relative to reference</text>` +
+    `<text class="axis-title" transform="translate(12,${(pad.top + bottom) / 2}) rotate(-90)" text-anchor="middle">cells, relative to reference</text>` +
     `<g class="marks">${marks}</g>` +
     `<circle class="origin" cx="${px(0)}" cy="${py(0)}" r="6.5"/>` +
-    `<text class="origin-label" x="${px(0) - 11}" y="${py(0) + 17}" text-anchor="end">baseline</text>` +
+    `<text class="origin-label" x="${px(0) - 11}" y="${py(0) + 17}" text-anchor="end">reference</text>` +
     `</svg><div class="plane-tip" hidden></div>`;
 
   const shown = [...new Set(planePoints.map((point) => point.shape))];
@@ -510,7 +510,7 @@ function showPlaneTip(mark) {
     `<strong>${escapeHtml(displayName(point.model))}</strong>` +
     `<span>${escapeHtml(point.problem.title)}</span>` +
     `<span>${formatInteger(run.cells)} cells × ${formatInteger(run.cycles)} cycles</span>` +
-    `<b>${formatRatio(run.ratio)} ${run.ratio > 1 ? "better" : "of the baseline's score"}</b>`;
+    `<b>${formatRatio(run.ratio)} ${run.ratio > 1 ? "better" : "of the reference's score"}</b>`;
   tip.hidden = false;
   const box = mark.getBoundingClientRect();
   const frame = host.getBoundingClientRect();
@@ -596,7 +596,7 @@ function openRuns(label, problem, attempt) {
 
   const summary =
     `<div class="dialog-summary">` +
-    `<span class="badge">${model.beating}/${model.attempts} beat baseline</span>` +
+    `<span class="badge">${model.beating}/${model.attempts} beat the reference</span>` +
     `<span class="badge">${model.correct}/${model.attempts} correct</span>` +
     `<span class="badge">${model.wrong_rtl} wrong RTL</span>` +
     `<span class="badge">${model.infra} infrastructure</span>` +
@@ -650,7 +650,7 @@ function runCard(run) {
     `<div class="rc-head"><strong>${escapeHtml(problemTitle(run.problem))}</strong><span class="rc-status ${state.cls}">${state.label}</span></div>` +
     `<p class="rc-meta">Attempt ${run.attempt}, ${timing}</p>` +
     `<div class="rc-ratio">${run.correct ? formatRatio(run.ratio) : "—"}</div>` +
-    `<p class="metric-caption">${run.correct ? "baseline ADP / design ADP" : "No valid ADP score"}</p>` +
+    `<p class="metric-caption">${run.correct ? "reference ADP / design ADP" : "No valid ADP score"}</p>` +
     `<p class="rc-meta">${formatInteger(run.cells)} cells × ${formatInteger(run.cycles)} cycles<br>ADP ${formatInteger(run.adp)}<br>` +
     `Stage: ${escapeHtml(run.stage || "not reported")}, audit ${audit}</p>` +
     details +
@@ -743,16 +743,16 @@ function problemCard(problem, index) {
     `Exact integer arithmetic, with no reset between transactions.</p>` +
     `<div class="chip-row">${params}</div>` +
     `<div class="pc-metrics">` +
-    `<div><strong>${formatInteger(baseline.cells)}</strong><span>baseline cells</span></div>` +
-    `<div><strong>${formatInteger(baseline.cycles)}</strong><span>baseline cycles</span></div>` +
+    `<div><strong>${formatInteger(baseline.cells)}</strong><span>reference cells</span></div>` +
+    `<div><strong>${formatInteger(baseline.cycles)}</strong><span>reference cycles</span></div>` +
     `<div><strong>${formatRatio(sanity.correct ? sanity.ratio : 0)}</strong><span>sanity ADP improvement</span></div>` +
     `</div>` +
-    `<p class="bar-title">Area–delay product, lower is better</p>` +
+    `<p class="bar-title">Area–delay product (smaller wins)</p>` +
     adpBars(baseline, sanity) +
     problemContract(problem) +
     `<div class="pc-links">` +
     `<a href="${source}/dut.py" target="_blank" rel="noopener">View executable spec ↗</a>` +
-    `<a href="${source}/baseline.v" target="_blank" rel="noopener">Baseline RTL ↗</a>` +
+    `<a href="${source}/baseline.v" target="_blank" rel="noopener">Reference RTL ↗</a>` +
     `</div>` +
     `</div>` +
     `</details>`
@@ -763,7 +763,7 @@ function problemCard(problem, index) {
 function adpBars(baseline, sanity) {
   const max = Math.max(baseline.adp || 0, sanity.adp || 0);
   const bars = [
-    ["Baseline", baseline.adp],
+    ["Reference", baseline.adp],
     ["Sanity", sanity.correct ? sanity.adp : null],
   ].map(([label, value]) => {
     const width = max > 0 && value > 0 ? (value / max) * 100 : 0;
