@@ -632,6 +632,24 @@ code {
 .tabs button:hover {
   color: var(--text);
 }
+.board-switch {
+  margin: 18px 0 4px;
+}
+.board-switch a {
+  margin-bottom: -1px;
+  padding: 10px 14px;
+  border-bottom: 1px solid transparent;
+  color: var(--muted);
+  font-size: 13px;
+  text-decoration: none;
+}
+.board-switch a:hover {
+  color: var(--text);
+}
+.board-switch a[aria-current="page"] {
+  border-bottom-color: var(--heading);
+  color: var(--heading);
+}
 .tabs button[aria-pressed="true"] {
   border-bottom-color: var(--heading);
   color: var(--heading);
