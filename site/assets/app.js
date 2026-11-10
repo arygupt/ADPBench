@@ -65,18 +65,18 @@ const LOGOS = [
 
 /** One colour per model maker, keyed by logo name. */
 const MAKERS = {
-  deepseek: ["DeepSeek", "#6f8dfa"],
-  qwen: ["Qwen", "#a98bf5"],
-  kimi: ["Kimi", "#4ec9b4"],
-  minimax: ["MiniMax", "#f0668a"],
-  zai: ["GLM", "#e3bd4f"],
-  xiaomi: ["MiMo", "#f97316"],
-  claude: ["Claude", "#e0785a"],
-  openai: ["GPT", "#7ccf8a"],
-  gemini: ["Gemini", "#5fb2f2"],
-  grok: ["Grok", "#d6d3d1"],
+  deepseek: ["DeepSeek", "#598dd2"],
+  qwen: ["Qwen", "#9acd32"],
+  kimi: ["Kimi", "#a37cad"],
+  minimax: ["MiniMax", "#cd0059"],
+  zai: ["GLM", "#d1b745"],
+  xiaomi: ["MiMo", "#dd8900"],
+  claude: ["Claude", "#e27553"],
+  openai: ["GPT", "#65c2b9"],
+  gemini: ["Gemini", "#008bd7"],
+  grok: ["Grok", "#82695f"],
 };
-const OTHER_MAKER = ["Other", "#a8a29e"];
+const OTHER_MAKER = ["Other", "#a3a3a3"];
 
 function maker(model) {
   const id = modelId(model.label);
@@ -251,26 +251,11 @@ function renderRanking(models) {
   const isRate = scoreMetric !== "geomean";
 
   fill("#score-note", SCORE_NOTES[scoreMetric]);
-  $("#slot-key").hidden = !isRate;
   $("#leaderboard-rows").innerHTML = models.map((model, index) => rankingRow(model, index, best, isRate)).join("");
 
   const makers = new Map(models.map((model) => maker(model)));
   $("#vendor-key").innerHTML = [...makers]
     .map(([name, color]) => `<li><i class="maker" style="background:${color}"></i>${escapeHtml(name)}</li>`)
-    .join("");
-}
-
-/** One mark per slot, in problem order, so a rate shows which slots it is made of. */
-function slotMarks(model) {
-  const order = new Map(data.problems.map((problem, index) => [problem.name, index]));
-  return [...model.runs]
-    .sort((a, b) => (order.get(a.problem) ?? 99) - (order.get(b.problem) ?? 99) || a.attempt - b.attempt)
-    .map((run) => {
-      const state = runState(run);
-      // In the correctness view a correct slot is a full mark whether or not it beat the baseline.
-      const cls = scoreMetric === "correctness_rate" && run.correct ? "beat" : state.cls;
-      return `<i class="slot ${cls}"></i>`;
-    })
     .join("");
 }
 
@@ -286,23 +271,16 @@ function rankingRow(model, index, best, isRate) {
     tooltip = `${text} geometric mean across ${model.correct} correct attempts; ${model.attempts} total attempts.`;
   }
 
-  let chart;
-  if (isRate) {
-    chart = `<span class="slots" aria-hidden="true">${slotMarks(model)}</span>`;
-  } else {
-    const width = best > 0 ? (Math.max(0, value) / best) * 100 : 0;
-    chart = `<span class="comparison-track" aria-hidden="true"><span class="comparison-fill" style="width:${width}%"></span></span>`;
-  }
-
-  let detail = `${model.correct}/${model.attempts} correct`;
-  if (isRate) detail = model.geomean > 0 ? `${formatRatio(model.geomean)} gain` : "";
+  // Rates fill against 100%; the geometric mean fills against the best model.
+  let width = best > 0 ? (Math.max(0, value) / best) * 100 : 0;
+  if (isRate) width = Math.max(0, Math.min(1, value)) * 100;
+  const chart = `<span class="comparison-track" aria-hidden="true"><span class="comparison-fill" style="width:${width.toFixed(1)}%"></span></span>`;
   const rank = index + 1;
   return (
     `<li class="board-row" data-row-model="${escapeHtml(model.label)}" style="--vendor:${maker(model)[1]}">` +
     `<span class="rank-badge${rank <= 3 ? ` top r${rank}` : ""}">${rank}</span>` +
     `<button class="board-open" data-model="${escapeHtml(model.label)}" title="${escapeHtml(tooltip)}" aria-label="${escapeHtml(displayName(model))}: ${escapeHtml(tooltip)}">` +
     `<span class="board-line"><span class="board-name">${escapeHtml(displayName(model))}</span>` +
-    `<span class="board-detail">${detail}</span>` +
     `<span class="primary-stat"><strong>${text}</strong></span></span>` +
     chart +
     `</button></li>`

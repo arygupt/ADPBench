@@ -131,13 +131,13 @@ download-specs button above. Clicking or using the keyboard expands one problem
 at a time; direct problem links open that row.
 Typography is Inter for text and Geist Mono for model names and figures, both
 self-hosted variable fonts in `site/assets/fonts/` (SIL Open Font License);
-the palette retains `#1a1a1a` charcoal, `#e7e5e4` off-white, `#a8a29e` stone
-gray, and `#f97316` orange. On phones the ranking moves above the write-up,
+the light palette follows Scale's leaderboards: white `#fff`, ink `#09090b`,
+gray `#525252`, and per-vendor bar colours (for example `#e27553`, `#65c2b9`,
+`#598dd2`), with teal `#65c2b9` shading the matrix. On phones the ranking moves above the write-up,
 and the matrix scrolls sideways while model names stay pinned.
 
-In the rate tabs each ranking row draws one segment per scheduled slot, so a
-percentage shows which slots it is made of. In the geomean tab a bar shows
-each model as a share of the best. Matrix cells are shaded toward the best
+Each ranking row draws one bar in its vendor's colour: in the rate tabs its
+length is the percentage, and in the geomean tab it is a share of the best. Matrix cells are shaded toward the best
 correct result for that operator, which is filled solid; for cells and cycles
 lower is better. Failed runs are labeled, never plotted as valid measurements.
 Every repetition is independently inspectable.
