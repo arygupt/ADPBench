@@ -12,29 +12,31 @@
   font-display: swap;
   src: url("fonts/GeistMono-Variable.woff2") format("woff2");
 }
-/* Typography and base palette match aryamangupta.me: one monospace family,
-   charcoal, off-white, stone gray and a single orange. */
+/* Light palette after the Scale Labs leaderboards: white ground, near-black
+   ink, neutral grays, and colour only in the data. */
 :root {
-  color-scheme: dark;
-  --bg: #1a1a1a;
-  --surface: #202020;
-  --soft: #292725;
-  --text: #e7e5e4;
-  --heading: #fff;
-  --muted: #a8a29e;
-  --faint: #8a8480;
-  --border: #33302e;
-  --border-strong: #57534e;
-  --accent: #f97316;
-  --accent-soft: rgba(249, 115, 22, 0.12);
-  --accent-line: rgba(249, 115, 22, 0.4);
-  --wrong: #f87171;
-  --wrong-soft: rgba(248, 113, 113, 0.1);
-  --wrong-border: rgba(248, 113, 113, 0.4);
+  color-scheme: light;
+  --bg: #fff;
+  --surface: #f5f5f5;
+  --soft: #f0f0f0;
+  --text: #09090b;
+  --heading: #09090b;
+  --muted: #525252;
+  --faint: #737373;
+  --rank: #a3a3a3;
+  --heat: #65c2b9;
+  --border: #e5e5e5;
+  --border-strong: #d4d4d4;
+  --accent: #09090b;
+  --accent-soft: rgba(9, 9, 11, 0.05);
+  --accent-line: rgba(9, 9, 11, 0.3);
+  --wrong: #d03030;
+  --wrong-soft: rgba(208, 48, 48, 0.06);
+  --wrong-border: rgba(208, 48, 48, 0.35);
   --weight-normal: 500;
   --weight-strong: 600;
-  --radius: 6px;
-  --radius-lg: 10px;
+  --radius: 0;
+  --radius-lg: 4px;
   --gutter: 36px;
   --font: "Inter", ui-sans-serif, system-ui, sans-serif;
   --mono: "Geist Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, monospace;
@@ -67,7 +69,7 @@ a {
   text-decoration: none;
 }
 a:hover {
-  color: var(--accent);
+  color: var(--muted);
 }
 button,
 a,
@@ -147,6 +149,7 @@ code {
   min-height: 65vh;
 }
 .access-banner {
+  background: var(--surface);
   border-bottom: 1px solid var(--border);
   font-size: 12px;
   line-height: 1.6;
@@ -167,7 +170,7 @@ code {
   flex: none;
   color: var(--text);
   white-space: nowrap;
-  border-bottom: 1px solid var(--accent);
+  border-bottom: 1px solid var(--text);
   border-radius: 0;
   padding-bottom: 1px;
 }
@@ -222,7 +225,8 @@ code {
   background: var(--soft);
 }
 .site-header nav a[aria-current="page"] {
-  color: var(--accent);
+  color: var(--text);
+  background: var(--soft);
 }
 .site-footer {
   position: relative;
@@ -289,14 +293,15 @@ code {
 .button {
   display: inline-flex;
   align-items: center;
-  min-height: 38px;
-  padding: 8px 15px;
-  border: 1px solid var(--border-strong);
+  min-height: 34px;
+  padding: 6px 14px;
+  border: 1px solid var(--text);
   font-size: 13px;
   white-space: nowrap;
 }
 .button:hover {
-  border-color: var(--accent);
+  color: var(--bg);
+  background: var(--text);
 }
 .button.primary {
   background: var(--accent);
@@ -305,7 +310,7 @@ code {
   font-weight: var(--weight-strong);
 }
 .button.primary:hover {
-  background: #fb8a3c;
+  background: #262626;
   color: var(--bg);
 }
 .plane-figure {
@@ -346,8 +351,8 @@ code {
   fill: var(--surface);
 }
 .plane .iso {
-  stroke: var(--accent);
-  stroke-opacity: 0.45;
+  stroke: var(--rank);
+  stroke-opacity: 0.8;
   stroke-dasharray: 2 5;
 }
 .plane .iso.unity {
@@ -370,8 +375,7 @@ code {
   font-size: 11px;
 }
 .plane .iso-label {
-  fill: var(--accent);
-  fill-opacity: 0.85;
+  fill: var(--muted);
   paint-order: stroke;
   stroke: var(--bg);
   stroke-width: 4px;
@@ -389,7 +393,7 @@ code {
 }
 .mark {
   fill: var(--vendor, var(--muted));
-  fill-opacity: 0.6;
+  fill-opacity: 0.75;
   stroke: var(--vendor, var(--muted));
   stroke-width: 1.4;
   cursor: pointer;
@@ -416,7 +420,7 @@ code {
   background: var(--soft);
   border: 1px solid var(--border-strong);
   border-radius: var(--radius);
-  box-shadow: 0 12px 34px rgba(0, 0, 0, 0.5);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
   font-size: 12px;
   color: var(--muted);
   pointer-events: none;
@@ -655,12 +659,11 @@ code {
   width: 30px;
   height: 30px;
   border-radius: 50%;
-  color: var(--faint);
-  font-size: 12px;
+  color: var(--rank);
+  font-size: 13px;
 }
 .rank-badge.top {
   color: var(--bg);
-  font-weight: var(--weight-strong);
 }
 .rank-badge.r1 {
   background: var(--heading);
@@ -669,8 +672,7 @@ code {
   background: var(--muted);
 }
 .rank-badge.r3 {
-  background: var(--border-strong);
-  color: var(--heading);
+  background: var(--rank);
 }
 .board-open {
   display: block;
@@ -700,11 +702,6 @@ code {
   text-decoration: underline;
   text-underline-offset: 3px;
 }
-.board-detail {
-  flex: none;
-  color: var(--faint);
-  font-size: 11px;
-}
 .board-open .primary-stat {
   flex: none;
   margin-left: auto;
@@ -733,8 +730,9 @@ code {
   font-size: 14px;
   text-align: left;
 }
-.model-button:hover {
-  color: var(--accent);
+.model-button:hover .model-label {
+  text-decoration: underline;
+  text-underline-offset: 3px;
 }
 .model-icon {
   flex: none;
@@ -767,43 +765,13 @@ code {
   border: 0;
   background: transparent;
 }
-.slots {
-  display: flex;
-  gap: 3px;
-  height: 14px;
-}
-.slot {
-  flex: 1;
-  min-width: 3px;
-  border: 1px solid var(--border);
-  border-radius: 0;
-  background: var(--surface);
-}
-.slot.beat {
-  background: var(--vendor, var(--accent));
-  border-color: var(--vendor, var(--accent));
-}
-.slot.correct {
-  background: color-mix(in srgb, var(--vendor, var(--accent)) 16%, transparent);
-  border-color: var(--vendor, var(--accent));
-}
-.slot.wrong {
-  background: var(--wrong-soft);
-  border-color: var(--wrong-border);
-}
-.slot.infra {
-  background: transparent;
-  border-style: dashed;
-  border-color: var(--border-strong);
-}
-.board-open:hover .slots,
-.board-open:hover .comparison-track {
-  filter: brightness(1.12);
+.board-open:hover .comparison-fill {
+  filter: brightness(0.92);
 }
 .comparison-track {
   display: block;
-  height: 14px;
-  background: var(--soft);
+  height: 16px;
+  background: var(--surface);
 }
 .comparison-fill {
   display: block;
@@ -849,11 +817,11 @@ code {
   background: var(--surface);
 }
 .swatch.correct {
-  background: linear-gradient(90deg, var(--surface), color-mix(in srgb, var(--accent) 45%, var(--surface)));
+  background: linear-gradient(90deg, var(--surface), color-mix(in srgb, var(--heat) 55%, var(--surface)));
 }
 .swatch.best {
-  background: var(--accent);
-  border-color: var(--accent);
+  background: var(--heat);
+  border-color: var(--heat);
 }
 .swatch.wrong {
   background: var(--wrong-soft);
@@ -936,8 +904,8 @@ code {
   position: absolute;
   inset: 0;
   z-index: -1;
-  background: var(--accent);
-  opacity: calc(var(--strength, 0) * var(--strength, 0) * 0.5);
+  background: var(--heat);
+  opacity: calc(var(--strength, 0) * var(--strength, 0) * 0.55);
 }
 .result-bar + .result-bar {
   margin-top: 4px;
@@ -947,10 +915,10 @@ code {
   font-size: 11px;
 }
 .result-bar:hover {
-  border-color: var(--text);
+  border-color: var(--muted);
 }
 .result-bar.best {
-  color: var(--bg);
+  color: var(--text);
   font-weight: var(--weight-strong);
 }
 .result-bar.best:before {
@@ -1247,10 +1215,10 @@ dialog {
   color: var(--text);
   border: 1px solid var(--border-strong);
   border-radius: var(--radius-lg);
-  box-shadow: 0 30px 110px rgba(0, 0, 0, 0.6);
+  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.16);
 }
 dialog::backdrop {
-  background: rgba(0, 0, 0, 0.72);
+  background: rgba(9, 9, 11, 0.32);
   backdrop-filter: blur(3px);
 }
 .dialog-head {
