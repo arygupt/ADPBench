@@ -5,14 +5,17 @@
     <meta name="viewport" content="width=device-width,initial-scale=1" />
     <title>Not found — ADPBench</title>
     <link rel="icon" href="favicon.svg" type="image/svg+xml" />
-    <link rel="stylesheet" href="assets/style.css?v=polish" />
+    <link rel="preload" href="assets/fonts/InterVariable.woff2" as="font" type="font/woff2" crossorigin />
+    <link rel="stylesheet" href="assets/style.css?v=inter" />
   </head>
-  <body>
-    <main class="wrap">
-      <section class="benchmark-section">
-        <div class="section-heading"><h1>Page not found</h1></div>
-        <p><a href="index.html">← Back to the results</a></p>
-      </section>
+  <body class="workspace">
+    <main class="wrap not-found">
+      <h1>This page isn't part of the benchmark.</h1>
+      <p class="hero-lede">The address may be out of date. The results and the problem library are both still here.</p>
+      <div class="hero-actions">
+        <a class="button primary" href="index.html">See the results</a>
+        <a class="button" href="problems.html">Browse the problems</a>
+      </div>
     </main>
   </body>
 </html>

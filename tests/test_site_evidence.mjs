@@ -14,7 +14,7 @@ test("site typography uses medium body and semibold emphasis without shorthand r
   assert.match(css, /--weight-normal:\s*500;/);
   assert.match(css, /--weight-strong:\s*600;/);
   assert.match(css, /body\s*\{[^}]*font:\s*var\(--weight-normal\)\s+14px\/1\.5\s+var\(--font\);/);
-  assert.match(css, /\.ranking-table tbody td\s*\{[^}]*font-weight:\s*var\(--weight-normal\);/);
+  assert.match(css, /\.board-name\s*\{[^}]*font-weight:\s*var\(--weight-normal\);/);
   assert.match(css, /\.primary-stat strong\s*\{[^}]*font-weight:\s*var\(--weight-strong\);/);
   assert.doesNotMatch(css, /font-weight:\s*400\s*;/);
   for (const [, shorthand] of css.matchAll(/(?:^|[;{\n])\s*font:\s*([^;]+);/g))

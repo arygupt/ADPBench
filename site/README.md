@@ -116,22 +116,30 @@ For a manual production deployment, run `vercel deploy --prod --project adpbench
 `.github/workflows/deploy-site.yml` workflow separately validates site changes
 on pull requests and pushes to `main` and uploads a downloadable site bundle.
 
-The interface uses compact leaderboard rows with horizontal performance bars,
-aligned metric columns, and a shared percentage axis. A slim top navigation leads into the rankings, with the operator matrix directly
-below. The problem library lists numbered, collapsed disclosure rows in a
-single column, with a download-specs button above. Clicking or using the
-keyboard expands one problem at a time; direct problem links open that row.
-Typography uses Inter; the palette retains `#1a1a1a` charcoal, `#e7e5e4`
-off-white, `#a8a29e` stone gray, and `#f97316` orange.
-Model rows rank by beat-baseline rate, correctness, or correct-run geometric
-mean. The operator matrix switches between ADP ratio, cells, and cycles. On phones, tables scroll independently and model names
-stay pinned while inspecting later columns.
+The results page is two columns. The left is a write-up: what the benchmark
+measures, how a run is scored, the metric definitions, and the area-delay
+plane, which plots every correct design by cycles and cells relative to its
+baseline on log axes, with dashed diagonals marking equal area-delay product.
+The right is the ranking as a bar list with tabs for beat-baseline rate,
+correctness, and correct-run geometric mean; the top three ranks get a filled
+badge and bars take the colour of the model's maker. Selecting a model, or a
+mark in the plane, opens its run records. The operator matrix sits below at
+full width and switches between ADP ratio, cells, and cycles. The problem
+library lists collapsed disclosure rows in a single column, with a
+download-specs button above. Clicking or using the keyboard expands one problem
+at a time; direct problem links open that row.
+Typography is Inter for text and Geist Mono for model names and figures, both
+self-hosted variable fonts in `site/assets/fonts/` (SIL Open Font License);
+the palette retains `#1a1a1a` charcoal, `#e7e5e4` off-white, `#a8a29e` stone
+gray, and `#f97316` orange. On phones the ranking moves above the write-up,
+and the matrix scrolls sideways while model names stay pinned.
 
-Rate indicators use the full 0–100% scale, with details in the hover text. Geomean and
-operator ratio bars show each result as a share of
-the best correct result. Cells/cycles bars use best/value (lower is better).
-Stars identify ties for the best value. Failed runs are labeled, never plotted
-as valid measurements. Every repetition is independently inspectable.
+In the rate tabs each ranking row draws one segment per scheduled slot, so a
+percentage shows which slots it is made of. In the geomean tab a bar shows
+each model as a share of the best. Matrix cells are shaded toward the best
+correct result for that operator, which is filled solid; for cells and cycles
+lower is better. Failed runs are labeled, never plotted as valid measurements.
+Every repetition is independently inspectable.
 
 A native modal displays run metrics, outcomes, complete artifact hashes, and
 links to the original Actions jobs, workflow artifacts, and commit-pinned RTL.
