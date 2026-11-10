@@ -10,13 +10,13 @@
     />
     <link rel="icon" href="favicon.svg" type="image/svg+xml" />
     <link rel="preload" href="assets/fonts/InterVariable.woff2" as="font" type="font/woff2" crossorigin />
-    <link rel="stylesheet" href="assets/style.css?v=inter" />
+    <link rel="stylesheet" href="assets/style.css?v=trim" />
   </head>
   <body class="workspace">
     <a class="skip-link" href="#main">Skip to results</a>
     <aside class="access-banner" aria-label="Request for model access">
       <div class="access-inner">
-        <p><strong>Frontier models wanted.</strong> ADPBench is self-funded, so it only covers models I can afford. If you can share API credits or access for Claude, GPT, or Gemini, I'll run them through the same harness and publish every result.</p>
+        <p><strong>Frontier models wanted.</strong> Share API access for Claude, GPT or Gemini and I'll benchmark them here.</p>
         <a href="https://github.com/arygupt/ADPBench/issues/new?title=Frontier%20model%20access" target="_blank" rel="noopener">Get in touch <span aria-hidden="true">↗</span></a>
       </div>
     </aside>
@@ -34,7 +34,8 @@
       <div class="board-layout">
         <header class="about-head">
           <h1 id="hero-title">ADPBench</h1>
-          <p class="about-sub">Evaluating whether language-model agents can design smaller, faster hardware than a reference implementation</p>
+          <p class="about-sub">Can language-model agents design smaller, faster hardware than a reference implementation?</p>
+          <p class="about-meta" id="page-summary"></p>
           <div class="hero-actions">
             <a class="button" data-results-download href="data/evaluations.json" download>Download results</a>
             <a class="button" href="problems.html">Problem library</a>
@@ -48,7 +49,6 @@
           </div>
           <h2 id="model-view-title">Performance comparison</h2>
           <ol class="board-list" id="leaderboard-rows"></ol>
-          <ul class="key" id="vendor-key" aria-label="Model makers"></ul>
           <ul class="key" id="slot-key" aria-label="Slot key">
             <li><i class="slot beat"></i>Beat the baseline</li>
             <li><i class="slot correct"></i>Correct, not better</li>
@@ -56,36 +56,27 @@
             <li><i class="slot fail"></i>Agent stopped</li>
             <li><i class="slot infra"></i>Not scored</li>
           </ul>
-          <p class="board-note" id="score-note"></p>
-          <p class="board-note">Select a model to open its frozen run records.</p>
+          <p class="board-note"><span id="score-note"></span> Select a model to see its runs.</p>
         </section>
         <article class="about-body">
-          <h2 class="about-update" id="round-title">Current round</h2>
-          <p id="page-summary"></p>
-          <p>Each model works as an agent and writes Verilog for one arithmetic operator at a time. A design counts when it is correct and its area–delay product is lower than the baseline's.</p>
           <h2>How a run is scored</h2>
+          <p>Each model writes Verilog for one arithmetic operator at a time.</p>
           <ol class="steps">
-            <li><strong>Generation.</strong> The agent reads the problem, writes Verilog, and may run development checks before it submits.</li>
-            <li><strong>Correctness.</strong> The frozen submission is compared with the reference bit for bit on held-out cases.</li>
-            <li><strong>Synthesis.</strong> The design is synthesized to gates, and the gate cells are counted.</li>
-            <li><strong>Simulation.</strong> The gates are simulated to count the cycles the operator takes.</li>
-            <li><strong>Score.</strong> Area–delay product is cells × cycles, compared with the baseline's.</li>
+            <li><strong>Generate.</strong> The agent writes the design and may test it before submitting.</li>
+            <li><strong>Check.</strong> It must match the reference bit for bit on held-out cases.</li>
+            <li><strong>Synthesize.</strong> Gate cells are counted.</li>
+            <li><strong>Simulate.</strong> Clock cycles are counted.</li>
+            <li><strong>Score.</strong> Cells × cycles is the area–delay product (ADP). Lower than the baseline's wins.</li>
           </ol>
           <figure class="plane-figure" id="plane-figure">
             <figcaption>
               <strong>Every correct design, against its baseline</strong>
-              <span>Left is fewer cycles, down is fewer cells. Designs on one dashed line have the same area–delay product. Shape is the operator, colour is the model maker.</span>
+              <span>Left is fewer cycles, down is fewer cells. Dashed lines join designs with equal ADP.</span>
             </figcaption>
             <div class="plane" id="plane"></div>
             <ul class="plane-legend" id="plane-legend" aria-label="Operators"></ul>
+            <ul class="key" id="vendor-key" aria-label="Model makers"></ul>
           </figure>
-          <h2>Primary metric: beat-baseline rate</h2>
-          <p>Beat baseline is the share of attempts that are correct and have lower cells × cycles than the baseline, out of all scheduled attempts. Correctness is the share of attempts that pass every check.</p>
-          <p>ADP gain is the geometric mean of baseline ADP ÷ design ADP across correct runs only.</p>
-          <h2>Reasoning</h2>
-          <p>Each model's run records report the share of its generated characters that were reasoning rather than answer text or tool-call arguments, measured from its saved responses, alongside the reasoning setting the harness requested. Providers do not always honor that setting.</p>
-          <h2>Protocol</h2>
-          <p id="pilot-note"></p>
         </article>
       </div>
       <section class="benchmark-section" id="operators" aria-labelledby="operator-view-title">
@@ -111,12 +102,29 @@
         </ul>
         <p class="unrun-note" id="unrun-note"></p>
       </section>
+      <details class="evaluation-notes" id="methodology">
+        <summary>Methodology</summary>
+        <dl class="method-list">
+          <dt>Beat baseline</dt>
+          <dd>Runs that are correct and have a lower ADP than the baseline, out of every scheduled run. Ties go to correctness, then ADP gain.</dd>
+          <dt>Correctness</dt>
+          <dd>Runs that pass every check, out of every scheduled run.</dd>
+          <dt>ADP gain</dt>
+          <dd>Geometric mean of baseline ADP ÷ design ADP, over correct runs only.</dd>
+          <dt>Failures</dt>
+          <dd>Incorrect RTL counts as a failed run. Runs lost to the provider or the harness are shown as not scored but still count against the rate.</dd>
+          <dt>Protocol</dt>
+          <dd id="pilot-note"></dd>
+          <dt>Reasoning</dt>
+          <dd>Each run record shows the requested reasoning setting and the share of output that was reasoning. Providers do not always honor the setting.</dd>
+        </dl>
+      </details>
       <noscript><p>Enable JavaScript to view the results.</p></noscript>
     </main>
     <footer class="site-footer">
       <p>Snapshot <span id="meta-generated">—</span>, scored at commit <code id="meta-commit">—</code></p>
       <p><a href="https://github.com/arygupt/ADPBench" target="_blank" rel="noopener">Harness, problems and frozen records on GitHub</a></p>
     </footer>
-    <script type="module" src="assets/app.js?v=board"></script>
+    <script type="module" src="assets/app.js?v=trim"></script>
   </body>
 </html>

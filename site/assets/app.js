@@ -241,10 +241,9 @@ function updateScrollHints() {
 }
 
 const SCORE_NOTES = {
-  beat_rate:
-    "Share of slots that are correct and beat the baseline. Every scheduled slot counts, scored or not. Ties go to correctness, then ADP gain.",
-  correctness_rate: "Share of slots that pass every correctness check. Every scheduled slot counts, scored or not.",
-  geomean: "Geometric mean of baseline ADP ÷ design ADP over correct runs only. Higher is better.",
+  beat_rate: "Share of runs that are correct and beat the baseline.",
+  correctness_rate: "Share of runs that pass every check.",
+  geomean: "Mean ADP improvement over correct runs.",
 };
 
 function renderRanking(models) {
@@ -323,9 +322,9 @@ function renderOperatorMatrix(models) {
     `<tbody>${rows}</tbody>` +
     `</table>`;
 
-  let note = "Baseline ADP ÷ design ADP for each slot. Higher is better.";
+  let note = "Baseline ADP ÷ design ADP for each run. Higher is better.";
   if (operatorMetric !== "ratio") {
-    note = `${operatorMetric === "cells" ? "Gate cells after synthesis" : "Clock cycles to finish the test transactions"} for each slot. Lower is better.`;
+    note = `${operatorMetric === "cells" ? "Gate cells after synthesis" : "Clock cycles to finish the test transactions"} for each run. Lower is better.`;
   }
   fill("#matrix-note", note);
   const unrun = unrunProblems().map((problem) => problem.title);
@@ -595,20 +594,13 @@ function renderMeta() {
   const problemCount = catalogProblems.length
     ? `${data.problems.length} of ${catalogProblems.length} problems`
     : `${data.problems.length} problems`;
-  const published = meta.generated ? `, published ${meta.generated.slice(0, 10)}` : "";
-  fill(
-    "#page-summary",
-    `Round ${meta.pilot}: ${data.models.length} models, ${problemCount}, ${slots} slots. ` +
-      `${protocolName(meta.protocol)}${published}.`,
-  );
+  const published = meta.generated ? `, ${meta.generated.slice(0, 10)}` : "";
+  fill("#page-summary", `${data.models.length} models, ${problemCount}, ${slots} runs${published}`);
   for (const link of $$("a[data-results-download]")) link.href = datasets[datasetKey];
   fill(
     "#pilot-note",
-    `${protocolName(meta.protocol)}, shared read/write/check/submit operations, up to ${meta.max_turns} model turns per slot, ` +
-      `${budgetSummary(meta)}, development checks only during generation, then frozen held-out scoring. ` +
-      "Incorrect RTL remains a failed measurement; provider, submission and interrupted outcomes are shown separately. " +
-      "Rates use all scheduled slots, not only completed scores. " +
-      "GitHub job success means evidence was recorded, not that the model passed.",
+    `Round ${meta.pilot}, ${protocolName(meta.protocol)}. Up to ${meta.max_turns} agent turns per run, ` +
+      `${budgetSummary(meta)}. Submissions are frozen, then scored on held-out cases.`,
   );
 }
 

@@ -580,8 +580,13 @@ code {
 .about-body p + p {
   margin-top: 12px;
 }
-.about-body #page-summary {
-  color: var(--text);
+.about-meta {
+  margin-top: 6px;
+  color: var(--faint);
+  font-size: 12px;
+}
+.about-body h2 + p {
+  margin-bottom: 12px;
 }
 .steps {
   margin: 0;
@@ -984,7 +989,7 @@ code {
 
 /* Notes ------------------------------------------------------------------- */
 .evaluation-notes {
-  margin-top: 44px;
+  margin-top: 56px;
   padding-top: 18px;
   border-top: 1px solid var(--border);
   color: var(--muted);
@@ -1001,6 +1006,27 @@ code {
 .evaluation-notes p {
   max-width: 86ch;
   margin-top: 12px;
+}
+.method-list {
+  display: grid;
+  grid-template-columns: 140px minmax(0, 72ch);
+  gap: 10px 24px;
+  margin: 16px 0 0;
+}
+.method-list dt {
+  color: var(--text);
+}
+.method-list dd {
+  margin: 0;
+}
+@media (max-width: 640px) {
+  .method-list {
+    grid-template-columns: 1fr;
+    gap: 2px;
+  }
+  .method-list dd + dt {
+    margin-top: 12px;
+  }
 }
 .error-state {
   margin: 28px 0;

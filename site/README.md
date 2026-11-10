@@ -116,15 +116,16 @@ For a manual production deployment, run `vercel deploy --prod --project adpbench
 `.github/workflows/deploy-site.yml` workflow separately validates site changes
 on pull requests and pushes to `main` and uploads a downloadable site bundle.
 
-The results page is two columns. The left is a write-up: what the benchmark
-measures, how a run is scored, the metric definitions, and the area-delay
-plane, which plots every correct design by cycles and cells relative to its
+The results page is two columns. The left is a short write-up: how a run is
+scored and the area-delay plane, which plots every correct design by cycles and cells relative to its
 baseline on log axes, with dashed diagonals marking equal area-delay product.
 The right is the ranking as a bar list with tabs for beat-baseline rate,
 correctness, and correct-run geometric mean; the top three ranks get a filled
 badge and bars take the colour of the model's maker. Selecting a model, or a
 mark in the plane, opens its run records. The operator matrix sits below at
-full width and switches between ADP ratio, cells, and cycles. The problem
+full width and switches between ADP ratio, cells, and cycles. Metric
+definitions, failure handling, protocol and reasoning notes sit in a collapsed
+Methodology section at the bottom. The problem
 library lists collapsed disclosure rows in a single column, with a
 download-specs button above. Clicking or using the keyboard expands one problem
 at a time; direct problem links open that row.
