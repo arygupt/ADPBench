@@ -6,13 +6,14 @@
     <title>Problems — ADPBench</title>
     <meta
       name="description"
-      content="AI-generated RTL benchmark results. Compare area-delay product, correctness, and individual hardware agent runs."
+      content="The ADPBench problem library: executable specs, interfaces, arithmetic contracts and baseline designs."
     />
     <link rel="icon" href="favicon.svg" type="image/svg+xml" />
-    <link rel="stylesheet" href="assets/style.css?v=polish" />
+    <link rel="preload" href="assets/fonts/InterVariable.woff2" as="font" type="font/woff2" crossorigin />
+    <link rel="stylesheet" href="assets/style.css?v=inter" />
   </head>
   <body class="workspace">
-    <a class="skip-link" href="#main">Skip to results</a>
+    <a class="skip-link" href="#main">Skip to problems</a>
     <aside class="access-banner" aria-label="Request for model access">
       <div class="access-inner">
         <p><strong>Frontier models wanted.</strong> ADPBench is self-funded, so it only covers models I can afford. If you can share API credits or access for Claude, GPT, or Gemini, I'll run them through the same harness and publish every result.</p>
@@ -23,16 +24,19 @@
       <div class="header-inner">
         <a class="brand" href="index.html" aria-label="ADPBench home"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 7h10v10H7zM9 2v5m6-5v5M9 17v5m6-5v5M2 9h5m-5 6h5m10-6h5m-5 6h5" fill="none" stroke="currentColor" stroke-width="1.5"/></svg>ADPBench</a>
         <nav aria-label="Primary">
-          <a href="index.html" ><span aria-hidden="true">01</span> Results</a>
-          <a href="problems.html" aria-current="page"><span aria-hidden="true">02</span> Problem library</a>
-          <a href="https://github.com/arygupt/ADPBench" target="_blank" rel="noopener"><span aria-hidden="true">↗</span> Source code</a>
+          <a href="index.html">Results</a>
+          <a href="problems.html" aria-current="page">Problem library</a>
+          <a href="https://github.com/arygupt/ADPBench" target="_blank" rel="noopener">Source code</a>
         </nav>
       </div>
     </header>
     <main id="main" class="wrap">
-      <h1 class="sr-only">Problem library</h1>
-      <div class="library-toolbar">
-        <a class="download-link" href="data/problems.json" download>Download specs <span aria-hidden="true">↓</span></a>
+      <div class="page-intro">
+        <div>
+          <h1>Problem library</h1>
+          <p class="hero-lede">Each problem is an executable spec: a NumPy reference, a valid/ready stream interface, exact integer widths and directed edge cases. The baseline is the design a submission has to beat on cells × cycles.</p>
+        </div>
+        <a class="button" href="data/problems.json" download>Download specs</a>
       </div>
       <section class="benchmark-section" aria-label="Problem specifications">
         <div class="problem-grid" id="problem-grid">
@@ -41,11 +45,9 @@
       </section>
     </main>
     <footer class="site-footer">
-      <p>
-        snapshot <span id="meta-generated">—</span> ·
-        <code id="meta-commit">—</code>
-      </p>
+      <p>Snapshot <span id="meta-generated">—</span>, scored at commit <code id="meta-commit">—</code></p>
+      <p><a href="https://github.com/arygupt/ADPBench" target="_blank" rel="noopener">Harness, problems and frozen records on GitHub</a></p>
     </footer>
-    <script type="module" src="assets/app.js?v=polish"></script>
+    <script type="module" src="assets/app.js?v=plane"></script>
   </body>
 </html>

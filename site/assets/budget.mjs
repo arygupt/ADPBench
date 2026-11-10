@@ -20,7 +20,7 @@ export function budgetSummary(meta) {
     const low = Math.min(...values);
     const high = Math.max(...values);
     const range = high === low ? format(low) : `${format(low)}–${format(high)}`;
-    return `Provider-maximum output budgets · ${range} tokens/request, depending on model`;
+    return `Provider-maximum output budgets, ${range} tokens/request, depending on model`;
   }
   const limit = outputLimit(meta);
   return limit ? `${format(limit)} output-token cap/request` : "Output limit unavailable";

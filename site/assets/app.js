@@ -26,6 +26,14 @@ const MODEL_NAMES = {
   "glm-5.3-flash": "GLM-5.3-Flash",
   "kimi-k2.6": "Kimi K2.6",
   "minimax-m2.7": "MiniMax M2.7",
+  "qwen3.8-max": "Qwen3.8 Max",
+  "grok-4.7": "Grok 4.7",
+  "kimi-k3": "Kimi K3",
+  "gpt-6-luna": "GPT-6 Luna",
+  "deepseek-v4-pro": "DeepSeek V4 Pro",
+  "glm-5.3": "GLM-5.3",
+  "mimo-v2.6-pro": "MiMo V2.6 Pro",
+  "minimax-m3": "MiniMax M3",
 };
 
 // Provider logos, matched in order against the model id (the label without
@@ -55,10 +63,32 @@ const LOGOS = [
   [/^nova-|amazon/i, "nova"],
 ];
 
+/** One colour per model maker, keyed by logo name. */
+const MAKERS = {
+  deepseek: ["DeepSeek", "#6f8dfa"],
+  qwen: ["Qwen", "#a98bf5"],
+  kimi: ["Kimi", "#4ec9b4"],
+  minimax: ["MiniMax", "#f0668a"],
+  zai: ["GLM", "#e3bd4f"],
+  xiaomi: ["MiMo", "#f97316"],
+  claude: ["Claude", "#e0785a"],
+  openai: ["GPT", "#7ccf8a"],
+  gemini: ["Gemini", "#5fb2f2"],
+  grok: ["Grok", "#d6d3d1"],
+};
+const OTHER_MAKER = ["Other", "#a8a29e"];
+
+function maker(model) {
+  const id = modelId(model.label);
+  const match = LOGOS.find(([pattern]) => pattern.test(id));
+  return (match && MAKERS[match[1]]) || OTHER_MAKER;
+}
+
+
 const SCORE_LABELS = {
   beat_rate: "Correct & better than baseline",
   correctness_rate: "Passed all correctness checks",
-  geomean: "Geometric mean ADP ratio · correct runs only",
+  geomean: "Geometric mean ADP ratio, correct runs only",
 };
 const SCORE_HEADINGS = {
   beat_rate: "Beat baseline",
@@ -166,8 +196,8 @@ function requestedReasoning(settings) {
   } else if (thinking.type === "enabled" || settings.reasoning?.enabled === true) {
     parts.push(thinking.budget_tokens ? `on, ${formatInteger(thinking.budget_tokens)}-token budget` : "on");
   }
-  if (settings.reasoning_effort) parts.push(`effort ${settings.reasoning_effort}`);
-  return parts.join(" + ") || "provider default";
+  if (settings.reasoning_effort) parts.push(`${settings.reasoning_effort} effort`);
+  return parts.join(", ") || "provider default";
 }
 
 /** The share of a model's generated characters that were reasoning. */
@@ -210,32 +240,44 @@ function updateScrollHints() {
   }
 }
 
+const SCORE_NOTES = {
+  beat_rate:
+    "Share of slots that are correct and beat the baseline. Every scheduled slot counts, scored or not. Ties go to correctness, then ADP gain.",
+  correctness_rate: "Share of slots that pass every correctness check. Every scheduled slot counts, scored or not.",
+  geomean: "Geometric mean of baseline ADP ÷ design ADP over correct runs only. Higher is better.",
+};
+
 function renderRanking(models) {
   const best = Math.max(0, ...models.map((model) => model[scoreMetric]));
   const isRate = scoreMetric !== "geomean";
 
-  fill("#rank-metric-label", SCORE_HEADINGS[scoreMetric]);
-  fill("#interval-label", isRate ? "" : "/ correct runs only");
-  $("#chart-axis").innerHTML = [0, 0.25, 0.5, 0.75, 1]
-    .map((tick) => `<span>${isRate ? formatPercent(tick) : `${(tick * best).toFixed(1)}×`}</span>`)
+  fill("#score-note", SCORE_NOTES[scoreMetric]);
+  $("#slot-key").hidden = !isRate;
+  $("#leaderboard-rows").innerHTML = models.map((model, index) => rankingRow(model, index, best, isRate)).join("");
+
+  const makers = new Map(models.map((model) => maker(model)));
+  $("#vendor-key").innerHTML = [...makers]
+    .map(([name, color]) => `<li><i class="maker" style="background:${color}"></i>${escapeHtml(name)}</li>`)
     .join("");
-  fill(
-    "#score-note",
-    isRate
-      ? "Rates use all scheduled slots. Unscored outcomes are not incorrect RTL; inspect each model."
-      : "Geometric mean · correct runs only · higher is better.",
-  );
-  $("#leaderboard-rows").innerHTML = models.map((model) => rankingRow(model, best, isRate)).join("");
 }
 
-function rankingRow(model, best, isRate) {
-  const value = model[scoreMetric];
-  const reasoning = reasoningSummary(model);
-  const text = isRate ? formatPercent(value) : formatRatio(value);
+/** One mark per slot, in problem order, so a rate shows which slots it is made of. */
+function slotMarks(model) {
+  const order = new Map(data.problems.map((problem, index) => [problem.name, index]));
+  return [...model.runs]
+    .sort((a, b) => (order.get(a.problem) ?? 99) - (order.get(b.problem) ?? 99) || a.attempt - b.attempt)
+    .map((run) => {
+      const state = runState(run);
+      // In the correctness view a correct slot is a full mark whether or not it beat the baseline.
+      const cls = scoreMetric === "correctness_rate" && run.correct ? "beat" : state.cls;
+      return `<i class="slot ${cls}"></i>`;
+    })
+    .join("");
+}
 
-  let width = 0;
-  if (isRate) width = value * 100;
-  else if (best > 0) width = (Math.max(0, value) / best) * 100;
+function rankingRow(model, index, best, isRate) {
+  const value = model[scoreMetric];
+  const text = isRate ? formatPercent(value) : formatRatio(value);
 
   let tooltip;
   if (isRate) {
@@ -245,19 +287,26 @@ function rankingRow(model, best, isRate) {
     tooltip = `${text} geometric mean across ${model.correct} correct attempts; ${model.attempts} total attempts.`;
   }
 
-  const barClass = value === best && value > 0 ? "best" : "";
-  const asked = reasoning.asked ? `<span>requested ${escapeHtml(reasoning.asked)}</span>` : "";
+  let chart;
+  if (isRate) {
+    chart = `<span class="slots" aria-hidden="true">${slotMarks(model)}</span>`;
+  } else {
+    const width = best > 0 ? (Math.max(0, value) / best) * 100 : 0;
+    chart = `<span class="comparison-track" aria-hidden="true"><span class="comparison-fill" style="width:${width}%"></span></span>`;
+  }
+
+  let detail = `${model.correct}/${model.attempts} correct`;
+  if (isRate) detail = model.geomean > 0 ? `${formatRatio(model.geomean)} gain` : "";
+  const rank = index + 1;
   return (
-    `<tr>` +
-    `<th scope="row">${modelButton(model)}</th>` +
-    `<td><button class="comparison-bar ${barClass}" data-model="${escapeHtml(model.label)}" title="${escapeHtml(tooltip)}" aria-label="${escapeHtml(displayName(model))}: ${escapeHtml(tooltip)}">` +
-    `<span class="comparison-track" aria-hidden="true"><span class="comparison-fill" style="width:${width}%"></span></span>` +
-    `</button></td>` +
-    `<td class="primary-stat"><strong>${text}</strong></td>` +
-    `<td class="numeric-stat">${model.correct}/${model.attempts}</td>` +
-    `<td class="numeric-stat">${formatRatio(model.geomean)}</td>` +
-    `<td class="numeric-stat reasoning-stat" title="${escapeHtml(reasoning.detail)}"><strong>${reasoning.text}</strong>${asked}</td>` +
-    `</tr>`
+    `<li class="board-row" data-row-model="${escapeHtml(model.label)}" style="--vendor:${maker(model)[1]}">` +
+    `<span class="rank-badge${rank <= 3 ? ` top r${rank}` : ""}">${rank}</span>` +
+    `<button class="board-open" data-model="${escapeHtml(model.label)}" title="${escapeHtml(tooltip)}" aria-label="${escapeHtml(displayName(model))}: ${escapeHtml(tooltip)}">` +
+    `<span class="board-line"><span class="board-name">${escapeHtml(displayName(model))}</span>` +
+    `<span class="board-detail">${detail}</span>` +
+    `<span class="primary-stat"><strong>${text}</strong></span></span>` +
+    chart +
+    `</button></li>`
   );
 }
 
@@ -274,13 +323,13 @@ function renderOperatorMatrix(models) {
     `<tbody>${rows}</tbody>` +
     `</table>`;
 
-  let note = "ADP ratio = baseline / design · higher is better. Shading is relative to the best correct result.";
+  let note = "Baseline ADP ÷ design ADP for each slot. Higher is better.";
   if (operatorMetric !== "ratio") {
-    note = `${operatorMetric === "cells" ? "Cell count" : "Cycle count"} · lower is better. Shading is relative to the best correct result.`;
+    note = `${operatorMetric === "cells" ? "Gate cells after synthesis" : "Clock cycles to finish the test transactions"} for each slot. Lower is better.`;
   }
-  const unrun = unrunProblems().map((problem) => problem.title);
-  if (unrun.length) note += ` Not in this run: ${unrun.join(", ")}.`;
   fill("#matrix-note", note);
+  const unrun = unrunProblems().map((problem) => problem.title);
+  fill("#unrun-note", unrun.length ? `Not part of this round: ${unrun.join(", ")}.` : "");
 }
 
 /** Library problems this dataset did not include. */
@@ -331,14 +380,211 @@ function resultBar(model, problem, run, runCount, best) {
   else text = run.correct ? "—" : state.value;
 
   const score = valid ? text + " " + operatorMetric : "No valid score";
-  const tooltip = `${displayName(model)} · ${problem.title} · attempt ${run.attempt}: ${state.label}. ${score}`;
-  const attempt = runCount > 1 ? ` <small> · #${run.attempt}</small>` : "";
-  const star = isBest ? '<span class="star" aria-hidden="true">★</span>' : "";
+  const tooltip = `${displayName(model)}, ${problem.title}, attempt ${run.attempt}: ${state.label}. ${score}`;
+  const attempt = runCount > 1 ? ` <small>#${run.attempt}</small>` : "";
   return (
     `<button class="result-bar ${state.cls} ${isBest ? "best" : ""}" style="--strength:${strength.toFixed(3)}" ` +
     `data-model="${escapeHtml(model.label)}" data-problem="${escapeHtml(problem.name)}" data-attempt="${run.attempt}" ` +
-    `title="${escapeHtml(tooltip)}" aria-label="${escapeHtml(tooltip)}">${text}${attempt}${star}</button>`
+    `title="${escapeHtml(tooltip)}" aria-label="${escapeHtml(tooltip)}">${text}${attempt}</button>`
   );
+}
+
+// ---------------------------------------------------------------------------
+// Area–delay plane: every correct design relative to its problem's baseline
+// ---------------------------------------------------------------------------
+
+// One marker outline per problem, drawn around the origin at radius r.
+const MARKERS = [
+  (r) => `M${-r},0a${r},${r} 0 1,0 ${2 * r},0a${r},${r} 0 1,0 ${-2 * r},0`,
+  (r) => `M${-r * 0.88},${-r * 0.88}h${r * 1.76}v${r * 1.76}h${-r * 1.76}z`,
+  (r) => `M0,${-r * 1.25}L${r * 1.25},0L0,${r * 1.25}L${-r * 1.25},0z`,
+  (r) => `M0,${-r * 1.2}L${r * 1.15},${r * 0.85}L${-r * 1.15},${r * 0.85}z`,
+  (r) => `M0,${r * 1.2}L${r * 1.15},${-r * 0.85}L${-r * 1.15},${-r * 0.85}z`,
+  (r) => `M${-r * 1.2},${-r * 0.4}h${r * 0.8}v${-r * 0.8}h${r * 0.8}v${r * 0.8}h${r * 0.8}v${r * 0.8}h${-r * 0.8}v${r * 0.8}h${-r * 0.8}v${-r * 0.8}h${-r * 0.8}z`,
+  (r) => `M${-r * 1.2},${-r * 0.6}h${r * 2.4}v${r * 1.2}h${-r * 2.4}z`,
+  (r) => `M${-r * 0.6},${-r * 1.2}h${r * 1.2}v${r * 2.4}h${-r * 1.2}z`,
+];
+let planePoints = [];
+
+/** "1/32×", "1×", "8×" for a power of two. */
+function powerLabel(exponent) {
+  return exponent < 0 ? `1/${2 ** -exponent}×` : `${2 ** exponent}×`;
+}
+
+function planeData() {
+  const points = [];
+  data.problems.forEach((problem, shape) => {
+    const base = problem.baseline;
+    if (!(base?.cells > 0 && base?.cycles > 0)) return;
+    for (const model of data.models) {
+      for (const run of model.runs) {
+        if (run.problem !== problem.name || !run.correct || !(run.cells > 0 && run.cycles > 0)) continue;
+        points.push({ model, problem, run, shape, x: Math.log2(run.cycles / base.cycles), y: Math.log2(run.cells / base.cells) });
+      }
+    }
+  });
+  return points;
+}
+
+function renderPlane() {
+  const host = $("#plane");
+  if (!host || !data) return;
+  planePoints = planeData();
+  $("#plane-figure").hidden = !planePoints.length;
+  if (!planePoints.length) return;
+
+  const width = Math.max(300, host.clientWidth);
+  const height = Math.round(Math.min(520, Math.max(300, width * 0.68)));
+  const pad = { left: 52, right: 14, top: 12, bottom: 44 };
+  const xs = planePoints.map((point) => point.x);
+  const ys = planePoints.map((point) => point.y);
+  const x0 = Math.floor(Math.min(...xs)) - 0.45;
+  const x1 = Math.max(0, Math.ceil(Math.max(...xs))) + 0.55;
+  const y0 = Math.min(0, Math.floor(Math.min(...ys))) - 0.55;
+  const y1 = Math.max(1, Math.ceil(Math.max(...ys))) + 0.3;
+  const px = (x) => pad.left + ((x - x0) / (x1 - x0)) * (width - pad.left - pad.right);
+  const py = (y) => height - pad.bottom - ((y - y0) / (y1 - y0)) * (height - pad.top - pad.bottom);
+  const right = width - pad.right;
+  const bottom = height - pad.bottom;
+
+  const narrow = width < 520;
+  let grid = "";
+  for (let tick = Math.ceil(x0); tick <= Math.floor(x1); tick++) {
+    grid += `<line class="grid" x1="${px(tick)}" x2="${px(tick)}" y1="${pad.top}" y2="${bottom}"/>`;
+    // On a phone there is only room to label every other power of two.
+    if (narrow && tick % 2) continue;
+    grid += `<text class="tick" x="${px(tick)}" y="${bottom + 17}" text-anchor="middle">${powerLabel(tick)}</text>`;
+  }
+  for (let tick = Math.ceil(y0); tick <= Math.floor(y1); tick++) {
+    grid +=
+      `<line class="grid" x1="${pad.left}" x2="${right}" y1="${py(tick)}" y2="${py(tick)}"/>` +
+      `<text class="tick" x="${pad.left - 9}" y="${py(tick) + 4}" text-anchor="end">${powerLabel(tick)}</text>`;
+  }
+
+  // Equal-ADP diagonals: log2(cells) + log2(cycles) = -log2(gain).
+  let iso = "";
+  for (let gain = 0; gain <= 5; gain++) {
+    const yLeft = -gain - x0;
+    const yRight = -gain - x1;
+    if (yLeft < y0 || yRight > y1) continue;
+    iso += `<line class="iso ${gain ? "" : "unity"}" x1="${px(x0)}" y1="${py(yLeft)}" x2="${px(x1)}" y2="${py(yRight)}"/>`;
+    // Label where the line leaves the plot: the right edge if it gets there, else the bottom.
+    const exitsRight = yRight >= y0;
+    const lx = exitsRight ? right - 6 : px(-gain - y0) - 8;
+    const ly = exitsRight ? py(yRight) - 7 : bottom - 7;
+    if (gain && lx > pad.left + (narrow ? 90 : 230) && ly > pad.top + 12) {
+      iso += `<text class="iso-label" x="${lx}" y="${ly}" text-anchor="end">${2 ** gain}×</text>`;
+    }
+  }
+  const worse = `M${px(x0)},${py(-x0)}L${px(x1)},${py(-x1)}L${right},${pad.top}L${pad.left},${pad.top}z`;
+
+  const marks = planePoints
+    .map(
+      (point, index) =>
+        `<path class="mark" data-i="${index}" style="--vendor:${maker(point.model)[1]}" transform="translate(${px(point.x).toFixed(1)},${py(point.y).toFixed(1)})" d="${MARKERS[point.shape % MARKERS.length](5)}"/>`,
+    )
+    .join("");
+
+  host.innerHTML =
+    `<svg viewBox="0 0 ${width} ${height}" width="${width}" height="${height}" role="img" ` +
+    `aria-label="Scatter plot of ${planePoints.length} correct designs: cycles and cells relative to each problem's baseline, on logarithmic axes. The operator table below lists the same runs.">` +
+    `<defs><clipPath id="plane-clip"><rect x="${pad.left}" y="${pad.top}" width="${right - pad.left}" height="${bottom - pad.top}"/></clipPath></defs>` +
+    `<g clip-path="url(#plane-clip)"><path class="worse" d="${worse}"/></g>` +
+    grid +
+    `<g clip-path="url(#plane-clip)">${iso}</g>` +
+    `<text class="region-label" x="${right - 12}" y="${pad.top + 22}" text-anchor="end">worse than the baseline</text>` +
+    `<text class="iso-label" x="${pad.left + 10}" y="${bottom - 7}">${narrow ? "better by" : "better than the baseline by"}</text>` +
+    `<rect class="frame" x="${pad.left}" y="${pad.top}" width="${right - pad.left}" height="${bottom - pad.top}"/>` +
+    `<text class="axis-title" x="${(pad.left + right) / 2}" y="${height - 6}" text-anchor="middle">cycles, relative to baseline</text>` +
+    `<text class="axis-title" transform="translate(12,${(pad.top + bottom) / 2}) rotate(-90)" text-anchor="middle">cells, relative to baseline</text>` +
+    `<g class="marks">${marks}</g>` +
+    `<circle class="origin" cx="${px(0)}" cy="${py(0)}" r="6.5"/>` +
+    `<text class="origin-label" x="${px(0) - 11}" y="${py(0) + 17}" text-anchor="end">baseline</text>` +
+    `</svg><div class="plane-tip" hidden></div>`;
+
+  const shown = [...new Set(planePoints.map((point) => point.shape))];
+  $("#plane-legend").innerHTML = shown
+    .map((shape) => {
+      const problem = data.problems[shape];
+      return (
+        `<li data-shape="${shape}"><svg viewBox="-8 -8 16 16" width="14" height="14" aria-hidden="true">` +
+        `<path class="mark" d="${MARKERS[shape % MARKERS.length](5)}"/></svg>${escapeHtml(problem.title)}</li>`
+      );
+    })
+    .join("");
+}
+
+/** Emphasize the marks that satisfy `matches`; null clears the emphasis. */
+function focusPlane(matches) {
+  const svg = $("#plane svg");
+  if (!svg) return;
+  svg.classList.toggle("focused", Boolean(matches));
+  for (const mark of $$(".mark", svg)) {
+    mark.classList.toggle("on", Boolean(matches) && matches(planePoints[Number(mark.dataset.i)]));
+  }
+}
+
+function showPlaneTip(mark) {
+  const host = $("#plane");
+  const tip = $(".plane-tip", host);
+  const point = planePoints[Number(mark.dataset.i)];
+  const { run } = point;
+  tip.innerHTML =
+    `<strong>${escapeHtml(displayName(point.model))}</strong>` +
+    `<span>${escapeHtml(point.problem.title)}</span>` +
+    `<span>${formatInteger(run.cells)} cells × ${formatInteger(run.cycles)} cycles</span>` +
+    `<b>${formatRatio(run.ratio)} ${run.ratio > 1 ? "better" : "of the baseline's score"}</b>`;
+  tip.hidden = false;
+  const box = mark.getBoundingClientRect();
+  const frame = host.getBoundingClientRect();
+  const x = box.left - frame.left + box.width / 2;
+  const left = Math.min(Math.max(x - tip.offsetWidth / 2, 0), frame.width - tip.offsetWidth);
+  const above = box.top - frame.top - tip.offsetHeight - 10;
+  tip.style.left = `${left}px`;
+  tip.style.top = `${above < 0 ? box.bottom - frame.top + 10 : above}px`;
+}
+
+function setupPlane() {
+  const host = $("#plane");
+  if (!host) return;
+  host.addEventListener("pointerover", (event) => {
+    const mark = event.target.closest(".mark");
+    if (!mark) return;
+    const point = planePoints[Number(mark.dataset.i)];
+    focusPlane((other) => other.model === point.model);
+    showPlaneTip(mark);
+  });
+  host.addEventListener("pointerout", (event) => {
+    if (!event.target.closest(".mark")) return;
+    focusPlane(null);
+    $(".plane-tip", host).hidden = true;
+  });
+  host.addEventListener("click", (event) => {
+    const mark = event.target.closest(".mark");
+    if (!mark) return;
+    const point = planePoints[Number(mark.dataset.i)];
+    openRuns(point.model.label, point.problem.name, point.run.attempt);
+  });
+
+  // Pointing at an operator in the legend, or a model in the ranking, picks out its designs.
+  const legend = $("#plane-legend");
+  legend.addEventListener("pointerover", (event) => {
+    const item = event.target.closest("[data-shape]");
+    if (item) focusPlane((point) => point.shape === Number(item.dataset.shape));
+  });
+  legend.addEventListener("pointerleave", () => focusPlane(null));
+  const rows = $("#leaderboard-rows");
+  rows.addEventListener("pointerover", (event) => {
+    const row = event.target.closest("[data-row-model]");
+    if (row) focusPlane((point) => point.model.label === row.dataset.rowModel);
+  });
+  rows.addEventListener("pointerleave", () => focusPlane(null));
+
+  let frame = 0;
+  window.addEventListener("resize", () => {
+    cancelAnimationFrame(frame);
+    frame = requestAnimationFrame(renderPlane);
+  });
 }
 
 function renderMeta() {
@@ -349,24 +595,17 @@ function renderMeta() {
   const problemCount = catalogProblems.length
     ? `${data.problems.length} of ${catalogProblems.length} problems`
     : `${data.problems.length} problems`;
+  const published = meta.generated ? `, published ${meta.generated.slice(0, 10)}` : "";
   fill(
     "#page-summary",
-    [
-      meta.pilot,
-      protocolName(meta.protocol),
-      `${data.models.length} models`,
-      problemCount,
-      `${slots} slots`,
-      meta.generated ? `published ${meta.generated.slice(0, 10)}` : "",
-    ]
-      .filter(Boolean)
-      .join(" · "),
+    `Round ${meta.pilot}: ${data.models.length} models, ${problemCount}, ${slots} slots. ` +
+      `${protocolName(meta.protocol)}${published}.`,
   );
   for (const link of $$("a[data-results-download]")) link.href = datasets[datasetKey];
   fill(
     "#pilot-note",
-    `${protocolName(meta.protocol)} · shared read/write/check/submit operations · up to ${meta.max_turns} model turns per slot · ` +
-      `${budgetSummary(meta)} · development checks only during generation, then frozen held-out scoring. ` +
+    `${protocolName(meta.protocol)}, shared read/write/check/submit operations, up to ${meta.max_turns} model turns per slot, ` +
+      `${budgetSummary(meta)}, development checks only during generation, then frozen held-out scoring. ` +
       "Incorrect RTL remains a failed measurement; provider, submission and interrupted outcomes are shown separately. " +
       "Rates use all scheduled slots, not only completed scores. " +
       "GitHub job success means evidence was recorded, not that the model passed.",
@@ -396,14 +635,14 @@ function openRuns(label, problem, attempt) {
   if (model.outcomes) {
     const counts = Object.entries(model.outcomes)
       .map(([kind, count]) => `${escapeHtml(kind.replaceAll("_", " "))}: ${formatInteger(count)}`)
-      .join(" · ");
-    outcomes = `<p class="rc-meta">${formatInteger(model.scored)} scored · ${formatInteger(model.unscored)} unscored. ${counts}</p>`;
+      .join(", ");
+    outcomes = `<p class="rc-meta">${formatInteger(model.scored)} scored, ${formatInteger(model.unscored)} unscored: ${counts}</p>`;
   }
   const reasoning = `<p class="rc-meta">${escapeHtml(model.label)}<br>Reasoning: ${escapeHtml(reasoningSummary(model).detail)}</p>`;
 
   dialog.innerHTML =
     `<div class="dialog-head">` +
-    `<div><p class="eyebrow">FROZEN RUN RECORDS · ${escapeHtml(data.meta.pilot)}</p><h2 id="dialog-title">${escapeHtml(displayName(model))}</h2></div>` +
+    `<div><p class="dialog-kicker">Frozen run records, ${escapeHtml(data.meta.pilot)}</p><h2 id="dialog-title">${escapeHtml(displayName(model))}</h2></div>` +
     `<button class="dialog-close" aria-label="Close run details" autofocus>×</button>` +
     `</div>` +
     `<div class="dialog-body">` +
@@ -426,8 +665,8 @@ function runCard(run) {
   let timing = "scoring details unavailable";
   if (!unknownScore) {
     const plural = checkCount === 1 ? "" : "s";
-    const timedOut = run.timed_out ? " · agent timed out" : "";
-    timing = `${formatInteger(Math.round(run.duration_s))}s · ${formatInteger(checkCount)} agent check${plural}${timedOut}`;
+    const timedOut = run.timed_out ? ", agent timed out" : "";
+    timing = `${formatInteger(Math.round(run.duration_s))}s, ${formatInteger(checkCount)} agent check${plural}${timedOut}`;
   }
   let audit = "unknown";
   if (!unknownScore) audit = run.audit_ok ? "passed" : "not passed";
@@ -439,11 +678,11 @@ function runCard(run) {
   return (
     `<article class="run-card">` +
     `<div class="rc-head"><strong>${escapeHtml(problemTitle(run.problem))}</strong><span class="rc-status ${state.cls}">${state.label}</span></div>` +
-    `<p class="rc-meta">Attempt ${run.attempt} · ${timing}</p>` +
+    `<p class="rc-meta">Attempt ${run.attempt}, ${timing}</p>` +
     `<div class="rc-ratio">${run.correct ? formatRatio(run.ratio) : "—"}</div>` +
     `<p class="metric-caption">${run.correct ? "baseline ADP / design ADP" : "No valid ADP score"}</p>` +
     `<p class="rc-meta">${formatInteger(run.cells)} cells × ${formatInteger(run.cycles)} cycles<br>ADP ${formatInteger(run.adp)}<br>` +
-    `Stage: ${escapeHtml(run.stage || "not reported")} · audit ${audit}</p>` +
+    `Stage: ${escapeHtml(run.stage || "not reported")}, audit ${audit}</p>` +
     details +
     runEvidence(run) +
     `<details><summary>Inspect artifact hashes</summary>` +
@@ -469,8 +708,8 @@ function runEvidence(run) {
 
   return (
     `<section class="run-evidence" aria-label="Original GitHub agent run">` +
-    `<p class="evidence-title">${escapeHtml(protocolName(generation.protocol))} · ${escapeHtml(run.outcome)}</p>` +
-    `<p class="rc-meta">${formatInteger(generation.turns)} / ${formatInteger(generation.max_turns)} model turns · ` +
+    `<p class="evidence-title">${escapeHtml(protocolName(generation.protocol))}, ${escapeHtml(run.outcome)}</p>` +
+    `<p class="rc-meta">${formatInteger(generation.turns)} / ${formatInteger(generation.max_turns)} model turns, ` +
     `${formatInteger(generation.dev_checks)} development checks. ${submission} Development feedback is not a benchmark pass.</p>` +
     `<div class="evidence-links">` +
     `<a href="${escapeHtml(execution.job)}" target="_blank" rel="noopener">Scoring job &amp; logs ↗</a>` +
@@ -526,10 +765,11 @@ function problemCard(problem, index) {
     `<summary class="problem-toggle">` +
     `<span class="problem-number">${String(index + 1).padStart(2, "0")}</span>` +
     `<span class="problem-title">${escapeHtml(problem.title)}</span>` +
+    `<span class="problem-baseline">${formatInteger(baseline.cells)} cells × ${formatInteger(baseline.cycles)} cycles</span>` +
     `<span class="problem-chevron" aria-hidden="true">+</span>` +
     `</summary>` +
     `<div class="problem-content">` +
-    `<p class="pc-desc">${problem.transactions} back-to-back transactions · ${problem.out_len} output word${words} per transaction. ` +
+    `<p class="pc-desc">${problem.transactions} back-to-back transactions, ${problem.out_len} output word${words} each. ` +
     `Exact integer arithmetic, with no reset between transactions.</p>` +
     `<div class="chip-row">${params}</div>` +
     `<div class="pc-metrics">` +
@@ -537,7 +777,7 @@ function problemCard(problem, index) {
     `<div><strong>${formatInteger(baseline.cycles)}</strong><span>baseline cycles</span></div>` +
     `<div><strong>${formatRatio(sanity.correct ? sanity.ratio : 0)}</strong><span>sanity ADP improvement</span></div>` +
     `</div>` +
-    `<p class="eyebrow">AREA–DELAY PRODUCT · LOWER IS BETTER</p>` +
+    `<p class="bar-title">Area–delay product, lower is better</p>` +
     adpBars(baseline, sanity) +
     problemContract(problem) +
     `<div class="pc-links">` +
@@ -577,7 +817,7 @@ function problemContract(problem) {
     .join("");
   const directed = (problem.directed || []).map((name) => `<span class="chip">${escapeHtml(name)}</span>`).join("");
   return (
-    `<details><summary>Interface, arithmetic & edge cases</summary>` +
+    `<details><summary>Interface, arithmetic and edge cases</summary>` +
     `<table class="contract-table"><tbody>${streams}${quant}</tbody></table>` +
     `<div class="chip-row">${directed}</div>` +
     `</details>`
@@ -607,6 +847,7 @@ function setupShell() {
 
   bindSegmentedControl("score", (value) => (scoreMetric = value));
   bindSegmentedControl("metric", (value) => (operatorMetric = value));
+  setupPlane();
   window.addEventListener("resize", updateScrollHints);
 }
 
@@ -668,6 +909,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   try {
     await loadData();
     renderResults();
+    renderPlane();
     renderProblems();
     renderMeta();
   } catch (error) {

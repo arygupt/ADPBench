@@ -9,7 +9,8 @@
       content="AI-generated RTL benchmark results. Compare area-delay product, correctness, and individual hardware agent runs."
     />
     <link rel="icon" href="favicon.svg" type="image/svg+xml" />
-    <link rel="stylesheet" href="assets/style.css?v=polish" />
+    <link rel="preload" href="assets/fonts/InterVariable.woff2" as="font" type="font/woff2" crossorigin />
+    <link rel="stylesheet" href="assets/style.css?v=inter" />
   </head>
   <body class="workspace">
     <a class="skip-link" href="#main">Skip to results</a>
@@ -23,43 +24,76 @@
       <div class="header-inner">
         <a class="brand" href="index.html" aria-label="ADPBench home"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 7h10v10H7zM9 2v5m6-5v5M9 17v5m6-5v5M2 9h5m-5 6h5m10-6h5m-5 6h5" fill="none" stroke="currentColor" stroke-width="1.5"/></svg>ADPBench</a>
         <nav aria-label="Primary">
-          <a href="index.html" aria-current="page"><span aria-hidden="true">01</span> Results</a>
-          <a href="problems.html" ><span aria-hidden="true">02</span> Problem library</a>
-          <a href="https://github.com/arygupt/ADPBench" target="_blank" rel="noopener"><span aria-hidden="true">↗</span> Source code</a>
+          <a href="index.html" aria-current="page">Results</a>
+          <a href="problems.html">Problem library</a>
+          <a href="https://github.com/arygupt/ADPBench" target="_blank" rel="noopener">Source code</a>
         </nav>
       </div>
     </header>
     <main id="main" class="wrap">
-      <div class="page-intro">
-        <div>
-          <h1>Results</h1>
-          <p class="page-summary" id="page-summary"></p>
-        </div>
-        <a class="download-link" data-results-download href="data/evaluations.json" download>Download results <span aria-hidden="true">↓</span></a>
-      </div>
-      <section class="benchmark-section" id="models" aria-labelledby="model-view-title">
-        <div class="section-heading">
-          <h2 id="model-view-title">Models</h2>
-          <div class="segmented" role="group" aria-label="Rank models by">
+      <div class="board-layout">
+        <header class="about-head">
+          <h1 id="hero-title">ADPBench</h1>
+          <p class="about-sub">Evaluating whether language-model agents can design smaller, faster hardware than a reference implementation</p>
+          <div class="hero-actions">
+            <a class="button" data-results-download href="data/evaluations.json" download>Download results</a>
+            <a class="button" href="problems.html">Problem library</a>
+          </div>
+        </header>
+        <section class="board" id="models" aria-labelledby="model-view-title">
+          <div class="tabs" role="group" aria-label="Rank models by">
             <button data-score="beat_rate" aria-pressed="true">Beat baseline</button>
             <button data-score="correctness_rate" aria-pressed="false">Correctness</button>
             <button data-score="geomean" aria-pressed="false">ADP gain</button>
           </div>
-        </div>
-        <div class="board-scroll ranking-scroll" tabindex="0" role="region" aria-label="Model ranking table">
-          <table class="ranking-table">
-            <colgroup><col class="model-col"><col class="chart-col"><col class="score-col"><col class="stat-col"><col class="stat-col"><col class="reasoning-col"></colgroup>
-            <thead><tr><th scope="col">Model</th><th scope="col" class="chart-heading">Performance <span id="interval-label"></span></th><th scope="col" id="rank-metric-label">Beat baseline</th><th scope="col">Correct</th><th scope="col">ADP gain</th><th scope="col">Reasoning</th></tr></thead>
-            <tbody id="leaderboard-rows"></tbody>
-            <tfoot><tr><td></td><td><div id="chart-axis" class="chart-axis" aria-hidden="true"></div></td><td colspan="4"></td></tr></tfoot>
-          </table>
-        </div>
-        <p class="scroll-hint">Scroll for all metrics →</p>
-        <div class="board-caption"><span id="score-note">Beat-baseline rate across all recorded attempts.</span></div>
-      </section>
+          <h2 id="model-view-title">Performance comparison</h2>
+          <ol class="board-list" id="leaderboard-rows"></ol>
+          <ul class="key" id="vendor-key" aria-label="Model makers"></ul>
+          <ul class="key" id="slot-key" aria-label="Slot key">
+            <li><i class="slot beat"></i>Beat the baseline</li>
+            <li><i class="slot correct"></i>Correct, not better</li>
+            <li><i class="slot wrong"></i>Incorrect RTL</li>
+            <li><i class="slot fail"></i>Agent stopped</li>
+            <li><i class="slot infra"></i>Not scored</li>
+          </ul>
+          <p class="board-note" id="score-note"></p>
+          <p class="board-note">Select a model to open its frozen run records.</p>
+        </section>
+        <article class="about-body">
+          <h2 class="about-update" id="round-title">Current round</h2>
+          <p id="page-summary"></p>
+          <p>Each model works as an agent and writes Verilog for one arithmetic operator at a time. A design counts when it is correct and its area–delay product is lower than the baseline's.</p>
+          <h2>How a run is scored</h2>
+          <ol class="steps">
+            <li><strong>Generation.</strong> The agent reads the problem, writes Verilog, and may run development checks before it submits.</li>
+            <li><strong>Correctness.</strong> The frozen submission is compared with the reference bit for bit on held-out cases.</li>
+            <li><strong>Synthesis.</strong> The design is synthesized to gates, and the gate cells are counted.</li>
+            <li><strong>Simulation.</strong> The gates are simulated to count the cycles the operator takes.</li>
+            <li><strong>Score.</strong> Area–delay product is cells × cycles, compared with the baseline's.</li>
+          </ol>
+          <figure class="plane-figure" id="plane-figure">
+            <figcaption>
+              <strong>Every correct design, against its baseline</strong>
+              <span>Left is fewer cycles, down is fewer cells. Designs on one dashed line have the same area–delay product. Shape is the operator, colour is the model maker.</span>
+            </figcaption>
+            <div class="plane" id="plane"></div>
+            <ul class="plane-legend" id="plane-legend" aria-label="Operators"></ul>
+          </figure>
+          <h2>Primary metric: beat-baseline rate</h2>
+          <p>Beat baseline is the share of attempts that are correct and have lower cells × cycles than the baseline, out of all scheduled attempts. Correctness is the share of attempts that pass every check.</p>
+          <p>ADP gain is the geometric mean of baseline ADP ÷ design ADP across correct runs only.</p>
+          <h2>Reasoning</h2>
+          <p>Each model's run records report the share of its generated characters that were reasoning rather than answer text or tool-call arguments, measured from its saved responses, alongside the reasoning setting the harness requested. Providers do not always honor that setting.</p>
+          <h2>Protocol</h2>
+          <p id="pilot-note"></p>
+        </article>
+      </div>
       <section class="benchmark-section" id="operators" aria-labelledby="operator-view-title">
         <div class="section-heading">
-          <h2 id="operator-view-title">Operators</h2>
+          <div>
+            <h2 id="operator-view-title">Operators</h2>
+            <p id="matrix-note"></p>
+          </div>
           <div class="segmented" role="group" aria-label="Operator metric">
             <button data-metric="ratio" aria-pressed="true">ADP ratio</button>
             <button data-metric="cells" aria-pressed="false">Cells</button>
@@ -67,32 +101,22 @@
           </div>
         </div>
         <div class="board-scroll" id="heatmap" tabindex="0" role="region" aria-label="Operator results table"></div>
-        <p class="scroll-hint">Scroll for all operators →</p>
-        <div class="board-caption matrix-caption">
-          <span id="matrix-note"></span>
-          <ul class="matrix-legend" aria-label="Cell legend">
-            <li><i class="correct"></i>Correct · shaded toward the best</li>
-            <li><i class="wrong"></i>Incorrect RTL</li>
-            <li><i class="fail"></i>Agent stopped</li>
-            <li><i class="infra"></i>Not scored</li>
-          </ul>
-        </div>
+        <p class="scroll-hint">Scroll sideways for every operator</p>
+        <ul class="key" aria-label="Cell key">
+          <li><i class="swatch correct"></i>Correct, shaded toward the best</li>
+          <li><i class="swatch best"></i>Best on that operator</li>
+          <li><i class="swatch wrong"></i>Incorrect RTL</li>
+          <li><i class="swatch fail"></i>Agent stopped</li>
+          <li><i class="swatch infra"></i>Not scored</li>
+        </ul>
+        <p class="unrun-note" id="unrun-note"></p>
       </section>
-      <details class="evaluation-notes">
-        <summary>Metric definitions &amp; evaluation notes</summary>
-        <p>Beat baseline: correct attempts with lower cells × cycles than the baseline, divided by all attempts. Correctness: correct attempts divided by all attempts.</p>
-        <p>ADP = cells × cycles. ADP gain is the geometric mean of baseline ADP / design ADP across correct runs only. Operator bars are relative to the best correct result.</p>
-        <p>Reasoning: the share of a model's generated characters that were reasoning rather than answer text or tool-call arguments, measured from its saved responses. "Asked" is the reasoning setting the harness requested; providers do not always honor it.</p>
-        <p id="pilot-note"></p>
-      </details>
       <noscript><p>Enable JavaScript to view the results.</p></noscript>
     </main>
     <footer class="site-footer">
-      <p>
-        snapshot <span id="meta-generated">—</span> ·
-        <code id="meta-commit">—</code>
-      </p>
+      <p>Snapshot <span id="meta-generated">—</span>, scored at commit <code id="meta-commit">—</code></p>
+      <p><a href="https://github.com/arygupt/ADPBench" target="_blank" rel="noopener">Harness, problems and frozen records on GitHub</a></p>
     </footer>
-    <script type="module" src="assets/app.js?v=polish"></script>
+    <script type="module" src="assets/app.js?v=board"></script>
   </body>
 </html>
